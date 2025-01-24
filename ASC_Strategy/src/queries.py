@@ -1,5 +1,4 @@
 import sqlite3
-
 from classes import Checkpoint, Route
 
 

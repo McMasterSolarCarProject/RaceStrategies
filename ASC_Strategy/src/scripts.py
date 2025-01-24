@@ -165,7 +165,7 @@ def generate_data(path_to_kml: str, current_time: datetime.datetime, cursor): # 
 
         print(f"[{placemark.name}] Inserted into database!")
 
-# 2
+# 2 also make the kml file stuff work dynamically, ie work when run from base directory
 def init_route_table(connection, cursor):
     create = """
     create table route_data (
