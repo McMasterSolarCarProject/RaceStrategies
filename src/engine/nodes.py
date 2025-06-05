@@ -1,11 +1,9 @@
 from __future__ import annotations
-from .ts import *  # Displacement
-from src.utils.constants import *
+from .kinematics import *  # Displacement
+from ..utils.constants import *
 
 
-# Used for Optimizer
-
-class CarNode:
+class StateNode:
     def __init__(self, power: float = 0, braking_force: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0)):
         self.power = power
         self.braking_force = braking_force
@@ -31,9 +29,8 @@ class CarNode:
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.braking_force
 
 
-class TimeNode(CarNode):
-    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0), acc: float = 0,
-                 power: float = 0, braking_force: float = 0):
+class TimeNode(StateNode):
+    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0), acc: float = 0, power: float = 0, braking_force: float = 0):
         super().__init__(power, braking_force)
         self.time = time
         self.dist = dist
@@ -54,10 +51,9 @@ class TimeNode(CarNode):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.velocity.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
 
 
-class VelocityNode(CarNode):
-    def __init__(self, time: float = 0, current: float = 0, power: float = 0, acc: float = 0,
-                 velocity: Velocity = Velocity(Vec(0, 0), 0)):
-        super().__init__(time, power, acc, velocity)
+class VelocityNode(StateNode):
+    def __init__(self, time: float = 0, current: float = 0, power: float = 0, acc: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0)):
+        super().__init__(power, 0, velocity)
 
     def power_calc(self):
         pass

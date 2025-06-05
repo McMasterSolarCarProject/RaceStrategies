@@ -1,4 +1,4 @@
-from .wys import *
+from .nodes import *
 
 P_STALL = 100
 P_CONST = 2500
@@ -6,6 +6,7 @@ BRAKE = 100
 
 
 class SSInterval:
+    """Represents a chain of road segments between two stop signs"""
     def __init__(self, segments: list[Segment]):
         self.segments = segments
         self.segments[0].tdist = self.segments[0].dist
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     a = SSInterval([s1, s2])
     a.simulate_interval()
     print(len(a.time_nodes))
-    from src.utils.graph import plot_multiple_datasets
+    from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
     plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "kmph", 'd_v')
     plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "kmph", 't_v')
