@@ -13,7 +13,9 @@ def parse_kml_file(filename): # Make this code better and Document it
             coords = []
             # coordinates tag
             p_coords = child.find("{http://www.opengis.net/kml/2.2}LineString").find("{http://www.opengis.net/kml/2.2}coordinates")
-            for line in p_coords.text.split("\n"):
+            for i, line in enumerate(p_coords.text.split("\n")):
+                #rigged
+                if i == 50: break
                 line = line.strip()
                 if len(line) == 0:
                     continue

@@ -4,6 +4,7 @@ import csv
 import os
 from .parse_route import parse_ASC2024, parse_FSGP_2025, calc_distance, calc_azimuth
 import time
+from .traffic import overpass_batch_request, generate_boundary, priority_stop
 
 
 def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql") -> None:
@@ -19,7 +20,7 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
     with sqlite3.connect(db_path) as connection:
         cursor = connection.cursor()
         create_route_table(cursor, schema_path)
-        placemarks = parse_ASC2024()
+        placemarks = [parse_ASC2024()[0]] #rigged
         populate_table(placemarks, cursor)
         connection.commit()
         print("Route data initialized.")
@@ -53,9 +54,18 @@ def populate_table(placemarks, cursor):  # Make this better and Document
             while speed_limits[limit_index][0] <= dist:
                 limit_index += 1
 
-            data.append([placemark.name, coord_index, c.lat, c.lon, c.elevation * 0.3048, dist,
-                         speed_limits[limit_index - 1][1], None, None, None, 100, 100])
+            # traffic
+            bbox = generate_boundary(c.lat, c.lon)
+            coord_data = overpass_batch_request(bbox)
+            stop = None
+            if coord_data:
+                stop = priority_stop(coord_data)[0]
+                print(coord_index,stop)
 
+            data.append([placemark.name, coord_index, c.lat, c.lon, c.elevation * 0.3048, dist,
+                         speed_limits[limit_index - 1][1], stop, None, None, None, 100, 100])
+        
+        # run batch stuff here 
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
 

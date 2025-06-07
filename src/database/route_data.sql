@@ -6,6 +6,7 @@ CREATE TABLE route_data (
         elevation float not null,
         distance float not null,
         speed_limit float not null,
+        stop_type string,
         ghi int,
         wind_dir float,
         wind_speed float,
