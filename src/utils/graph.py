@@ -50,8 +50,8 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
 
     # Save and show
     save_plot(plt.gcf(), f"{name}.png")
+    plt.show()
     plt.clf()
-    # plt.show()
 
 
 import numpy as np

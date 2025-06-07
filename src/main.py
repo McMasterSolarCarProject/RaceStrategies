@@ -6,8 +6,7 @@ from .main_temp import get_route, route_to_ssinterval
 def main():
     current_tz = timezone("US/Eastern")
     current_time: datetime = datetime.datetime.now(tz=current_tz)
-    route = get_route(1)
-    interval = route_to_ssinterval(route)
+    interval = get_route("A. Independence to Topeka")
     interval.simulate_interval()
 
     # optionally: visualize

@@ -103,7 +103,7 @@ class Speed:
     def rpm(self, radius: float = 0.2):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def rps(self, radius: float = 0.2):  # radians per secound (SI units)
+    def rps(self, radius: float = 0.2):  # radians per second (SI units)
         return self.mps / (2 * math.pi * radius)
 
 
@@ -122,10 +122,10 @@ class Velocity(Vec, Speed):
 
 
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, v_eff: Velocity, p_eff: float = 0, wind: Velocity = ZERO_VEC,
-                 speed_limit=0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0),  wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
         super().__init__(p1, p2)
-        self.v_eff = v_eff
+        self.displacement = Displacement(p1, p2)
+        self.v_eff = Velocity.S(self.displacement.unit_vector(), v_eff)
         self.p_eff = p_eff
         self.wind = wind
         self.speed_limit = speed_limit
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # print(p2)
     d1 = Displacement(p1, p2)
     print(d1)
-    s1 = Segment(p1, p2, Velocity(d1.unit_vector(), 50))
+    s1 = Segment(p1, p2, Speed(kmph=50))
     v1 = Velocity(d1.unit_vector(), 50)
     v2 = Velocity.S(d1.unit_vector(), Speed(kmph=50))
     print(v2)

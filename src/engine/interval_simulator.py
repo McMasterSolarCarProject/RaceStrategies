@@ -77,6 +77,7 @@ class SSInterval:
 
 
 if __name__ == "__main__":
+    from .kinematics import *
     p0 = Coordinate(-94.417077, 39.092185, 98.4698903750406)
     # print(p1)
     p1 = Coordinate(-94.423673, 39.092344, 96.25006372299582)
@@ -86,8 +87,8 @@ if __name__ == "__main__":
     d1 = Displacement(p0, p1)
     d2 = Displacement(p1, p2)
     print(d1)
-    s1 = Segment(p0, p1, Velocity(d1.unit_vector(), kmph=40), 275)
-    s2 = Segment(p1, p2, Velocity(d2.unit_vector(), kmph=40), 275)
+    s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
+    s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
     a = SSInterval([s1, s2])
     a.simulate_interval()
     print(len(a.time_nodes))

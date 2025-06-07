@@ -49,12 +49,12 @@ def populate_table(placemarks, cursor):  # Make this better and Document
         data = []
         limit_index = 0
         for coord_index, c in enumerate(placemark.coords):
-            # 100 must be replaced with getting speed limit from the csv files
             dist = calc_distance(placemark.coords, c)
             while speed_limits[limit_index][0] <= dist:
                 limit_index += 1
-            data.append([segment + 1, coord_index, c.lat, c.lon, dist, speed_limits[limit_index - 1][1],
-                         calc_azimuth(placemark.coords, c), c.elevation * 0.3048, None, None, None])
+
+            data.append([placemark.name, coord_index, c.lat, c.lon, c.elevation * 0.3048, dist,
+                         speed_limits[limit_index - 1][1], None, None, None, 100, 100])
 
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)

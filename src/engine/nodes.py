@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .kinematics import *  # Displacement
+from .kinematics import Vec, Velocity, Segment
 from ..utils.constants import *
 
 
