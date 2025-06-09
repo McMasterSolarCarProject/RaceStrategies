@@ -35,8 +35,8 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
     plt.figure(figsize=(8, 6))  # Set figure size
 
     for i, points in enumerate(datasets):
-        x_coords = [getattr(point, x_field) for point in points]
-        y_coords = [getattr(point.velocity, y_field) for point in points]
+        x_coords = [getattr(point.velocity, x_field) for point in points]
+        y_coords = [getattr(point, y_field) for point in points]
 
         label = labels[i] if labels else f'Dataset {i + 1}'
         plt.plot(x_coords, y_coords, marker='o', linestyle='-', color=colors[i % len(colors)], label=label)
@@ -50,7 +50,7 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
 
     # Save and show
     save_plot(plt.gcf(), f"{name}.png")
-    plt.show()
+    # plt.show()
     plt.clf()
 
 

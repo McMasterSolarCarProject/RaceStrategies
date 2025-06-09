@@ -1,12 +1,26 @@
 from __future__ import annotations
-from .kinematics import Vec, Velocity, Segment
+from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, ZERO_VELOCITY
 from ..utils.constants import *
+from math import sin, cos
 
+
+class Segment(Displacement):  # Meters
+    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0),  wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
+        super().__init__(p1, p2)
+        self.displacement = Displacement(p1, p2)
+        self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
+        self.p_eff = p_eff
+        self.wind = wind
+        self.speed_limit = speed_limit
+        self.tdist = self.dist
+
+    def __str__(self):
+        return f"Total Distance: {self.tdist} | V eff: {self.v_eff} | P eff: {self.p_eff}"
 
 class StateNode:
-    def __init__(self, power: float = 0, braking_force: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0)):
+    def __init__(self, power: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
         self.power = power
-        self.braking_force = braking_force
+        self.Fb = Fb
         self.velocity = velocity
         self.Fm = 0
 
@@ -16,7 +30,7 @@ class StateNode:
         else:
             self.Fm = self.power / velocity.mag
 
-    def Fd_calc(self, velocity: Velocity, wind: Velocity = Velocity(Vec(0, 0), 0)):
+    def Fd_calc(self, velocity: Velocity, wind: Velocity = ZERO_VELOCITY):
         self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
 
     def Frr_calc(self, seg: Segment):
@@ -26,12 +40,15 @@ class StateNode:
         self.Fg = car_mass * accel_g * seg.gradient.sin()
 
     def Ft_calc(self):
-        self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.braking_force
+        self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
+
+    def solar_energy_cal(self):
+        self.solar = 0
 
 
 class TimeNode(StateNode):
-    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0), acc: float = 0, power: float = 0, braking_force: float = 0):
-        super().__init__(power, braking_force)
+    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, power: float = 0, Fb: float = 0):
+        super().__init__(power, Fb)
         self.time = time
         self.dist = dist
         self.velocity = velocity
@@ -44,7 +61,7 @@ class TimeNode(StateNode):
         self.Fg_calc(segment)
         self.Ft_calc()
         self.acc = self.Ft / car_mass
-        self.velocity = Velocity(segment.unit_vector(), initial_TimeNode.velocity.mag + self.acc * time_step)
+        self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
         self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
 
     def __str__(self):
@@ -52,8 +69,33 @@ class TimeNode(StateNode):
 
 
 class VelocityNode(StateNode):
-    def __init__(self, time: float = 0, current: float = 0, power: float = 0, acc: float = 0, velocity: Velocity = Velocity(Vec(0, 0), 0)):
-        super().__init__(power, 0, velocity)
+    #constant vel --> motor force -->  power, torque --> energy per metre (epm)
+    def __init__(self, velocity: Velocity = ZERO_VELOCITY):
+        super().__init__(0, 0, velocity)
 
-    def power_calc(self):
+    def solve_velocity(self,segment):
+        self.Fd_calc(self.velocity)
+        self.Fg_calc(segment)
+        self.Frr_calc(segment)
+        self.solar_energy_cal()
+        self.Fm = self.Fg + self.Frr + self.Fd
+        self.power = self.Fm * self.velocity.mps
+        self.torque = self.Fm * wheel_radius
+        if self.power == 0:
+            raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
+        self.epm = self.power / (self.velocity.mps) #- self.solar / self.velocity.mps
+
+if __name__ == "__main__":
+    def test_segment():
         pass
+
+    def test_StateNode():
+        pass
+
+    def test_TimeNode():
+        pass
+
+    def test_VelocityNode():
+        pass
+
+    print("typeshi")

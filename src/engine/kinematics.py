@@ -1,17 +1,36 @@
+from __future__ import annotations
 import math
 
 
 class Vec:
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.mag = math.sqrt(self.x ** 2 + self.y ** 2)
+        self._x = x
+        self._y = y
+        # self.mag = math.sqrt(self.x ** 2 + self.y ** 2)
 
-    def __sub__(self, other: 'Vec'):
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def mag(self):
+        return math.sqrt(self._x ** 2 + self._y ** 2)
+    
+    def __add__(self, other: Vec):
+        return Vec(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other: Vec):
         return Vec(self.x - other.x, self.y - other.y)
 
     def __mul__(self, scalar: float):
         return Vec(self.x * scalar, self.y * scalar)
+    
+    def __truediv__(self, scalar: float):
+        return Vec(self.x / scalar, self.y / scalar)
 
     def sin(self):
         return self.y / self.mag
@@ -26,7 +45,7 @@ class Vec:
         return Vec(self.x / self.mag, self.y / self.mag)
 
     def __str__(self):
-        return f"Vector: {self.x, self.y}, Magnitude: {self.mag}"
+        return f"Vector: {self.x, self.y} | Magnitude: {self.mag}"
 
 
 UNIT_VEC = Vec(1, 0)
@@ -34,6 +53,7 @@ ZERO_VEC = Vec(0, 0)
 
 
 class Coordinate:  # Should Be Calculated in Meters
+    """Longitude, Latitude & Elevation taken from KML files"""
     def __init__(self, lon: float, lat: float, elevation: float):
         self.lon = lon
         self.lat = lat
@@ -66,10 +86,10 @@ class Displacement(Vec):  # Meters
         self.elevation = p2.elevation - p1.elevation
 
     def __str__(self):
-        return f"Distance: {self.dist} | Vector {self.unit_vector()} | Elevation: {self.elevation}"
+        return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
     def __repr__(self):
-        return f"Distance: {self.dist} | Vector{self.unit_vector()} | Elevation: {self.elevation}"
+        return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
 
 class Speed:
@@ -105,34 +125,20 @@ class Speed:
 
     def rps(self, radius: float = 0.2):  # radians per second (SI units)
         return self.mps / (2 * math.pi * radius)
-
+    
+    def __str__(self):
+        return f"Speed: {self.mps} m/s"
 
 class Velocity(Vec, Speed):
-    def __init__(self, unit_vec: Vec = UNIT_VEC, mps: float = None, kmph: float = None, mph: float = None):
-        Speed.__init__(self, mps, kmph, mph)  # order is important here
+    def __init__(self, unit_vec: Vec = UNIT_VEC, speed: Speed = Speed(0)):
+        Speed.__init__(self, speed.mps)
         vec = unit_vec * self.mps
         Vec.__init__(self, vec.x, vec.y)
 
-    @classmethod
-    def S(cls, unit_vec: Vec = None, speed: Speed = Speed()):
-        return cls(unit_vec, mps=speed.mps)
-
     def __str__(self):
-        return super().__str__()
-
-
-class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0),  wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
-        super().__init__(p1, p2)
-        self.displacement = Displacement(p1, p2)
-        self.v_eff = Velocity.S(self.displacement.unit_vector(), v_eff)
-        self.p_eff = p_eff
-        self.wind = wind
-        self.speed_limit = speed_limit
-        self.tdist = self.dist
-
-    def __str__(self):
-        return f"Total Distance: {self.tdist} | V eff: {self.v_eff} |P eff: {self.p_eff}"
+        return f"{Speed.__str__(self)} | {Vec.__str__(self)}"
+    
+ZERO_VELOCITY = Velocity(ZERO_VEC, Speed(0))
 
 
 if __name__ == "__main__":
@@ -141,8 +147,8 @@ if __name__ == "__main__":
     p2 = Coordinate(-94.417187, 39.092184, 98.48702242713266)
     # print(p2)
     d1 = Displacement(p1, p2)
-    print(d1)
-    s1 = Segment(p1, p2, Speed(kmph=50))
-    v1 = Velocity(d1.unit_vector(), 50)
-    v2 = Velocity.S(d1.unit_vector(), Speed(kmph=50))
-    print(v2)
+    # print(d1)
+    v1 = Velocity(d1.unit_vector(), Speed(kmph=50))
+    v2 = Velocity(d1.unit_vector(), Speed(kmph=80))
+    print(f"p1: {p1}, Position: {p1.position}")
+    print(f"Velocity: {v1}")

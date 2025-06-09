@@ -13,8 +13,8 @@ class SSInterval:
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
 
-        self.startSpeed = Velocity(self.segments[-1].unit_vector(), kmph=10)
-        self.stopSpeed = Velocity(self.segments[-1].unit_vector(), kmph=10)
+        self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=10))
+        self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=10))
         self.total_dist = self.segments[-1].tdist
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
@@ -30,7 +30,7 @@ class SSInterval:
                 current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP)
 
                 if initial_TimeNode.dist >= self.brakingNodes[brakingNode].dist:
-                    current_TimeNode.braking_force = BRAKE
+                    current_TimeNode.Fb = BRAKE
 
                 elif initial_TimeNode.velocity.mag < segment.v_eff.mag:
                     current_TimeNode.power = P_CONST
@@ -60,12 +60,12 @@ class SSInterval:
             node.time += initial_TimeNode.time
 
     def simulate_braking(self, TIME_STEP: float = -1):
-        self.brakingNodes = [TimeNode(dist=self.total_dist, braking_force=BRAKE, velocity=self.stopSpeed)]
+        self.brakingNodes = [TimeNode(dist=self.total_dist, Fb=BRAKE, velocity=self.stopSpeed)]
         initial_TimeNode = self.brakingNodes[-1]
         for segment in self.segments[::-1]:
             while initial_TimeNode.dist >= segment.tdist - segment.dist:
                 if initial_TimeNode.velocity.mag <= segment.v_eff.mag:  # if the velocity is under
-                    current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP, braking_force=BRAKE)
+                    current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP, Fb=BRAKE)
                     current_TimeNode.solve_TimeNode(initial_TimeNode, segment, TIME_STEP)
                     self.brakingNodes.append(current_TimeNode)
                     initial_TimeNode = self.brakingNodes[-1]

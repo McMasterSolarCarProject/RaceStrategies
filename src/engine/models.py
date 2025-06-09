@@ -137,7 +137,7 @@ current_to_rpm.fit(current_data_series_Y.reshape(-1, 1), kmph_data)
 
 import numpy as np
 import matplotlib.pyplot as plt
-from graph import plot_dual_axis_fit
+from ..utils.graph import plot_dual_axis_fit
 
 #solving k:
 ra = 0.4

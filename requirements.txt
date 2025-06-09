@@ -2,3 +2,4 @@ tzlocal
 matplotlib
 pytz
 requests
+scikit-learn
