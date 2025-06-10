@@ -15,7 +15,7 @@ def parse_kml_file(filename): # Make this code better and Document it
             p_coords = child.find("{http://www.opengis.net/kml/2.2}LineString").find("{http://www.opengis.net/kml/2.2}coordinates")
             for i, line in enumerate(p_coords.text.split("\n")):
                 #rigged
-                if i == 50: break
+                # if i == 60: break
                 line = line.strip()
                 if len(line) == 0:
                     continue

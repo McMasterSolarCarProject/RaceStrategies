@@ -4,8 +4,9 @@ import csv
 import os
 from .parse_route import parse_ASC2024, parse_FSGP_2025, calc_distance, calc_azimuth
 import time
-from .traffic import overpass_batch_request, generate_boundary, priority_stop
+from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 
+BATCH_SIZE = 50
 
 def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql") -> None:
     """
@@ -47,6 +48,18 @@ def populate_table(placemarks, cursor):  # Make this better and Document
             reader = csv.reader(file)
             speed_limits = [(float(row[1]), float(row[2])) for row in reader]
 
+        traffic_data = []
+        coord_points = [(c.lat, c.lon) for c in placemark.coords]
+        batch_bboxes = [generate_boundary(*point) for point in coord_points]
+        for i in range(0, len(batch_bboxes), BATCH_SIZE):
+            batch = batch_bboxes[i:i+BATCH_SIZE]
+            try:
+                traffic_data.extend(overpass_batch_request(batch))
+            except Exception as e:
+                print(f"Error fetching batch: {e}")
+                traffic_data.extend([None] for _ in batch)
+        grouped = regroup(traffic_data, coord_points)
+
         data = []
         limit_index = 0
         for coord_index, c in enumerate(placemark.coords):
@@ -54,13 +67,12 @@ def populate_table(placemarks, cursor):  # Make this better and Document
             while speed_limits[limit_index][0] <= dist:
                 limit_index += 1
 
-            # traffic
-            bbox = generate_boundary(c.lat, c.lon)
-            coord_data = overpass_batch_request(bbox)
+            current = (c.lat, c.lon)
             stop = None
-            if coord_data:
-                stop = priority_stop(coord_data)[0]
-                print(coord_index,stop)
+            if (current in grouped and grouped[current]):
+                stop = priority_stops({current: grouped[current]})[current]
+                stop = stop.get('tags', {}).get('highway')
+
 
             data.append([placemark.name, coord_index, c.lat, c.lon, c.elevation * 0.3048, dist,
                          speed_limits[limit_index - 1][1], stop, None, None, None, 100, 100])

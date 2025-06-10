@@ -19,11 +19,12 @@ def sim_velocity_an_shi(segment):
 if __name__ == "__main__":
     from .kinematics import Coordinate, Displacement
     from .nodes import Segment
-    p0 = Coordinate(-94.417077, 39.092185, 0)
-    # print(p0)
-    p1 = Coordinate(-94.423673, 39.092344, 0)
+    p0 = Coordinate(-94.417077, 39.092185, 10)
     # print(p1)
+    p1 = Coordinate(-94.423673, 39.092344, 0)
+    # print(p3)
     d1 = Displacement(p0, p1)
+    # d2 = Displacement(p1, p2)
     print(d1)
     s1 = Segment(p0, p1, v_eff= Speed(kmph=40))
     nodes = sim_velocity_an_shi(s1)
