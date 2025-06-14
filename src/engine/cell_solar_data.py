@@ -17,13 +17,13 @@ class CellSolarData:
         assert isinstance(tilt, (int, float)), "tilt must be a number"
         if time:
             assert isinstance(time, datetime.datetime), "time must be a datetime object"
-            assert hasattr(time, "tzinfo"), "time must have timezone information"
+            assert time.tzinfo is not None, "time must have timezone information"
         else:
             time = datetime.datetime.now(datetime.timezone.utc)
 
         self._EFF = 0.24
         self._coord = coord
-        self._tilt = abs(tilt)
+        self._tilt = tilt
         if time:
             self._time = time
         else:
@@ -35,14 +35,16 @@ class CellSolarData:
         """
         Calculates the power output of the solar cell based on the current conditions.
         """
+        self._lat = self._coord.lat
+        self._lon = self._coord.lon
+        self._elevation = self._coord.elevation / 1000  # km
 
-        self._lat = self._coord.get_lat()
-        self._lon = self._coord.get_lon()
-        self._elevation = self._coord.get_elevation() / 1000  # Convert to km
-        self._heading_azimuth_angle = (self._coord.get_azimuth() + (180 if self._tilt < 0 else 0)) % 360
-        self._incident_diffuse = self._coord.get_ghi()  # W/m^2
+        azimuth_angle = self._coord.azimuth
+        assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
+        self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
+        self._incident_diffuse = self._coord.ghi  # W/m^2
 
-        self._location = LocationInfo(f"{self._lat},{self._lon}", "United States", self._time.tzinfo, self._lat, self._lon)
+        self._location = LocationInfo(f"Location at ({self._lat}, {self._lon})", "United States", self._time.tzinfo, self._lat, self._lon)
         self._sun_elevation_angle = max(0, elevation(self._location.observer, self._time))
         self._sun_azimuth_angle = azimuth(self._location.observer, self._time)
 
@@ -52,6 +54,7 @@ class CellSolarData:
         )
 
         if isinstance(self._incident_diffuse, complex):
+            print("Complex incident diffuse value detected.")
             print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
@@ -72,27 +75,31 @@ class CellSolarData:
             self._time = datetime.datetime.now(datetime.timezone.utc)
 
         self._calculate_cell_power_out()
-        return self.get_cell_power_out()
+        return self.cell_power_out
 
-    def get_coord(self) -> Checkpoint:
+    @property
+    def coord(self) -> Checkpoint:
         """
         Returns the coord instance variable.
         """
         return self._coord
 
-    def get_time(self) -> datetime.datetime:
+    @property
+    def time(self) -> datetime.datetime:
         """
         Returns the time instance variable.
         """
         return self._time
 
-    def get_location(self) -> float:
+    @property
+    def location(self) -> LocationInfo:
         """
-        Returns the location information of the vehicle.
+        Returns the LocationInfo object representing the solar cell's location.
         """
         return self._location
 
-    def get_cell_power_out(self) -> float:
+    @property
+    def cell_power_out(self) -> float:
         """
         Returns the power output of the solar cell in watts.
         """

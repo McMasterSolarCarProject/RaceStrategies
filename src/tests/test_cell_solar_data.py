@@ -51,9 +51,9 @@ def create_cell_solar_data(create_checkpoint):
 
 def test_location(create_cell_solar_data):
     cell = create_cell_solar_data()
-    loc = cell.get_location()
+    loc = cell.location
     assert isinstance(loc, LocationInfo)
-    assert loc.name == "34.0522,-118.2437"
+    assert loc.name == "Location at (34.0522, -118.2437)"
     assert loc.latitude == 34.0522
     assert loc.longitude == -118.2437
     assert loc.region == "United States"
@@ -78,21 +78,21 @@ def test_tilt_differences(create_cell_solar_data, tilt1, tilt2):
     cell1 = create_cell_solar_data(lat=0, lon=0, time=solar_noon, tzinfo=datetime.timezone.utc, tilt=tilt1)
     cell2 = create_cell_solar_data(lat=0, lon=0, time=solar_noon, tzinfo=datetime.timezone.utc, tilt=tilt2)
 
-    assert cell1.get_cell_power_out() > cell2.get_cell_power_out()
+    assert cell1.cell_power_out > cell2.cell_power_out
 
 
 def test_time(create_cell_solar_data):
     cell = create_cell_solar_data()
-    assert cell.get_time().tzinfo.utcoffset(None).total_seconds() == -18000
-    print(f"Time: {cell._time.isoformat()}")
+    assert cell.time.tzinfo.utcoffset(None).total_seconds() == -18000
+    print(f"Time: {cell.time.isoformat()}")
 
 
 def test_time_now(create_cell_solar_data):
     cell = create_cell_solar_data(time=None)
-    delta = (datetime.datetime.now(tz=datetime.timezone.utc) - cell.get_time()).total_seconds()
+    delta = (datetime.datetime.now(tz=datetime.timezone.utc) - cell.time).total_seconds()
     assert abs(delta) < 0.5, "Time should be within 0.5 seconds from now"
-    assert cell.get_time().tzinfo.utcoffset(None).total_seconds() == 0
-    print(f"Time: {cell._time.isoformat()}")
+    assert cell.time.tzinfo.utcoffset(None).total_seconds() == 0
+    print(f"Time: {cell.time.isoformat()}")
 
 
 @pytest.mark.parametrize("lat,lon", [(-90, -90), (-60, -60), (-30, -30), (0, 0), (30, 30), (60, 60), (90, 90)])
@@ -106,26 +106,26 @@ def test_sun_angles(create_cell_solar_data, lat, lon):
 
 def test_cell_power_out(create_cell_solar_data):
     cell = create_cell_solar_data()
-    power_out = round(cell.get_cell_power_out(), 5)
+    power_out = round(cell.cell_power_out, 5)
     assert power_out == 2.20773, f"Power output expected 2.20773 W, actual: {power_out}"
-    print(f"Cell Power Out: {cell.get_cell_power_out()} W is approximately 2.20773 W")
+    print(f"Cell Power Out: {cell.cell_power_out} W is approximately 2.20773 W")
 
 
 @pytest.mark.parametrize("ghi", [0, -100])
 def test_cell_power_out_zero(create_cell_solar_data, ghi):
     cell = create_cell_solar_data(ghi=ghi)
-    assert cell.get_cell_power_out() == 0
+    assert cell.cell_power_out == 0
 
 
 def test_cell_power_out_changes_with_ghi(create_cell_solar_data):
     cell1 = create_cell_solar_data(ghi=500)
     cell2 = create_cell_solar_data(ghi=1000)
-    assert cell2.get_cell_power_out() > cell1.get_cell_power_out()
+    assert cell2.cell_power_out > cell1.cell_power_out
 
 
 def test_update_power(create_cell_solar_data, create_checkpoint):
     cell = create_cell_solar_data()
-    initial_power = cell.get_cell_power_out()
+    initial_power = cell.cell_power_out
     new_coord = create_checkpoint(lat=35.0, lon=-120.0, ghi=900)
     new_time = datetime.datetime(2023, 10, 1, 13, 0, 0, tzinfo=datetime.timezone.utc)
     updated_power = cell.update_power(new_coord=new_coord, new_time=new_time)
@@ -135,7 +135,7 @@ def test_update_power(create_cell_solar_data, create_checkpoint):
 
 def test_update_power_zero_power(create_cell_solar_data, create_checkpoint):
     cell = create_cell_solar_data()
-    initial_power = cell.get_cell_power_out()
+    initial_power = cell.cell_power_out
     # GHI is set to 0, which should result in no power output
     new_coord = create_checkpoint(ghi=0)
     updated_power = cell.update_power(new_coord=new_coord)
