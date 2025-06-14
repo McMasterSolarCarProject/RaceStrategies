@@ -8,6 +8,9 @@ import datetime
 
 
 class CellSolarData:
+    """
+    This class calculates the power output of a solar cell based on the location, time, and tilt angle.
+    """
     def __init__(self, coord: Checkpoint, time: datetime.datetime, tilt: float):
         assert isinstance(coord, Checkpoint), "coord must be an instance of Checkpoint"
         assert isinstance(time, datetime.datetime), "time must be a datetime object"
@@ -40,9 +43,15 @@ class CellSolarData:
         self._cell_power_out = max(0, self._cell_irradiance * self._EFF * CELL_AREA)  # watts
 
     def get_location(self) -> float:
+        """
+        Returns the location information of the vehicle.
+        """
         return self._location
 
     def get_cell_power_out(self) -> float:
+        """
+        Returns the power output of the solar cell in watts.
+        """
         return self._cell_power_out
 
     def __repr__(self) -> str:

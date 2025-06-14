@@ -1,5 +1,6 @@
 import pytest
-from engine import cell_solar_data as c
+from engine.cell_solar_data import CellSolarData
+from engine.checkpoint import Checkpoint
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
 import math
@@ -9,8 +10,8 @@ import datetime
 @pytest.fixture
 def create_cell_solar_data():
     def _create(lat=34.0522, lon=-118.2437, distance=305, azimuth=180, elevation=45, ghi=800, winddir=270, windspeed=5, speedlimit=65, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))):
-        return c.CellSolarData(
-            c.Checkpoint(lat, lon, distance, azimuth, elevation, ghi, winddir, windspeed, speedlimit),
+        return CellSolarData(
+            Checkpoint(lat, lon, distance, azimuth, elevation, ghi, winddir, windspeed, speedlimit),
             datetime.datetime(2023, 10, 1, 12, 0, 0, tzinfo=tzinfo),
             30,
         )
