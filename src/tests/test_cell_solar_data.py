@@ -8,10 +8,10 @@ import datetime
 
 @pytest.fixture
 def create_cell_solar_data():
-    def _create(lat=34.0522, lon=-118.2437, distance=305, azimuth=180, elevation=45, ghi=800, winddir=270, windspeed=5, speedlimit=65):
+    def _create(lat=34.0522, lon=-118.2437, distance=305, azimuth=180, elevation=45, ghi=800, winddir=270, windspeed=5, speedlimit=65, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))):
         return c.CellSolarData(
             c.Checkpoint(lat, lon, distance, azimuth, elevation, ghi, winddir, windspeed, speedlimit),
-            datetime.datetime(2023, 10, 1, 12, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))),
+            datetime.datetime(2023, 10, 1, 12, 0, 0, tzinfo=tzinfo),
             30,
         )
 
@@ -27,6 +27,7 @@ def test_location(create_cell_solar_data):
     assert loc.longitude == -118.2437
     assert loc.region == "United States"
     assert loc.timezone.utcoffset(None).total_seconds() == -18000
+    print(f"Location: {loc}")
 
 
 @pytest.mark.parametrize("lat,lon", [(-90, -90), (-60, -60), (-30, -30), (0, 0), (30, 30), (60, 60), (90, 90)])
@@ -41,7 +42,7 @@ def test_sun_angles(create_cell_solar_data, lat, lon):
 def test_cell_power_out(create_cell_solar_data):
     cell = create_cell_solar_data()
     power_out = round(cell.get_cell_power_out(), 5)
-    assert power_out == 2.20773, "Power output should be approximately 2.20773 W"
+    assert power_out == 2.20773, f"Power output expected 2.20773 W, actual: {power_out}"
     print(f"Cell Power Out: {cell.get_cell_power_out()} W is approximately 2.20773 W")
 
 

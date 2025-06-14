@@ -24,8 +24,8 @@ class CellSolarData:
         self._time = time  # make this dynamic
 
         self._location = LocationInfo(f"{self._lat},{self._lon}", "United States", self._time.tzinfo, self._lat, self._lon)
-        self._sun_elevation_angle = max(0, elevation(self._location.observer, time))
-        self._sun_azimuth_angle = azimuth(self._location.observer, time)
+        self._sun_elevation_angle = max(0, elevation(self._location.observer, self._time))
+        self._sun_azimuth_angle = azimuth(self._location.observer, self._time)
 
         self._incident_diffuse = coord.get_ghi()  # W/m^2
         self._cell_irradiance = self._incident_diffuse * (
@@ -47,9 +47,9 @@ class CellSolarData:
 
     def __repr__(self) -> str:
         return (
-            f"CellSolarData(coord={self.coord}, lon={self.lon}, elevation={self.elevation}, "
-            f"time={self.time}, tilt={self.tilt}, heading_azimuth_angle={self.heading_azimuth_angle}, "
-            f"sun_elevation_angle={self.sun_elevation_angle}, sun_azimuth_angle={self.sun_azimuth_angle}, "
-            f"incident_diffuse={self.incident_diffuse}, cell_irradiance={self.cell_irradiance}, "
-            f"cell_power_out={self.cell_power_out})"
+            f"CellSolarData(coord={self._coord}, lon={self._lon}, elevation={self._elevation}, "
+            f"time={self._time}, tilt={self._tilt}, heading_azimuth_angle={self._heading_azimuth_angle}, "
+            f"sun_elevation_angle={self._sun_elevation_angle}, sun_azimuth_angle={self._sun_azimuth_angle}, "
+            f"incident_diffuse={self._incident_diffuse}, cell_irradiance={self._cell_irradiance}, "
+            f"cell_power_out={self._cell_power_out})"
         )
