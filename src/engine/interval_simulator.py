@@ -14,8 +14,8 @@ class SSInterval:
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
 
-        self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=10))
-        self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=10))
+        self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
+        self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.total_dist = self.segments[-1].tdist
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
@@ -108,21 +108,24 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
 
 
 if __name__ == "__main__":
-    from .kinematics import *
-    p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
-    # print(p1)
-    p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
-    # print(p2)
-    p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
-    # print(p3)
-    d1 = Displacement(p0, p1)
-    d2 = Displacement(p1, p2)
-    print(d1)
-    s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
-    s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
-    a = SSInterval([s1, s2])
+    # from .kinematics import *
+    # p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
+    # # print(p1)
+    # p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
+    # # print(p2)
+    # p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
+    # # print(p3)
+    # d1 = Displacement(p0, p1)
+    # d2 = Displacement(p1, p2)
+    # print(d1)
+    # s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
+    # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
+    # a = SSInterval([s1, s2])
+    from ..database.parse_route_table import parse_route_table
+    a = parse_route_table("A. Independence to Topeka")
     a.simulate_interval()
     print(len(a.time_nodes))
+
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
     plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
