@@ -19,7 +19,6 @@ class Segment(Displacement):  # Meters
     def __str__(self):
         return f"Total Distance: {self.tdist} | V eff: {self.v_eff} | P eff: {self.p_eff}"
 
-
 class StateNode:
     def __init__(self, power: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
         self.power = power
@@ -65,18 +64,18 @@ class TimeNode(StateNode):
         self.Ft_calc()
         self.acc = self.Ft / car_mass
         self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
-        self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step**2
+        self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
 
     def __str__(self):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.velocity.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
 
 
 class VelocityNode(StateNode):
-    # constant vel --> motor force -->  power, torque --> energy per metre (epm)
+    #constant vel --> motor force -->  power, torque --> energy per metre (epm)
     def __init__(self, velocity: Velocity = ZERO_VELOCITY):
         super().__init__(0, 0, velocity)
 
-    def solve_velocity(self, segment):
+    def solve_velocity(self,segment):
         self.Fd_calc(self.velocity)
         self.Fg_calc(segment)
         self.Frr_calc(segment)
@@ -86,11 +85,9 @@ class VelocityNode(StateNode):
         self.torque = self.Fm * wheel_radius
         if self.power == 0:
             raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
-        self.epm = self.power / (self.velocity.mps)  # - self.solar / self.velocity.mps
-
+        self.epm = self.power / (self.velocity.mps) #- self.solar / self.velocity.mps
 
 if __name__ == "__main__":
-
     def test_segment():
         pass
 
