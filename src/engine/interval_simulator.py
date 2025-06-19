@@ -1,4 +1,5 @@
 from .nodes import *
+import matplotlib.pyplot as plt
 
 P_STALL = 100
 P_CONST = 2500
@@ -26,6 +27,8 @@ class SSInterval:
         initial_TimeNode = self.time_nodes[-1]
         self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
         for segment in self.segments:
+            # calc solar power here
+            
             while initial_TimeNode.dist <= segment.tdist:
                 current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP)
 
@@ -75,14 +78,42 @@ class SSInterval:
                     return
         return
 
+def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
+    import matplotlib.pyplot as plt
+
+    def resolve_attr(obj, attr_path):
+        for attr in attr_path.split('.'):
+            obj = getattr(obj, attr)
+        return obj
+
+    colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']  # Color cycle for different datasets
+    plt.figure(figsize=(8, 6))  # Set figure size
+
+    for i, points in enumerate(datasets):
+        x_coords = [resolve_attr(point, x_field) for point in points]
+        y_coords = [resolve_attr(point, y_field) for point in points]
+
+        label = labels[i] if labels else f'Dataset {i + 1}'
+        plt.plot(x_coords, y_coords, marker='o', linestyle='-', color=colors[i % len(colors)], label=label)
+
+    # Labels and titles
+    plt.xlabel(x_field)
+    plt.ylabel(y_field)
+    plt.title(f'Graph of {x_field} vs {y_field}')
+    plt.legend()
+    plt.grid()
+
+    plt.show()
+    plt.clf()
+
 
 if __name__ == "__main__":
     from .kinematics import *
-    p0 = Coordinate(-94.417077, 39.092185, 98.4698903750406)
+    p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
     # print(p1)
-    p1 = Coordinate(-94.423673, 39.092344, 96.25006372299582)
+    p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
     # print(p2)
-    p2 = Coordinate(-94.42873, 39.091094, 95.14149119999635)
+    p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
     # print(p3)
     d1 = Displacement(p0, p1)
     d2 = Displacement(p1, p2)
@@ -92,8 +123,8 @@ if __name__ == "__main__":
     a = SSInterval([s1, s2])
     a.simulate_interval()
     print(len(a.time_nodes))
-    from ..utils.graph import plot_multiple_datasets
+    # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "kmph", 'd_v')
-    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "kmph", 't_v')
+    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
+    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "velocity.kmph", 't_v')
 

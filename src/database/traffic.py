@@ -3,6 +3,7 @@
 import requests
 import json
 from math import cos, asin, sqrt, pi
+from ..engine.kinematics import Coordinate, Displacement
 
 # --- DEBUG SETUP ---
 DEBUG = False # Toggle this to False to disable debug output
@@ -82,7 +83,7 @@ def overpass_batch_request(points):
         debug_print(f"Response content:\n{response.text}")
     return []
 
-def regroup(nodes, points, threshold = 0.055):
+def regroup(nodes, coords, threshold = 0.055):
     '''
     Groups nodes around original coordinate points.
     Args:
@@ -92,37 +93,39 @@ def regroup(nodes, points, threshold = 0.055):
     Returns:
         clusters: Dict {reference_point: [nodes]}
     '''
-    clusters = {point : [] for point in points}
-
+    clusters = {coord : [] for coord in coords}
+    print(nodes, coords)
     for node in nodes:
         min_distance = float('inf')
         closest_point = None
 
-        for point in points:
+        for coord in coords:
             # convert point to dict for haversine function
-            point_dict = {'lat': point[0], 'lon': point[1]}
-            distance = haversine(point_dict, node)
+            # point_dict = {'lat': coord[0], 'lon': coord[1]}
+            node_coord = Coordinate(node["lat"], node["lon"])
+            distance = Displacement(coord, node_coord).mag
             if (distance < min_distance and distance <= threshold):
                 min_distance = distance
-                closest_point = point
+                closest_point = coord
 
         clusters[closest_point].append(node)
+        print("something")
 
     return clusters
 
-def haversine(point1, point2):
-    '''
-    Calculates the distance between two coordinate points.
-    Args:
-        point1: Dict ['lat': float, 'lon': float]
-        point2: Dict ['lat': float, 'lon': float]
-    Returns:
-        The distance between two points in km
-    '''
-    r = 6371
-    p = pi / 180
-    a = 0.5 - cos((point2['lat']-point1['lat'])*p)/2 + cos(point1['lat']*p) * cos(point2['lat']*p) * (1 - cos((point2['lon'] - point1['lon'])*p))/2
-    return 2 * r * asin(sqrt(a))
+# def haversine(point1, point2):
+#     '''
+#     Calculates the distance between two coordinate points.
+#     Args:
+#         point1: Dict ['lat': float, 'lon': float]
+#         point2: Dict ['lat': float, 'lon': float]
+#     Returns:
+#         The distance between two points in km
+#     '''
+#     r = 6371
+#     p = pi / 180
+#     a = 0.5 - cos((point2['lat']-point1['lat'])*p)/2 + cos(point1['lat']*p) * cos(point2['lat']*p) * (1 - cos((point2['lon'] - point1['lon'])*p))/2
+#     return 2 * r * asin(sqrt(a))
 
 def priority_stops(clusters):
     """

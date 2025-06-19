@@ -13,13 +13,13 @@ from ..engine.kinematics import Coordinate
 #     def __repr__(self):
 #         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
 
-class Placemark:
-    def __init__(self, name: str, coords: list[Coordinate]):
-        self.name = name
-        self.coords = coords
+# class Placemark:
+#     def __init__(self, name: str, coords: list[Coordinate]):
+#         self.name = name
+#         self.coords = coords
 
-    def __str__(self):
-        return f"{self.name}: {self.coords}"
+#     def __str__(self):
+#         return f"{self.name}: {self.coords}"
 
-    def __repr__(self):
-        return f"{self.name}: {self.coords}"
+#     def __repr__(self):
+#         return f"{self.name}: {self.coords}"

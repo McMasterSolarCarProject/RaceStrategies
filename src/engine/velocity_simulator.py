@@ -5,7 +5,7 @@ from ..utils.graph import plot_points, plot_multiple_datasets
 RESOLUTION = 1
 
 def sim_velocity_an_shi(segment):
-    min_speed = Speed(mph= -10)
+    min_speed = Speed(mph= 35)
     max_speed = Speed(mph= 60)
     velocityNodes = []
     speed = min_speed.mps
