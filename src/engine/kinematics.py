@@ -63,26 +63,6 @@ class Coordinate:  # Should Be Calculated in Meters
         self.lat = lat
         self.lon = lon
         self.elevation = elevation
-        # self.position = self.gcs_to_ecef()
-
-    # def gcs_to_ecef(self) -> Vec:
-    #     # gcs = lat lon, ecef = 3D cartesian
-
-    #     # WGS84 constants
-    #     a = 6378137.0  # Equatorial radius (meters)
-    #     e2 = 6.69437999014e-3  # Square of eccentricity
-
-    #     lat = math.radians(self.lat)
-    #     lon = math.radians(self.lon)
-    #     elevation_m = self.elevation
-
-    #     N = a / math.sqrt(1 - e2 * math.sin(lat)**2)
-
-    #     x = (N + elevation_m) * math.cos(lat) * math.cos(lon)
-    #     y = (N + elevation_m) * math.cos(lat) * math.sin(lon)
-    #     z = (N * (1 - e2) + elevation_m) * math.sin(lat)
-
-    #     return Vec(x, y, z)
 
     def __str__(self):
         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"

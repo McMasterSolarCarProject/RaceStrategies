@@ -1,11 +1,11 @@
 from __future__ import annotations
 from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, ZERO_VELOCITY
 from ..utils.constants import *
-from math import sin, cos
 
 
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
+        self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
@@ -16,7 +16,7 @@ class Segment(Displacement):  # Meters
         self.tdist = self.dist
 
     def __str__(self):
-        return f"Total Distance: {self.tdist} | V eff: {self.v_eff} | P eff: {self.p_eff}"
+        return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.p_eff}"
 
 class StateNode:
     def __init__(self, power: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
@@ -26,10 +26,11 @@ class StateNode:
         self.Fm = 0
 
     def Fm_calc(self, velocity: Velocity):
-        if velocity.mag <= 0.2:
-            self.Fm = 50
-        else:
-            self.Fm = self.power / velocity.mag
+        # if velocity.mag <= 0.2:
+        #     self.Fm = 50
+        # else:
+        #     self.Fm = self.power / velocity.mag
+        self.Fm = self.power * wheel_radius
 
     def Fd_calc(self, velocity: Velocity, wind: Velocity = ZERO_VELOCITY):
         self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
