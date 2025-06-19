@@ -2,7 +2,7 @@ from __future__ import annotations
 from .nodes import Segment
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
-from utils.constants import CELL_AREA
+from ..utils.constants import CELL_AREA
 import math
 import datetime
 
@@ -27,28 +27,44 @@ class CarSolarCells:
         self._solar_cells = []
 
         for tilt in tilt_list:
-            cell = SolarCell(self._segment.p1, tilt, self._time)
+            cell = SolarCell(self._segment, tilt, self._time)
             self._solar_cells.append(cell)
 
-        def update_cells(self, new_segment: Segment = None, new_time: datetime.datetime = None):
-            """
-            Updates the solar cells with new segment and time.
-            """
-            for cell in self._solar_cells:
-                cell.update_power(new_segment, new_time)
+    def update_cells(self, new_segment: Segment = None, new_time: datetime.datetime = None):
+        """
+        Updates the solar cells with new segment and time.
+        """
+        if new_segment:
+            assert isinstance(new_segment, Segment), "new_segment must be an instance of Segment"
+            self._segment = new_segment
+        if new_time:
+            assert isinstance(new_time, datetime.datetime), "new_time must be a datetime object"
+            assert hasattr(new_time, "tzinfo"), "new_time must have timezone information"
+            self._time = new_time
+        else:
+            self._time = datetime.datetime.now(datetime.timezone.utc)
 
-        @property
-        def solar_cells(self) -> list[SolarCell]:
-            """
-            Returns the list of solar cells.
-            """
-            return self._solar_cells
+        for cell in self._solar_cells:
+            cell.update_power(new_segment, new_time)
 
-        def total_power_output(self) -> float:
-            """
-            Calculates the total power output of all solar cells.
-            """
-            return sum(cell.cell_power_out for cell in self._solar_cells)
+    @property
+    def solar_cells(self) -> list[SolarCell]:
+        """
+        Returns the list of solar cells.
+        """
+        return self._solar_cells
+
+    def total_power_output(self) -> float:
+        """
+        Calculates the total power output of all solar cells.
+        """
+        return sum(cell.cell_power_out for cell in self._solar_cells)
+
+    def __iter__(self):
+        """
+        Returns an iterator over the solar cells.
+        """
+        return iter(self._solar_cells)
 
 
 class SolarCell:
@@ -59,7 +75,12 @@ class SolarCell:
     def __init__(self, segment: Segment, tilt: float, time: datetime.datetime):
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
         assert isinstance(tilt, (int, float)), "tilt must be a number"
-        assert isinstance(time, datetime.datetime), "time must be a datetime object"
+        if time:
+            assert isinstance(time, datetime.datetime), "time must be a datetime object"
+            if time.tzinfo is None:
+                time = time.replace(tzinfo=datetime.timezone.utc)
+        else:
+            time = datetime.datetime.now(datetime.timezone.utc)
 
         self._EFF = 0.24
         self._segment = segment
@@ -76,8 +97,8 @@ class SolarCell:
         self._lon = self._segment.p1.lon
         self._elevation = self._segment.p1.elevation / 1000  # km
 
-        azimuth_angle = self._segment.azimuth # to be implemented soon
-        
+        azimuth_angle = self._segment.azimuth  # to be implemented soon
+
         assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
         self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
         self._incident_diffuse = self._segment.ghi  # W/m^2

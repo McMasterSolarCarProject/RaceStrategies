@@ -1,8 +1,13 @@
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import pytest
 
-from engine.solar_cell_data import SolarCell, CarSolarCells
-from engine.nodes import Segment
-from engine.kinematics import Coordinate, Speed
+from src.engine.solar_cell_data import SolarCell, CarSolarCells
+from src.engine.nodes import Segment
+from src.engine.kinematics import Coordinate
 from astral import LocationInfo
 from astral.sun import noon
 import math
@@ -11,10 +16,19 @@ import datetime
 
 @pytest.fixture
 def create_segment():
-    def _create(lon=-118.2437, lon2=-119.2437, lat=34.0522, lat2=44.0522, elevation=45, elevation2=50, azimuth=180, ghi=800):
+    def _create(
+        lat=-118.2437,
+        lat2=-119.2437,
+        lon=34.0522,
+        lon2=44.0522,
+        elevation=45,
+        elevation2=50,
+        azimuth=180,
+        ghi=800,
+    ):
         p1 = Coordinate(lon, lat, elevation)
         p2 = Coordinate(lon2, lat2, elevation2)
-        return Segment(p1, p2, azimuth, ghi)
+        return Segment(p1=p1, p2=p2, azimuth=azimuth, ghi=ghi)
 
     return _create
 
@@ -59,19 +73,24 @@ def create_car_solar_cells(create_segment):
         segment = create_segment(lat, lat2, lon, lon2, elevation, elevation2, azimuth, ghi)
         tilt_list = [tilt for _ in range(30)]
         time = time.replace(tzinfo=tzinfo) if time else None
-        return SolarCell(segment, tilt_list, time)
+        print(type(segment))
+        return CarSolarCells(segment, tilt_list, time)
 
     return _create
 
 
 def test_create_solar_cell(create_solar_cell):
     cell = create_solar_cell()
+    print(f"Created SolarCell: {cell}")
     assert isinstance(cell, SolarCell)
 
 
-def test_create_car_solar_cells(create_car_solar_cells):
+def test_create_car_solar_cells(create_car_solar_cells, create_solar_cell):
     car_cells = create_car_solar_cells()
+    print(f"Created CarSolarCells: {car_cells}")
     assert isinstance(car_cells, CarSolarCells)
+    cell = create_solar_cell()
+    assert car_cells.total_power_output() == cell.cell_power_out * 30
 
 
 def test_location(create_solar_cell):
@@ -151,9 +170,9 @@ def test_cell_power_out_changes_with_ghi(create_solar_cell):
 def test_update_power(create_solar_cell, create_segment):
     cell = create_solar_cell()
     initial_power = cell.cell_power_out
-    new_coord = create_segment(lat=35.0, lon=-120.0, ghi=900)
+    new_segment = create_segment(lat=35.0, lon=-120.0, ghi=900)
     new_time = datetime.datetime(2023, 10, 1, 13, 0, 0, tzinfo=datetime.timezone.utc)
-    updated_power = cell.update_power(new_coord=new_coord, new_time=new_time)
+    updated_power = cell.update_power(new_segment=new_segment, new_time=new_time)
     assert updated_power != initial_power
     print(f"Initial Power: {initial_power} W | Updated Power: {updated_power} W")
 
@@ -162,17 +181,43 @@ def test_update_power_zero_power(create_solar_cell, create_segment):
     cell = create_solar_cell()
     initial_power = cell.cell_power_out
     # GHI is set to 0, which should result in no power output
-    new_coord = create_segment(ghi=0)
-    updated_power = cell.update_power(new_coord=new_coord)
+    new_segment = create_segment(ghi=0)
+    updated_power = cell.update_power(new_segment=new_segment)
     assert updated_power != initial_power
     assert updated_power == 0
+
+
+def test_update_cells(create_car_solar_cells, create_segment):
+    car_cells = create_car_solar_cells()
+    initial_power = car_cells.total_power_output()
+    initial_cell_powers = [cell.cell_power_out for cell in car_cells.solar_cells]
+    new_segment = create_segment(lat=35.0, lon=-120.0, ghi=900)
+    new_time = datetime.datetime(2023, 10, 1, 13, 0, 0, tzinfo=datetime.timezone.utc)
+    car_cells.update_cells(new_segment=new_segment, new_time=new_time)
+    updated_power = car_cells.total_power_output()
+    print(f"Initial Power: {initial_power} W | Updated Power: {updated_power} W")
+    assert updated_power != initial_power
+    assert all(updated != initial for updated, initial in zip(car_cells, initial_cell_powers))
+
+
+def test_update_cells_zero_power(create_car_solar_cells, create_segment):
+    car_cells = create_car_solar_cells()
+    initial_power = car_cells.total_power_output()
+    # GHI is set to 0, which should result in no power output
+    new_segment = create_segment(ghi=0)
+    car_cells.update_cells(new_segment=new_segment)
+    updated_power = car_cells.total_power_output()
+    print(f"Initial Power: {initial_power} W | Updated Power: {updated_power}")
+    assert updated_power != initial_power
+    assert updated_power == 0
+    assert all(cell.cell_power_out == 0 for cell in car_cells.solar_cells)
 
 
 def test_repr(create_solar_cell):
     cell = create_solar_cell()
     repr_str = repr(cell)
     assert "CellSolarData" in repr_str
-    assert "coord=" in repr_str
+    assert "segment=" in repr_str
     assert "lon=" in repr_str
     assert "elevation=" in repr_str
     assert "time=" in repr_str
