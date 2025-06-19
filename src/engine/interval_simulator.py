@@ -1,4 +1,6 @@
 from .nodes import *
+from .solar_cell_data import CarSolarCells
+import datetime
 
 P_STALL = 100
 P_CONST = 2500
@@ -25,8 +27,12 @@ class SSInterval:
         brakingNode = 0
         initial_TimeNode = self.time_nodes[-1]
         self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
+        car_solar_cells = CarSolarCells(self.segments[0], [30 for _ in range(30)])
         for segment in self.segments:
+            car_solar_cells.update_cells(segment, datetime.datetime(2023, 10, 1, 16, 0, 0, tzinfo=datetime.timezone.utc))
+            elapsed_time = 0
             while initial_TimeNode.dist <= segment.tdist:
+                elapsed_time += TIME_STEP
                 current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP)
 
                 if initial_TimeNode.dist >= self.brakingNodes[brakingNode].dist:
@@ -53,6 +59,9 @@ class SSInterval:
                 if initial_TimeNode.velocity.mps <= self.stopSpeed.mps:
                     # assume this may only happen during last segment (allows to break out of for & while loop)
                     break
+            power = car_solar_cells.total_power_output()
+            energy = power * elapsed_time
+            print(f"Elapsed Time: {elapsed_time} | Segment_ghi: {segment.ghi} | Power: {power} | Energy: {energy}")
 
         print(initial_TimeNode.time)
         print(f"Overshoot: {initial_TimeNode.dist - self.total_dist}")

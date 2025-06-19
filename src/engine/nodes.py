@@ -5,7 +5,7 @@ from math import sin, cos
 
 
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0), wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0, azimuth: float = 0, ghi: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0), wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0, azimuth: float = 0, ghi: float = 800):
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
