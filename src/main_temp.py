@@ -1,6 +1,6 @@
 import sqlite3
 
-from .engine.kinematics import Coordinate, Displacement, Velocity, Segment, Speed
+from .engine.kinematics import Coordinate, Displacement, Velocity, Speed
 from .engine.interval_simulator import SSInterval  # Adjust as needed
 
 def get_route(segment_id):

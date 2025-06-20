@@ -49,12 +49,18 @@ class StateNode:
 
 
 class TimeNode(StateNode):
-    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, power: float = 0, Fb: float = 0):
+    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, power: float = 0, Fb: float = 0, soc: float = 0):
         super().__init__(power, Fb)
         self.time = time
         self.dist = dist
         self.velocity = velocity
         self.acc = acc
+        self.soc = soc
+
+    
+    def current_calc(self):
+        current = 0
+        return current
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, segment: Segment, time_step):
         self.Fm_calc(initial_TimeNode.velocity)
@@ -65,6 +71,9 @@ class TimeNode(StateNode):
         self.acc = self.Ft / car_mass
         self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
         self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
+
+        # Electrical Calcs
+        self.soc = self.soc - self.current_calc() * time_step / battery_c_rated
 
     def __str__(self):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.velocity.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"

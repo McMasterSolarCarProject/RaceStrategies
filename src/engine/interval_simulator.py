@@ -19,7 +19,7 @@ class SSInterval:
         self.total_dist = self.segments[-1].tdist
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
-        self.time_nodes = [TimeNode(power=P_STALL, velocity=self.startSpeed)]
+        self.time_nodes = [TimeNode(power=P_STALL, velocity=self.startSpeed, soc= 100)]
         self.simulate_braking(-TIME_STEP)
         print(f"{len(self.brakingNodes)}")
         print("Braking Calculations End Here\n")
@@ -30,7 +30,7 @@ class SSInterval:
             # calc solar power here
             
             while initial_TimeNode.dist <= segment.tdist:
-                current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP)
+                current_TimeNode = TimeNode(initial_TimeNode.time + TIME_STEP, soc=initial_TimeNode.soc)
 
                 if initial_TimeNode.dist >= self.brakingNodes[brakingNode].dist:
                     current_TimeNode.Fb = BRAKE
@@ -104,7 +104,7 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
     plt.grid()
 
     plt.show()
-    plt.clf()
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -129,5 +129,5 @@ if __name__ == "__main__":
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
     plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
-    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "velocity.kmph", 't_v')
+    plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')
 
