@@ -4,23 +4,23 @@ from ..utils.constants import *
 
 
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0):
         self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
-        self.p_eff = p_eff
+        self.t_eff = t_eff
         self.ghi = ghi
         self.wind = wind
         self.speed_limit = speed_limit
         self.tdist = self.dist
 
     def __str__(self):
-        return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.p_eff}"
+        return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.t_eff}"
 
 class StateNode:
-    def __init__(self, power: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
-        self.power = power
+    def __init__(self, torque: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
+        self.torque = torque
         self.Fb = Fb
         self.velocity = velocity
         self.Fm = 0
@@ -30,7 +30,7 @@ class StateNode:
         #     self.Fm = 50
         # else:
         #     self.Fm = self.power / velocity.mag
-        self.Fm = self.power * wheel_radius
+        self.Fm = self.torque * wheel_radius
 
     def Fd_calc(self, velocity: Velocity, wind: Velocity = ZERO_VELOCITY):
         self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
@@ -49,8 +49,8 @@ class StateNode:
 
 
 class TimeNode(StateNode):
-    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, power: float = 0, Fb: float = 0, soc: float = 0):
-        super().__init__(power, Fb)
+    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+        super().__init__(torque, Fb)
         self.time = time
         self.dist = dist
         self.velocity = velocity
@@ -90,11 +90,12 @@ class VelocityNode(StateNode):
         self.Frr_calc(segment)
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.power = self.Fm * self.velocity.mps
+        self.P_mech = self.Fm * self.velocity.mps
         self.torque = self.Fm * wheel_radius
-        if self.power == 0:
+        self.P_bat = self.P_mech
+        if self.P_bat == 0:
             raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
-        self.epm = self.power / (self.velocity.mps) #- self.solar / self.velocity.mps
+        self.epm = self.P_bat / (self.velocity.mps) #- self.solar / self.velocity.mps
 
 if __name__ == "__main__":
     def test_segment():

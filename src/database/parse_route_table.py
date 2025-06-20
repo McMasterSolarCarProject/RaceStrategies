@@ -18,7 +18,7 @@ def parse_route_table(placemark, stops: bool = False):
         next_coord = Coordinate(rows[i+1]["lat"], rows[i+1]["lon"], rows[i+1]["elevation"])
         # wind = Velocity(Vec(checkpoint["wind_dir"]), Speed(kmph=checkpoint["wind_speed"]))
         wind = Velocity()
-        segments.append(Segment(current_coord, next_coord, checkpoint["id"],Speed(kmph=checkpoint["speed_limit"]), checkpoint["ghi"], wind, Speed(kmph= checkpoint["speed"]), checkpoint["power"]))
+        segments.append(Segment(current_coord, next_coord, checkpoint["id"],Speed(kmph=checkpoint["speed_limit"]), checkpoint["ghi"], wind, Speed(kmph= checkpoint["speed"]), checkpoint["torque"]))
         if rows[i+1]["stop_type"] and stops:
             ssintervals.append(SSInterval(segments))
             segments = []

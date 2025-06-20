@@ -5,7 +5,6 @@ import os
 from .parse_route import parse_ASC2024, parse_FSGP_2025
 import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
-from ..engine.kinematics import Coordinate, Displacement
 from ..engine.nodes import Segment
 
 BATCH_SIZE = 50

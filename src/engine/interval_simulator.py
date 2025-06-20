@@ -19,7 +19,7 @@ class SSInterval:
         self.total_dist = self.segments[-1].tdist
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
-        self.time_nodes = [TimeNode(power=P_STALL, velocity=self.startSpeed, soc= 100)]
+        self.time_nodes = [TimeNode(torque=max_torque, velocity=self.startSpeed, soc= 100)]
         self.simulate_braking(-TIME_STEP)
         print(f"{len(self.brakingNodes)}")
         print("Braking Calculations End Here\n")
@@ -36,10 +36,11 @@ class SSInterval:
                     current_TimeNode.Fb = BRAKE
 
                 elif initial_TimeNode.velocity.mag < segment.v_eff.mag:
-                    current_TimeNode.power = P_CONST
+                    max_torque = 1000
+                    current_TimeNode.torque = max_torque
 
                 else:
-                    current_TimeNode.power = segment.p_eff
+                    current_TimeNode.torque = segment.t_eff
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, segment, TIME_STEP)
                 self.time_nodes.append(current_TimeNode)
