@@ -124,16 +124,18 @@ rpm_data_series_Y = np.array(
 degree = 1
 kmph_data = rpm_data_series_Y * (2*3.14*0.2*60/1000)
 torque_to_current = make_pipeline(PolynomialFeatures(degree), LinearRegression())
-torque_to_rpm = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+torque_to_velocity = make_pipeline(PolynomialFeatures(degree), LinearRegression())
 torque_to_current.fit(torque_data_series_X.reshape(-1, 1), current_data_series_Y)
-torque_to_rpm.fit(torque_data_series_X.reshape(-1, 1), kmph_data)
+torque_to_velocity.fit(torque_data_series_X.reshape(-1, 1), kmph_data)
 
 current_to_torque = make_pipeline(PolynomialFeatures(degree), LinearRegression())
-current_to_rpm = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+current_to_velocity = make_pipeline(PolynomialFeatures(degree), LinearRegression())
 
 # Fit models with current as input
 current_to_torque.fit(current_data_series_Y.reshape(-1, 1), torque_data_series_X)
-current_to_rpm.fit(current_data_series_Y.reshape(-1, 1), kmph_data)
+current_to_velocity.fit(current_data_series_Y.reshape(-1, 1), kmph_data)
+velocity_to_torque = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+velocity_to_torque.fit(kmph_data.reshape(-1, 1), torque_data_series_X)
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -143,21 +145,41 @@ from ..utils.graph import plot_dual_axis_fit
 ra = 0.4
 # 16.54Amps and 837 RPM taken from data
 ke = (101.64 - 16.54 * ra) / 837
-v = 72
+voltage = 101.64
 #newV = (v - current_data_series_Y*ra)/ke * (2*3.14*0.2*60/1000)
 
-newV = current_to_rpm.predict(current_data_series_Y.reshape(-1, 1))
-model = current_to_rpm.named_steps['linearregression']
-ra = model.coef_[0]
-print(ra)
-plot_dual_axis_fit(current_data_series_Y, torque_data_series_X, newV, current_to_torque, current_to_rpm, "current", "torque", "kmph", "current vs torque and rpm")
+newV = current_to_velocity.predict(current_data_series_Y.reshape(-1, 1))
+
+
+plot_dual_axis_fit(current_data_series_Y, torque_data_series_X, newV, current_to_torque, current_to_velocity, "current", "torque", "kmph", "current vs torque and rpm")
 
 from .kinematics import Speed
+
+#velocity is kmph
 class motor:
     def __init__(self, torque: float= None, velocity: Speed= None, current= None):
         if torque is not None:
-            pass
+            self.torque = torque
+            self.current= torque_to_current.predict([[self.torque]])[0]
+            self.velocity = Speed(kmph=torque_to_velocity.predict([[self.torque]]))
+            self.ra = (voltage - (self.torque*self.velocity.rps()))/self.current
+            self.ke = voltage-self.current*self.ra/(self.velocity.rps())
         if velocity is not None:
-            pass
+            self.velocity = velocity
+            self.torque = velocity_to_torque.predict([[self.velocity.kmph]])[0]
+            self.current = torque_to_current.predict([[self.torque]])[0]
+            self.ra = (voltage - (self.torque*self.velocity.rps()))/self.current
+            self.ke = voltage-self.current*self.ra/(self.velocity.rps())
         if current is not None:
-            pass
+            self.current = current
+            self.torque = current_to_torque.predict([[self.current]])[0]
+            self.velocity = Speed(kmph= current_to_velocity.predict([[self.current]]))
+            self.ra = (voltage - (self.torque*self.velocity.rps()))/self.current
+            self.ke = voltage-self.current*self.ra/(self.velocity.rps())
+    def efficiency_rating(self):
+        return self.velocity.mps*self.torque/(voltage*self.current)
+    
+
+if __name__ == "__main__":
+    m = motor(velocity= Speed(mph= 35))
+    print(m.velocity.mps, m.current, m.torque, m.efficiency_rating())
