@@ -2,7 +2,7 @@ from .nodes import *
 import matplotlib.pyplot as plt
 
 P_STALL = 100
-P_CONST = 2500
+MAX_TORQUE = 2500
 BRAKE = 100
 
 
@@ -19,7 +19,7 @@ class SSInterval:
         self.total_dist = self.segments[-1].tdist
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
-        self.time_nodes = [TimeNode(torque=max_torque, velocity=self.startSpeed, soc= 100)]
+        self.time_nodes = [TimeNode(torque=MAX_TORQUE, velocity=self.startSpeed, soc= 100)]
         self.simulate_braking(-TIME_STEP)
         print(f"{len(self.brakingNodes)}")
         print("Braking Calculations End Here\n")
@@ -36,8 +36,7 @@ class SSInterval:
                     current_TimeNode.Fb = BRAKE
 
                 elif initial_TimeNode.velocity.mag < segment.v_eff.mag:
-                    max_torque = 1000
-                    current_TimeNode.torque = max_torque
+                    current_TimeNode.torque = MAX_TORQUE
 
                 else:
                     current_TimeNode.torque = segment.t_eff

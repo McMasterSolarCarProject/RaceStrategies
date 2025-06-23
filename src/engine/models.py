@@ -144,6 +144,20 @@ ra = 0.4
 # 16.54Amps and 837 RPM taken from data
 ke = (101.64 - 16.54 * ra) / 837
 v = 72
-newV = (v - current_data_series_Y*ra)/ke * (2*3.14*0.2*60/1000)
+#newV = (v - current_data_series_Y*ra)/ke * (2*3.14*0.2*60/1000)
 
+newV = current_to_rpm.predict(current_data_series_Y.reshape(-1, 1))
+model = current_to_rpm.named_steps['linearregression']
+ra = model.coef_[0]
+print(ra)
 plot_dual_axis_fit(current_data_series_Y, torque_data_series_X, newV, current_to_torque, current_to_rpm, "current", "torque", "kmph", "current vs torque and rpm")
+
+from .kinematics import Speed
+class motor:
+    def __init__(self, torque: float= None, velocity: Speed= None, current= None):
+        if torque is not None:
+            pass
+        if velocity is not None:
+            pass
+        if current is not None:
+            pass
