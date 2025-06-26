@@ -1,15 +1,16 @@
 from __future__ import annotations
 from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, ZERO_VELOCITY
 from ..utils.constants import *
-from math import sin, cos
 
 
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, speed_limit: Speed = Speed(0), wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), p_eff: float = 0, azimuth: float = 0, ghi: float = 800):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0):
+        self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
-        self.p_eff = p_eff
+        self.t_eff = t_eff
+        self.ghi = ghi
         self.wind = wind
         self.speed_limit = speed_limit
         self.tdist = self.dist
@@ -17,20 +18,21 @@ class Segment(Displacement):  # Meters
         self.azimuth = azimuth
 
     def __str__(self):
-        return f"Total Distance: {self.tdist} | V eff: {self.v_eff} | P eff: {self.p_eff}"
+        return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.t_eff}"
 
 class StateNode:
-    def __init__(self, power: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
-        self.power = power
+    def __init__(self, torque: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
+        self.torque = torque
         self.Fb = Fb
         self.velocity = velocity
         self.Fm = 0
 
     def Fm_calc(self, velocity: Velocity):
-        if velocity.mag <= 0.2:
-            self.Fm = 50
-        else:
-            self.Fm = self.power / velocity.mag
+        # if velocity.mag <= 0.2:
+        #     self.Fm = 50
+        # else:
+        #     self.Fm = self.power / velocity.mag
+        self.Fm = self.torque * wheel_radius
 
     def Fd_calc(self, velocity: Velocity, wind: Velocity = ZERO_VELOCITY):
         self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
@@ -49,12 +51,18 @@ class StateNode:
 
 
 class TimeNode(StateNode):
-    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, power: float = 0, Fb: float = 0):
-        super().__init__(power, Fb)
+    def __init__(self, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+        super().__init__(torque, Fb)
         self.time = time
         self.dist = dist
         self.velocity = velocity
         self.acc = acc
+        self.soc = soc
+
+    
+    def current_calc(self):
+        current = 0
+        return current
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, segment: Segment, time_step):
         self.Fm_calc(initial_TimeNode.velocity)
@@ -65,6 +73,9 @@ class TimeNode(StateNode):
         self.acc = self.Ft / car_mass
         self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
         self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
+
+        # Electrical Calcs
+        self.soc = self.soc - self.current_calc() * time_step / battery_c_rated
 
     def __str__(self):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.velocity.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
@@ -81,11 +92,12 @@ class VelocityNode(StateNode):
         self.Frr_calc(segment)
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.power = self.Fm * self.velocity.mps
+        self.P_mech = self.Fm * self.velocity.mps
         self.torque = self.Fm * wheel_radius
-        if self.power == 0:
+        self.P_bat = self.P_mech
+        if self.P_bat == 0:
             raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
-        self.epm = self.power / (self.velocity.mps) #- self.solar / self.velocity.mps
+        self.epm = self.P_bat / (self.velocity.mps) #- self.solar / self.velocity.mps
 
 if __name__ == "__main__":
     def test_segment():

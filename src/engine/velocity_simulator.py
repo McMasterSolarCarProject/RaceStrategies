@@ -4,9 +4,9 @@ from ..utils.graph import plot_points, plot_multiple_datasets
 
 RESOLUTION = 1
 
-def sim_velocity_an_shi(segment):
-    min_speed = Speed(mph= -10)
-    max_speed = Speed(mph= 60)
+def sim_velocity_an_shi(segment, speed_lim: Speed = Speed(mph=60)):
+    min_speed = Speed(mph= 10)
+    max_speed = speed_lim
     velocityNodes = []
     speed = min_speed.mps
     while speed < max_speed.mps:
@@ -19,9 +19,9 @@ def sim_velocity_an_shi(segment):
 if __name__ == "__main__":
     from .kinematics import Coordinate, Displacement
     from .nodes import Segment
-    p0 = Coordinate(-94.417077, 39.092185, 10)
+    p0 = Coordinate(39.092185, -94.417077, 10)
     # print(p1)
-    p1 = Coordinate(-94.423673, 39.092344, 0)
+    p1 = Coordinate(39.092344, -94.423673, 0)
     # print(p3)
     d1 = Displacement(p0, p1)
     # d2 = Displacement(p1, p2)

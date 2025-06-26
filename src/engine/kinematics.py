@@ -3,10 +3,11 @@ import math
 
 
 class Vec:
-    def __init__(self, x, y):
+    def __init__(self, x, y, z = 0):
         self._x = x
         self._y = y
-        # self.mag = math.sqrt(self.x ** 2 + self.y ** 2)
+        self._z = z
+        self._mag = math.sqrt(self.x ** 2 + self.y ** 2)
 
     @property
     def x(self):
@@ -15,22 +16,26 @@ class Vec:
     @property
     def y(self):
         return self._y
-
+    
+    @property
+    def z(self):
+        return self._z
+    
     @property
     def mag(self):
-        return math.sqrt(self._x ** 2 + self._y ** 2)
+        return self._mag
     
     def __add__(self, other: Vec):
-        return Vec(self.x + other.x, self.y + other.y)
+        return Vec(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __sub__(self, other: Vec):
-        return Vec(self.x - other.x, self.y - other.y)
+        return Vec(self.x - other.x, self.y - other.y, self.z - other.z)
 
     def __mul__(self, scalar: float):
-        return Vec(self.x * scalar, self.y * scalar)
+        return Vec(self.x * scalar, self.y * scalar, self.z * scalar)
     
     def __truediv__(self, scalar: float):
-        return Vec(self.x / scalar, self.y / scalar)
+        return Vec(self.x / scalar, self.y / scalar, self.z / scalar)
 
     def sin(self):
         return self.y / self.mag
@@ -42,7 +47,7 @@ class Vec:
         if self.mag == 0:
             print("zero div")
             return Vec(0, 1)
-        return Vec(self.x / self.mag, self.y / self.mag)
+        return Vec(self.x / self.mag, self.y / self.mag, self.z / self.mag)
 
     def __str__(self):
         return f"Vector: {self.x, self.y} | Magnitude: {self.mag}"
@@ -54,19 +59,10 @@ ZERO_VEC = Vec(0, 0)
 
 class Coordinate:  # Should Be Calculated in Meters
     """Longitude, Latitude & Elevation taken from KML files"""
-    def __init__(self, lon: float, lat: float, elevation: float):
-        self.lon = lon
+    def __init__(self, lat: float, lon: float, elevation: float = 0):
         self.lat = lat
+        self.lon = lon
         self.elevation = elevation
-        self.haversine()
-
-    def haversine(self):
-        R = 6371000 + self.elevation  # Earth's radius in meters
-        lon_rad = math.radians(self.lon)
-        lat_rad = math.radians(self.lat)
-        x = R * math.cos(lat_rad) * math.cos(lon_rad)
-        y = R * math.cos(lat_rad) * math.sin(lon_rad)
-        self.position = Vec(x, y)
 
     def __str__(self):
         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
@@ -75,15 +71,40 @@ class Coordinate:  # Should Be Calculated in Meters
         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
 
 
-class Displacement(Vec):  # Meters
+class Displacement(Vec):  # East-North-Up
     def __init__(self, p1: Coordinate, p2: Coordinate):
         self.p1 = p1
         self.p2 = p2
-        vec = p2.position - p1.position
-        super().__init__(vec.x, vec.y)
-        self.gradient = Vec(self.mag, p2.elevation - p1.elevation)
-        self.dist = self.gradient.mag
+        # Surface Displacement
+        super().__init__(*self.enu_vector())
         self.elevation = p2.elevation - p1.elevation
+        self.gradient = Vec(self.mag, self.elevation)
+        self.dist = self.gradient.mag
+
+    def enu_vector(self):
+        R = 6371000 + self.p1.elevation # mean Earth radius in meters
+        lat1, lon1, lat2, lon2 = map(math.radians, [self.p1.lat, self.p1.lon, self.p2.lat, self.p2.lon])
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        # Azimuth
+        self.azimuth = math.degrees(math.atan2(math.sin(dlon) * math.cos(lat2), math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon),)) % 360
+
+        # Haversine (Distance) Calculation
+        a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        distance = R * c
+
+        # Flat ENU Vector with Haversine Distance
+        east = dlon * math.cos(lat1)
+        north = dlat
+        enu_vec = Vec(east, north).unit_vector() * distance
+        return enu_vec.x, enu_vec.y
+
+
+
+
 
     def __str__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
@@ -142,13 +163,13 @@ ZERO_VELOCITY = Velocity(ZERO_VEC, Speed(0))
 
 
 if __name__ == "__main__":
-    p1 = Coordinate(-94.417077, 39.092185, 98.4698903750406)
+    p1 = Coordinate(39.092185, -94.417077, 98.4698903750406)
     # print(p1)
-    p2 = Coordinate(-94.417187, 39.092184, 98.48702242713266)
+    p2 = Coordinate(39.092184, -94.417187, 98.48702242713266)
     # print(p2)
     d1 = Displacement(p1, p2)
-    # print(d1)
+    print(f"d1: {d1}")
     v1 = Velocity(d1.unit_vector(), Speed(kmph=50))
     v2 = Velocity(d1.unit_vector(), Speed(kmph=80))
-    print(f"p1: {p1}, Position: {p1.position}")
+    # print(f"p1: {p1}, Position: {p1}")
     print(f"Velocity: {v1}")

@@ -2,9 +2,10 @@ import sqlite3
 import datetime
 import csv
 import os
-from .parse_route import parse_ASC2024, parse_FSGP_2025, calc_distance, calc_azimuth
+from .parse_route import parse_ASC2024, parse_FSGP_2025
 import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
+from ..engine.nodes import Segment
 
 BATCH_SIZE = 50
 
@@ -21,7 +22,7 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
     with sqlite3.connect(db_path) as connection:
         cursor = connection.cursor()
         create_route_table(cursor, schema_path)
-        placemarks = [parse_ASC2024()[0]] #rigged
+        placemarks = parse_ASC2024()
         populate_table(placemarks, cursor)
         connection.commit()
         print("Route data initialized.")
@@ -39,44 +40,49 @@ def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sq
         schema_sql = f.read()
         cursor.executescript(schema_sql)
 
-def populate_table(placemarks, cursor):  # Make this better and Document
+def populate_table(placemarks: dict, cursor):  # Make this better and Document
     print(f"Generating Route data")
 
-    for segment, placemark in enumerate(placemarks):
-        print(placemark.name)
-        with open(f"data/limits/{placemark.name} Limits.csv", "r") as file:
+    for placemark in placemarks.keys():
+        print(placemark)
+        coords = placemarks[placemark]
+        with open(f"data/limits/{placemark} Limits.csv", "r") as file:
             reader = csv.reader(file)
             speed_limits = [(float(row[1]), float(row[2])) for row in reader]
 
-        traffic_data = []
-        coord_points = [(c.lat, c.lon) for c in placemark.coords]
-        batch_bboxes = [generate_boundary(*point) for point in coord_points]
-        for i in range(0, len(batch_bboxes), BATCH_SIZE):
-            batch = batch_bboxes[i:i+BATCH_SIZE]
-            try:
-                traffic_data.extend(overpass_batch_request(batch))
-            except Exception as e:
-                print(f"Error fetching batch: {e}")
-                traffic_data.extend([None] for _ in batch)
-        grouped = regroup(traffic_data, coord_points)
+        # traffic_data = []
+        # coord_points = [Coordinate(c.lat, c.lon) for c in placemark.coords]
+        # batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
+        # for i in range(0, len(batch_bboxes), BATCH_SIZE):
+        #     batch = batch_bboxes[i:i+BATCH_SIZE]
+        #     try:
+        #         traffic_data.extend(overpass_batch_request(batch))
+        #     except Exception as e:
+        #         print(f"Error fetching batch: {e}")
+        #         traffic_data.extend([None] for _ in batch)
+        # grouped = regroup(traffic_data, coord_points)
 
         data = []
         limit_index = 0
-        for coord_index, c in enumerate(placemark.coords):
-            dist = calc_distance(placemark.coords, c)
-            while speed_limits[limit_index][0] <= dist:
+        tdist = 0
+        for coord_index, c in enumerate(coords[:-1]):
+            s = Segment(c, coords[coord_index + 1])
+            tdist += s.dist
+            # dist = calc_distance(placemarks[placemark], c)
+            while speed_limits[limit_index][0] <= tdist:
                 limit_index += 1
 
-            current = (c.lat, c.lon)
+            # current = (c.lat, c.lon)
             stop = None
-            if (current in grouped and grouped[current]):
-                stop = priority_stops({current: grouped[current]})[current]
-                stop = stop.get('tags', {}).get('highway')
+            # if (current in grouped and grouped[current]):
+            #     stop = priority_stops({current: grouped[current]})[current]
+            #     stop = stop.get('tags', {}).get('highway')
 
 
-            data.append([placemark.name, coord_index, c.lat, c.lon, c.elevation * 0.3048, dist,
-                         speed_limits[limit_index - 1][1], stop, None, None, None, 100, 100])
-        
+            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist,
+                         speed_limits[limit_index][1], stop, None, None, None, -1, -1])
+            
+        data.append([placemark, data[-1][1]+1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
         # run batch stuff here 
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)

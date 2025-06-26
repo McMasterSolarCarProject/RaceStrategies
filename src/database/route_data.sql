@@ -11,6 +11,6 @@ CREATE TABLE route_data (
         wind_dir float,
         wind_speed float,
         speed float,
-        power float,
+        torque float,
         PRIMARY KEY (segment_id, id)
     );

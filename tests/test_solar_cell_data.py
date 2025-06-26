@@ -17,18 +17,20 @@ import datetime
 @pytest.fixture
 def create_segment():
     def _create(
-        lat=-118.2437,
-        lat2=-119.2437,
-        lon=34.0522,
-        lon2=44.0522,
+        lat=34.0522,
+        lat2=44.0522,
+        lon=-118.2437,
+        lon2=-119.2437,
         elevation=45,
         elevation2=50,
         azimuth=180,
         ghi=800,
     ):
-        p1 = Coordinate(lon, lat, elevation)
-        p2 = Coordinate(lon2, lat2, elevation2)
-        return Segment(p1=p1, p2=p2, azimuth=azimuth, ghi=ghi)
+        p1 = Coordinate(lat, lon, elevation)
+        p2 = Coordinate(lat2, lon2, elevation2)
+        s = Segment(p1, p2, ghi=ghi)
+        s.azimuth = azimuth
+        return s
 
     return _create
 
