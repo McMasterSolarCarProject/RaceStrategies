@@ -2,7 +2,7 @@ from __future__ import annotations
 from .nodes import Segment
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
-from ..utils.constants import CELL_AREA
+from ..utils.constants import CELL_DATA
 import math
 import datetime
 
@@ -12,9 +12,8 @@ class CarSolarCells:
     This class will contain all the solar cells for a car.
     """
 
-    def __init__(self, segment: Segment, tilt_list: list[float], time: datetime.datetime = None):
+    def __init__(self, segment: Segment, time: datetime.datetime = None):
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
-        assert isinstance(tilt_list, list), "tilt_list must be a list of tilt angles"
         if time:
             assert isinstance(time, datetime.datetime), "time must be a datetime object"
             if time.tzinfo is None:
@@ -25,10 +24,14 @@ class CarSolarCells:
         self._segment = segment
         self._time = time
         self._solar_cells = []
+        cell_types = ["me3", "ne3"]
 
-        for tilt in tilt_list:
-            cell = SolarCell(self._segment, tilt, self._time)
-            self._solar_cells.append(cell)
+        for section in CELL_DATA.keys():
+            if section.startswith("section_"):
+                for cell_type in cell_types:
+                    for _ in range(CELL_DATA[section][f"num_{cell_type}"]):
+                        cell = SolarCell(self._segment, CELL_DATA[section]["tilt"], self._time, CELL_DATA[f"{cell_type}_eff"])
+                        self._solar_cells.append(cell)
 
     def update_cells(self, new_segment: Segment = None, new_time: datetime.datetime = None):
         """
@@ -72,7 +75,7 @@ class SolarCell:
     This class calculates the power output of a solar cell based on the location, time, and tilt angle.
     """
 
-    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime):
+    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime, cell_eff: float):
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
         assert isinstance(tilt, (int, float)), "tilt must be a number"
         if time:
@@ -81,8 +84,9 @@ class SolarCell:
                 time = time.replace(tzinfo=datetime.timezone.utc)
         else:
             time = datetime.datetime.now(datetime.timezone.utc)
+        assert isinstance(cell_eff, (int, float)), "cell_eff must be a number"
 
-        self._EFF = 0.24
+        self._eff = cell_eff
         self._segment = segment
         self._tilt = tilt
         self._time = time
@@ -97,7 +101,7 @@ class SolarCell:
         self._lon = self._segment.p1.lon
         self._elevation = self._segment.p1.elevation / 1000  # km
 
-        azimuth_angle = self._segment.azimuth  # to be implemented soon
+        azimuth_angle = self._segment.azimuth
 
         assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
         self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
@@ -117,7 +121,7 @@ class SolarCell:
             print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
-        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * CELL_AREA)  # watts
+        self._cell_power_out = max(0, self._cell_irradiance * self._eff * CELL_DATA["cell_area"])  # watts
 
     def update_power(self, new_segment: Segment = None, new_time: datetime.datetime = None) -> float:
         """

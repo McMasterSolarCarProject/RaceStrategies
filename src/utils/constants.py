@@ -1,4 +1,3 @@
-CELL_AREA = 0.0153  # m^2
 air_density = 1.204  # kg/m^3
 coef_drag = 0.19
 coef_rr = 0.0023
@@ -13,6 +12,28 @@ regen_eff = 0.05  # %
 battery_c_rated = 180
 battery_voltage = 101.64
 eff_factor = 0.5  # a lower value will produce higher speeds
+
+CELL_DATA = {  # tilt angles for the solar cells in degrees. assume all cells have same direction, ie. area vectors for all cells are coplanar.
+    "me3_eff": 0.24,  # efficency for the Me3 solar cells. Can go up to 0.244, Make up entirety of top, rear, and half of the top of the car.
+    "ne3_eff": 0.244,  # minimum efficiency for the Ne3 solar cells. Makes up half of the hood of the car.
+    "cell_area": 0.0156,  # area of a single solar cell in m^2
+    "section_hood": {
+        "tilt": 28,
+        "num_me3": 23,
+        "num_ne3": 23,
+    },
+    "section_top": {
+        "tilt": 0,
+        "num_me3": 104,
+        "num_ne3": 0,
+    },
+    "section_rear": {
+        "tilt": -20,
+        "num_me3": 78,
+        "num_ne3": 0,
+    },
+    "rear_raised": 40,  # tilt angle for the rear solar cells when raised
+}
 
 TILTS = {
     "hood_front": {

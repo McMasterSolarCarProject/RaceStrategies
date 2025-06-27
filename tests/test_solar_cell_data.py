@@ -1,13 +1,14 @@
-import sys
-import os
+# import sys
+# import os
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
 
 from src.engine.solar_cell_data import SolarCell, CarSolarCells
 from src.engine.nodes import Segment
 from src.engine.kinematics import Coordinate
+from src.utils.constants import CELL_DATA
 from astral import LocationInfo
 from astral.sun import noon
 import math
@@ -47,12 +48,13 @@ def create_solar_cell(create_segment):
         azimuth=180,
         ghi=800,
         tilt=30,
+        cell_eff=0.24,
         time=datetime.datetime(2023, 10, 1, 12, 0, 0),
         tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
     ):
         segment = create_segment(lat, lat2, lon, lon2, elevation, elevation2, azimuth, ghi)
         time = time.replace(tzinfo=tzinfo) if time else None
-        return SolarCell(segment, tilt, time)
+        return SolarCell(segment, tilt, time, cell_eff=cell_eff)
 
     return _create
 
@@ -73,10 +75,9 @@ def create_car_solar_cells(create_segment):
         tzinfo=datetime.timezone(datetime.timedelta(hours=-5)),
     ):
         segment = create_segment(lat, lat2, lon, lon2, elevation, elevation2, azimuth, ghi)
-        tilt_list = [tilt for _ in range(30)]
         time = time.replace(tzinfo=tzinfo) if time else None
         print(type(segment))
-        return CarSolarCells(segment, tilt_list, time)
+        return CarSolarCells(segment, time)
 
     return _create
 
@@ -91,8 +92,18 @@ def test_create_car_solar_cells(create_car_solar_cells, create_solar_cell):
     car_cells = create_car_solar_cells()
     print(f"Created CarSolarCells: {car_cells}")
     assert isinstance(car_cells, CarSolarCells)
-    cell = create_solar_cell()
-    assert car_cells.total_power_output() == cell.cell_power_out * 30
+
+    cell_hood_a = create_solar_cell(tilt=CELL_DATA["section_hood"]["tilt"], cell_eff=CELL_DATA["me3_eff"])
+    cell_hood_b = create_solar_cell(tilt=CELL_DATA["section_hood"]["tilt"], cell_eff=CELL_DATA["ne3_eff"])
+    cell_top = create_solar_cell(tilt=CELL_DATA["section_top"]["tilt"], cell_eff=CELL_DATA["me3_eff"])
+    cell_rear = create_solar_cell(tilt=CELL_DATA["section_rear"]["tilt"], cell_eff=CELL_DATA["me3_eff"])
+    calculated_total_power = (
+        cell_hood_a.cell_power_out * CELL_DATA["section_hood"]["num_me3"]
+        + cell_hood_b.cell_power_out * CELL_DATA["section_hood"]["num_ne3"]
+        + cell_top.cell_power_out * CELL_DATA["section_top"]["num_me3"]
+        + cell_rear.cell_power_out * CELL_DATA["section_rear"]["num_me3"]
+    )
+    assert abs(car_cells.total_power_output() - calculated_total_power) < 0.01
 
 
 def test_location(create_solar_cell):
@@ -153,8 +164,8 @@ def test_sun_angles(create_solar_cell, lat, lon):
 def test_cell_power_out(create_solar_cell):
     cell = create_solar_cell()
     power_out = round(cell.cell_power_out, 5)
-    assert power_out == 2.20773, f"Power output expected 2.20773 W, actual: {power_out}"
-    print(f"Cell Power Out: {cell.cell_power_out} W is approximately 2.20773 W")
+    assert power_out == 2.25102, f"Power output expected 2.25102 W, actual: {power_out}"
+    print(f"Cell Power Out: {cell.cell_power_out} W is approximately 2.25102 W")
 
 
 @pytest.mark.parametrize("ghi", [0, -100])
