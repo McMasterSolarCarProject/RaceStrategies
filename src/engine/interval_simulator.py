@@ -1,5 +1,8 @@
 from .nodes import *
 import matplotlib.pyplot as plt
+from .solar_cell_data import CarSolarCells, SolarCell
+
+import time
 
 P_STALL = 100
 MAX_TORQUE = 2500
@@ -28,6 +31,7 @@ class SSInterval:
         self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
         car_solar_cells = CarSolarCells(self.segments[0], [30 for _ in range(30)])
         for segment in self.segments:
+            start_time = time.time()
             # calc solar power here
             
             while initial_TimeNode.dist <= segment.tdist:
@@ -57,6 +61,7 @@ class SSInterval:
                 if initial_TimeNode.velocity.mps <= self.stopSpeed.mps:
                     # assume this may only happen during last segment (allows to break out of for & while loop)
                     break
+            elapsed_time = time.time() - start_time
             power = car_solar_cells.total_power_output()
             energy = power * elapsed_time
             print(f"Elapsed Time: {elapsed_time} | Segment_ghi: {segment.ghi} | Power: {power} | Energy: {energy}")
