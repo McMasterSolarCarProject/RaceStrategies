@@ -1,2 +1,10 @@
-requests
 tzlocal
+matplotlib
+pytz
+requests
+scikit-learn
+astral
+pytest
+pandas
+folium
+pytest
