@@ -23,7 +23,8 @@ def main():
     interval = parse_route_table("A. Independence to Topeka")
     interval.simulate_interval()
 
-    interval.plot("dist", "velocity.kmph", 'd_v')
+    interval.plot("dist", ["velocity.kmph", "segment.speed_limit.kmph"], "velocity_comparison")
+
     input()
 
 

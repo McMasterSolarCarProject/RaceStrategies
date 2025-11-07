@@ -22,7 +22,7 @@ class SSInterval:
         # print(self.total_dist)
 
     def simulate_interval(self, TIME_STEP: float = 0.1):
-        self.time_nodes = [TimeNode(motor=self.motor, torque=MAX_TORQUE, velocity=self.startSpeed, soc= 100)]
+        self.time_nodes = [TimeNode(self.segments[0], motor=self.motor, torque=MAX_TORQUE, velocity=self.startSpeed, soc= 100)]
         self.simulate_braking(-TIME_STEP)
         print(f"{len(self.brakingNodes)}")
         print("Braking Calculations End Here\n")
@@ -33,7 +33,7 @@ class SSInterval:
             # calc solar power here
             
             while initial_TimeNode.dist <= segment.tdist:
-                current_TimeNode = TimeNode(self.motor, initial_TimeNode.time + TIME_STEP, soc=initial_TimeNode.soc)
+                current_TimeNode = TimeNode(segment, self.motor, initial_TimeNode.time + TIME_STEP, soc=initial_TimeNode.soc)
 
                 if initial_TimeNode.dist >= self.brakingNodes[brakingNode].dist:
                     current_TimeNode.Fb = BRAKE
@@ -66,12 +66,12 @@ class SSInterval:
             node.time += initial_TimeNode.time
 
     def simulate_braking(self, TIME_STEP: float = -1):
-        self.brakingNodes = [TimeNode(self.motor, dist=self.total_dist, Fb=BRAKE, velocity=self.stopSpeed)]
+        self.brakingNodes = [TimeNode(self.segments[-1], self.motor, dist=self.total_dist, Fb=BRAKE, velocity=self.stopSpeed)]
         initial_TimeNode = self.brakingNodes[-1]
         for segment in self.segments[::-1]:
             while initial_TimeNode.dist >= segment.tdist - segment.dist:
                 if initial_TimeNode.velocity.mag <= segment.v_eff.mag:  # if the velocity is under
-                    current_TimeNode = TimeNode(self.motor, initial_TimeNode.time + TIME_STEP, Fb=BRAKE)
+                    current_TimeNode = TimeNode(segment, self.motor, initial_TimeNode.time + TIME_STEP, Fb=BRAKE)
                     current_TimeNode.solve_TimeNode(initial_TimeNode, segment, TIME_STEP)
                     self.brakingNodes.append(current_TimeNode)
                     initial_TimeNode = self.brakingNodes[-1]

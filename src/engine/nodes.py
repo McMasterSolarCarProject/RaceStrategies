@@ -19,7 +19,8 @@ class Segment(Displacement):  # Meters
         return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.t_eff}"
 
 class StateNode:
-    def __init__(self, torque: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
+    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
+        self.segment = segment
         self.torque = torque
         self.Fb = Fb
         self.velocity = velocity
@@ -49,8 +50,8 @@ class StateNode:
 
 
 class TimeNode(StateNode):
-    def __init__(self, motor: Motor, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
-        super().__init__(torque, Fb)
+    def __init__(self, segment: Segment, motor: Motor, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+        super().__init__(segment, torque, Fb)
         self.time = time
         self.dist = dist
         self.velocity = velocity
@@ -96,9 +97,10 @@ class VelocityNode(StateNode):
         self.P_mech = self.Fm * self.velocity.mps
         self.torque = self.Fm * wheel_radius
         self.motor.update_velocity(self.velocity)
-        # if self.m.velocity.mps < self.velocity.mps:
-        #     return False
-        #     raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")
+        if self.motor.velocity.mps < self.velocity.mps:
+            print("dunno")
+            return False
+            raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")
         self.P_bat = self.motor.voltage * self.motor.current
         # if self.P_bat == 0:
         #     raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")

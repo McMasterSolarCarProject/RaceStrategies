@@ -4,32 +4,43 @@ from .config import save_plot
 
 import matplotlib.pyplot as plt
 
-def plot_SSInterval(datasets, x_field, y_field, name, labels=None):
+def plot_SSInterval(datasets, x_field, y_fields, name, labels=None):
+    import matplotlib.pyplot as plt
+
     def resolve_attr(obj, attr_path):
         for attr in attr_path.split('.'):
             obj = getattr(obj, attr)
         return obj
 
+    # Allow both single and multiple y fields
+    if isinstance(y_fields, str):
+        y_fields = [y_fields]
+
     colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']
-    fig, ax = plt.subplots(figsize=(8, 6))  # Create figure & axes
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     for i, points in enumerate(datasets):
         x_coords = [resolve_attr(point, x_field) for point in points]
-        y_coords = [resolve_attr(point, y_field) for point in points]
 
-        label = labels[i] if labels else f'Dataset {i + 1}'
-        ax.plot(x_coords, y_coords, marker='o', linestyle='-',
-                color=colors[i % len(colors)], label=label)
+        for j, y_field in enumerate(y_fields):
+            y_coords = [resolve_attr(point, y_field) for point in points]
+            label = (
+                f"{labels[i]} - {y_field}"
+                if labels
+                else f"Dataset {i + 1} - {y_field}"
+            )
+            color = colors[(i * len(y_fields) + j) % len(colors)]
+            ax.plot(x_coords, y_coords, marker='o', linestyle='-', color=color, label=label)
 
     ax.set_xlabel(x_field)
-    ax.set_ylabel(y_field)
-    ax.set_title(f'Graph of {x_field} vs {y_field}')
+    ax.set_ylabel(", ".join(y_fields))
+    ax.set_title(f'{name}: {", ".join(y_fields)} vs {x_field}')
     ax.legend()
-    ax.grid()
-
+    ax.grid(True)
+    fig.tight_layout()
     fig.show()
-    # Return fig (and ax if you like)
     return fig, ax
+
 
 def plot_points(points, x_field, y_field, name):
     x_coords = [getattr(point, x_field) for point in points]
