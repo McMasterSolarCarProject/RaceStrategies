@@ -82,8 +82,7 @@ def populate_table(placemarks: dict, cursor):  # Make this better and Document
             #     stop = stop.get('tags', {}).get('highway')
 
 
-            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist,
-                         speed_limits[limit_index][1], stop, None, None, None, -1, -1])
+            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limits[limit_index][1], stop, None, None, None, -1, -1])
             
         data.append([placemark, data[-1][1]+1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
         # run batch stuff here 

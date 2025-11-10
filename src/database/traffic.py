@@ -1,9 +1,13 @@
 # Pulls data from sqlite route data to identify objects of interest
 
+import sqlite3
 import requests
 import json
 from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
+from .parse_route_table import parse_route_table
+
+BATCH_SIZE = 10
 
 # --- DEBUG SETUP ---
 DEBUG = False # Toggle this to False to disable debug output
@@ -83,7 +87,7 @@ def overpass_batch_request(points):
         debug_print(f"Response content:\n{response.text}")
     return []
 
-def regroup(nodes, coords, threshold = 0.055):
+def regroup(batchs, coords, threshold = 0.055):
     '''
     Groups nodes around original coordinate points.
     Args:
@@ -94,22 +98,27 @@ def regroup(nodes, coords, threshold = 0.055):
         clusters: Dict {reference_point: [nodes]}
     '''
     clusters = {coord : [] for coord in coords}
-    print(nodes, coords)
-    for node in nodes:
-        min_distance = float('inf')
-        closest_point = None
+    print(f"Nodes & Coords:\n{batchs}")
+    for batch in batchs:
+        for node in batch:
+            min_distance = float('inf')
+            closest_point = None
 
-        for coord in coords:
-            # convert point to dict for haversine function
-            # point_dict = {'lat': coord[0], 'lon': coord[1]}
-            node_coord = Coordinate(node["lat"], node["lon"])
-            distance = Displacement(coord, node_coord).mag
-            if (distance < min_distance and distance <= threshold):
-                min_distance = distance
-                closest_point = coord
-
-        clusters[closest_point].append(node)
-        print("something")
+            for coord in coords:
+                # convert point to dict for haversine function
+                # point_dict = {'lat': coord[0], 'lon': coord[1]}
+                # print(type(node[0]))
+                
+                # print(f"Single Node:\n{node}")
+                node_coord = Coordinate(node["lat"], node["lon"])
+                distance = Displacement(coord, node_coord).mag
+                if (distance < min_distance and distance <= threshold):
+                    min_distance = distance
+                    closest_point = coord
+                    print("monkey", type(closest_point))
+            print(node)
+            clusters[closest_point].append(node)
+            print("something")
 
     return clusters
 
@@ -189,6 +198,39 @@ def debugging_priority(nodes):
                 debug_print(f"\nCluster at {ref}: No priority nodes found")
     debug_print()
 
+
+def update_traffic(segment_id):
+    traffic_data = []
+    placemark = parse_route_table(segment_id)
+    coord_points = [c.p1 for c in placemark.segments]
+    batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
+    for i in range(0, len(batch_bboxes), BATCH_SIZE):
+        batch = batch_bboxes[i:i+BATCH_SIZE]
+        try:
+            traffic_data.append(overpass_batch_request(batch))
+            print(f"Data up to {i}")
+            break
+        except Exception as e:
+            print(f"Error fetching batch: {e}")
+            traffic_data.append([None] for _ in batch)
+
+    grouped = regroup(traffic_data, coord_points)
+    priority_nodes = priority_stops(grouped)
+    for ref, node in priority_nodes.items:
+        if node != 0:
+            # store in db
+            print(f"{ref}:\t{node['id']}")
+            db = sqlite3.connect('data.sqlite')
+            cursor = db.cursor()
+            # add power here
+            cursor.execute('UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?', (node['id'], ref[0], ref[1]))
+
+            db.commit()
+            db.close()
+        else:
+            raise ValueError(f"Could not find Stop Node")
+
+
 def main():
     '''
     # DEBUGGING (Should result as traffic_signal, traffic_signal, bus_stop, None)
@@ -203,6 +245,8 @@ def main():
     end = time.time_ns()
     debug_print(f"Elapsed time: {(end - start)/1_000_000_000} seconds")
     '''
+
+    update_traffic("A. Independence to Topeka")
 
 if __name__ == "__main__":
     main()

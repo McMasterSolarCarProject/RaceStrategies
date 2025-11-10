@@ -22,6 +22,7 @@ python -m src.engine.models
 
 ## Database:
 - integrate init_route_table with traffic.py
+    ^ Currently has problems with the regroup function
 - Parse Route Table and Parse Route Seem Pretty Good
 - Why are there multiple parse_route files? Rename things to make them make more sense
 - init_route_table gotta be remade so its more modular
