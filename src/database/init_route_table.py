@@ -20,7 +20,7 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
         else:
             print(f"Database Exists: {db_path}")
     else:
-        print(f"No existing database found.")
+        print("No existing database found.")
 
     with sqlite3.connect(db_path) as connection:
         cursor = connection.cursor()

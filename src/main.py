@@ -10,7 +10,7 @@ from .database.parse_route_table import parse_route_table
 from .database.update_velocity import update_target_velocity
 
 def main():
-    remake = False
+    remake = True
     if remake:
         start = time.time()
         init_route_db(remake= remake)
@@ -23,7 +23,7 @@ def main():
     interval = parse_route_table("A. Independence to Topeka")
     interval.simulate_interval()
 
-    interval.plot("dist", ["velocity.kmph", "segment.speed_limit.kmph"], "velocity_comparison")
+    interval.plot("dist", ["velocity.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
 
     input()
 

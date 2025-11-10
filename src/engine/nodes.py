@@ -84,8 +84,8 @@ class TimeNode(StateNode):
 
 class VelocityNode(StateNode):
     #constant vel --> motor force -->  power, torque --> energy per metre (epm)
-    def __init__(self, motor: Motor, velocity: Velocity = ZERO_VELOCITY):
-        super().__init__(0, 0, velocity)
+    def __init__(self, segment: Segment, motor: Motor, velocity: Velocity = ZERO_VELOCITY):
+        super().__init__(segment, 0, 0, velocity)
         self.motor = motor
 
     def solve_velocity(self,segment):

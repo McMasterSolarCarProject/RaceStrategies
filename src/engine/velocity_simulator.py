@@ -12,7 +12,7 @@ def sim_velocity_an_shi(segment, speed_lim: Speed = Speed(mph=60)):
     speed = min_speed.mps
     motor = Motor(torque = 0)
     while speed < max_speed.mps:
-        v = VelocityNode(motor, Velocity(UNIT_VEC, Speed(speed)))
+        v = VelocityNode(segment, motor, Velocity(UNIT_VEC, Speed(speed)))
         if v.solve_velocity(segment):
             velocityNodes.append(v)
             speed += RESOLUTION
