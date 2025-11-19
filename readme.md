@@ -8,6 +8,10 @@ python -m src.engine.models
 
 # Stuff That Needs to Be Done
 
+## Important:
+- fix update velocity file to seperate arc speed limits
+- traffic.py needs to be fixed
+
 ## General:
 - Add Test files for all the modules
 - Fix the graphs file
