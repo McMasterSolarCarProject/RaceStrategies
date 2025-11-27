@@ -10,7 +10,7 @@ from .database.parse_route_table import parse_route_table
 from .database.update_velocity import update_target_velocity
 
 def main():
-    table_remake_flag = True
+    table_remake_flag = False
     if table_remake_flag:
         start = time.time()
         init_route_db(remake= table_remake_flag)

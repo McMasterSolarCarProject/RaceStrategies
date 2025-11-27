@@ -48,17 +48,17 @@ class Model:
 
         new_velocity = self.fits["current_to_velocity"].predict(self.data["current"].reshape(-1, 1))
 
-        # plot_dual_axis_fit(
-        #     self.data["current"],  # x-axis, actual current
-        #     self.data["torque"],  # left y-axis, actual torque
-        #     new_velocity,  # right y2-axis, predicted velocity         ! Note: Why not use actual velocity for this?
-        #     self.fits["current_to_torque"],  # fitted models to plot regression lines
-        #     self.fits["current_to_velocity"],  # fitted models to plot regression lines
-        #     "current",
-        #     "torque",
-        #     "kmph",
-        #     "current vs torque and rpm",
-        # )
+        plot_dual_axis_fit(
+            self.data["current"],  # x-axis, actual current
+            self.data["torque"],  # left y-axis, actual torque
+            new_velocity,  # right y2-axis, predicted velocity         ! Note: Why not use actual velocity for this?
+            self.fits["current_to_torque"],  # fitted models to plot regression lines
+            self.fits["current_to_velocity"],  # fitted models to plot regression lines
+            "current",
+            "torque",
+            "kmph",
+            "current vs torque and rpm",
+        )
 
     def solve_motor_constant(self):
         """

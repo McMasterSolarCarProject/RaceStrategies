@@ -1,94 +1,155 @@
-# BLDC/PMSM steady-state visualization with Matplotlib
-# - X axis: current iq (A)
-# - Y axis: speed (RPM) or torque (N·m)
-# - PWM utilization (modulation index) shown as marker size or as a contour
-#
-# How it works:
-#   Vd = -we * L * iq
-#   Vq =  R * iq + we * (L * id + lam_f)      (steady-state, id = 0 here)
-#   |Vdq| = sqrt(Vd^2 + Vq^2)
-#   mod_index m = |Vdq| / (Vdc / sqrt(3))     (≈ SVPWM linear-region limit)
-#   Torque T = 1.5 * p * lam_f * iq           (surface PM)
-#
-# Replace the parameters with your motor/controller values.
-
+from __future__ import annotations
+from typing import Dict, Iterable
 import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline, Pipeline
+from math import pi
 import matplotlib.pyplot as plt
 
-# -------- Parameters (EDIT these to your motor) --------
-R      = 0.05        # phase resistance [ohm]
-L      = 120e-6      # synchronous inductance [H] (Ld≈Lq)
-lam_f  = 0.03        # flux linkage [V·s/rad]
-p      = 7           # pole pairs
-Vdc    = 96.0        # DC bus voltage [V]
-Imax   = 120.0       # current limit you want to visualize [A]
-rpm_max = 2000.0     # top speed for the grid [RPM]
+from src.utils.constants import TORQUE_CURRENT_RPM_DATA, wheel_radius, battery_voltage
+# from ..src.utils.graph import plot_dual_axis_fit
+from src.engine.kinematics import Speed
+        
 
-# -------- Derived --------
-Vmax = Vdc / np.sqrt(3.0)  # dq peak voltage limit in linear SVPWM
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import copy
 
-# -------- Grid to evaluate --------
-currents = np.linspace(0.0, Imax, 80)        # iq (A)
-speeds_rpm = np.linspace(0.0, rpm_max, 80)   # mechanical speed (RPM)
+class MotorModel:
+    def __init__(self):
+        self.ref_voltage = battery_voltage
+        self.voltage = battery_voltage
+        self.data = {}
+        self.fits = {}
+        self.load_data(TORQUE_CURRENT_RPM_DATA)
 
-Iq, RPM = np.meshgrid(currents, speeds_rpm, indexing="xy")
-wm = RPM * 2*np.pi/60.0             # mech rad/s
-we = p * wm                         # elec rad/s
+    def load_data(self, data):
+        A = np.array(data, float)
+        self.data["torque"]  = A[:,0].reshape(-1,1)
+        self.data["current"] = A[:,1].reshape(-1,1)
+        self.data["rpm"]     = A[:,2].reshape(-1,1)
 
-# Assume no field-weakening for the plots (id = 0)
-Id = np.zeros_like(Iq)
+    def fit_at_reference_voltage(self):
+        T = self.data["torque"]
+        I = self.data["current"]
+        R = self.data["rpm"].ravel()
 
-# dq voltages (steady state)
-Vd = - we * L * Iq
-Vq =   R * Iq + we * (L * Id + lam_f)
-Vmag = np.sqrt(Vd*Vd + Vq*Vq)
+        # rpm fits at reference V
+        self.fits["rpm|torque"]  = LinearRegression().fit(T, R)
+        self.fits["rpm|current"] = LinearRegression().fit(I, R)  # <-- add this
 
-# PWM utilization (modulation index 0..1)
-mod_index = np.clip(Vmag / Vmax, 0.0, 1.0)
+        # voltage-independent fits
+        self.fits["current|torque"] = LinearRegression().fit(T, I.ravel())
+        self.fits["torque|current"] = LinearRegression().fit(I, T.ravel())
 
-# Torque (surface PM approximation)
-Torque = 1.5 * p * lam_f * Iq
 
-# Helper: map modulation index -> marker size
-def size_from_m(m):
-    return 8 + 220*m  # tweak if you want bigger/smaller markers
+    def set_voltage(self, new_voltage: float):
+        """
+        'Refits' the rpm|torque relationship to a new voltage by adjusting
+        only the intercept (slope is voltage-independent).
+        """
+        V_new = float(new_voltage)
+        scale = V_new / self.ref_voltage
+        self.voltage = V_new
 
-# ========== Plot 1: Speed vs Current (PWM as marker size) ==========
-plt.figure(figsize=(8, 6))
-x = Iq.ravel()
-y = RPM.ravel()
-s = size_from_m(mod_index.ravel())
-plt.scatter(x, y, s=s, alpha=0.45, edgecolors="none")
-plt.xlabel("Current $i_q$ [A]")
-plt.ylabel("Mechanical speed [RPM]")
-plt.title("Speed vs Current — marker size encodes PWM utilization")
-plt.grid(True)
-plt.tight_layout()
+        # update the rpm|torque fit in-place
+        mdl = self.fits["rpm|torque"]
 
-# ========== Plot 2: Torque vs Current at a few speeds (PWM as marker size) ==========
-for slice_rpm in [500.0, 1000.0, 1500.0]:  # add/remove slices as you like
-    idx = np.argmin(np.abs(speeds_rpm - slice_rpm))
-    iq_slice = Iq[idx, :]
-    tq_slice = Torque[idx, :]
-    m_slice  = mod_index[idx, :]
-    plt.figure(figsize=(8, 6))
-    plt.scatter(iq_slice, tq_slice, s=size_from_m(m_slice), alpha=0.6, edgecolors="none")
-    plt.xlabel("Current $i_q$ [A]")
-    plt.ylabel("Torque [N·m]")
-    plt.title(f"Torque vs Current at {speeds_rpm[idx]:.0f} RPM — marker size encodes PWM utilization")
-    plt.grid(True)
-    plt.tight_layout()
+        coef = mdl.coef_.copy()
+        intercept_ref = mdl.intercept_
 
-# ========== Plot 3: Contour map of PWM utilization over (Current, Speed) ==========
-plt.figure(figsize=(8, 6))
-levels = np.linspace(0.0, 1.0, 11)  # contours at 0.0, 0.1, ..., 1.0
-cs = plt.contourf(Iq, RPM, mod_index, levels=levels)
-cbar = plt.colorbar(cs)
-cbar.set_label("PWM utilization (modulation index)")
-plt.xlabel("Current $i_q$ [A]")
-plt.ylabel("Mechanical speed [RPM]")
-plt.title("PWM utilization over (Current, Speed)")
-plt.grid(True)
-plt.tight_layout()
+        new_intercept = intercept_ref * scale
 
-plt.show()
+        # overwrite coefficients
+        mdl.intercept_ = new_intercept
+        mdl.coef_ = coef
+
+    # --------- Prediction helpers ----------
+    def rpm_at_torque(self, torque_vals):
+        mdl = self.fits["rpm|torque"]
+        T = np.array(torque_vals, float).reshape(-1,1)
+        return mdl.predict(T).ravel()
+
+    def current_at_torque(self, torque_vals):
+        return self.fits["current|torque"].predict(np.array(torque_vals,float).reshape(-1,1)).ravel()
+
+    def torque_at_current(self, current_vals):
+        return self.fits["torque|current"].predict(np.array(current_vals,float).reshape(-1,1)).ravel()
+    
+    def speed_objs_at_torque(self, torque_vals):
+        kmph = self.speed_at_torque(torque_vals)
+        return [Speed(kmph=v) for v in np.atleast_1d(kmph)]
+
+    def speed_objs_at_current(self, current_vals):
+        kmph = self.speed_at_current(current_vals)
+        return [Speed(kmph=v) for v in np.atleast_1d(kmph)]
+    
+    def plot_dual_axis_fit(
+        self,
+        fit_y1: str,
+        fit_y2: str,
+        x_col: str,
+        y1_label: str,
+        y2_label: str,
+        title: str = "Dual Axis Fit Plot"
+    ):
+        """
+        Plots two relationships on the same X-axis with two Y-axes using stored fits.
+
+        Parameters:
+        - fit_y1: label of first stored fit, e.g. "torque|current"
+        - fit_y2: label of second stored fit, e.g. "rpm|current"
+        - x_col: column label to use as X data, e.g. "current"
+        - y1_label: label for left Y-axis
+        - y2_label: label for right Y-axis
+        - title: plot title
+        """
+
+        # Extract data
+        x = self.data[x_col].ravel()
+        y1 = self.fits[fit_y1].predict(self.data[x_col]).ravel()
+        y2 = self.fits[fit_y2].predict(self.data[x_col]).ravel()
+
+        # Smooth x-range for curves
+        x_range = np.linspace(x.min(), x.max(), 300).reshape(-1, 1)
+        y1_fit = self.fits[fit_y1].predict(x_range)
+        y2_fit = self.fits[fit_y2].predict(x_range)
+
+        # Start plotting
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+
+        # Left Y-axis (y1)
+        ax1.scatter(x, y1, label=y1_label, marker='o')
+        ax1.plot(x_range, y1_fit, label=f"{y1_label} Fit")
+        ax1.set_xlabel(x_col)
+        ax1.set_ylabel(y1_label)
+        ax1.tick_params(axis='y')
+
+        # Right Y-axis (y2)
+        ax2 = ax1.twinx()
+        ax2.scatter(x, y2, label=y2_label, marker='o', alpha=0.6)
+        ax2.plot(x_range, y2_fit, linestyle='--', label=f"{y2_label} Fit")
+        ax2.set_ylabel(y2_label)
+        ax2.tick_params(axis='y')
+
+        # Merge legends
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper center")
+
+        ax1.set_title(title)
+        plt.tight_layout()
+        plt.show()
+
+
+motor = MotorModel()
+motor.fit_at_reference_voltage()
+motor.plot_dual_axis_fit(
+    fit_y1="torque|current",
+    fit_y2="kmph|current",
+    x_col="current",
+    y1_label="Torque (Nm)",
+    y2_label="kmph",
+    title="Torque & kmph vs Current"
+)
