@@ -54,19 +54,18 @@ class MapWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Set up the window
         self.setWindowTitle("RouteMap Viewer")
         self.resize(1100, 800)
-
         root = QWidget()
         self.setCentralWidget(root)
-
         v = QVBoxLayout(root)
 
-        # Controls
+        # Controls at the top header
         ctrl = QHBoxLayout()
 
         ctrl.addWidget(QLabel("Placemark:"))
-        self.placemark_input = QLineEdit()
+        self.placemark_input = QLineEdit()  # Text input. Probably should change to drop down later
         self.placemark_input.setPlaceholderText("e.g. A. Independence to Topeka")
         ctrl.addWidget(self.placemark_input)
 
@@ -78,15 +77,12 @@ class MainWindow(QMainWindow):
         self.generate_time_nodes_btn.clicked.connect(self.on_generate_time_nodes)
         ctrl.addWidget(self.generate_time_nodes_btn)
 
-        self.markers_cb = QCheckBox("Show markers")
-        ctrl.addWidget(self.markers_cb)
-
         self.hover_cb = QCheckBox("Hover tooltips")
         self.hover_cb.setChecked(True)
         ctrl.addWidget(self.hover_cb)
 
         ctrl.addWidget(QLabel("Time step (s):"))
-        self.timestep_spin = QDoubleSpinBox()
+        self.timestep_spin = QDoubleSpinBox()  # Input for a floating point number
         self.timestep_spin.setRange(0.1, 10.0)
         self.timestep_spin.setSingleStep(0.1)
         self.timestep_spin.setValue(0.5)
@@ -98,7 +94,7 @@ class MainWindow(QMainWindow):
         self.webview = QWebEngineView()
         v.addWidget(self.webview)
 
-        # Status bar
+        # Status bar at the bottom
         self.status = QStatusBar()
         self.setStatusBar(self.status)
 
@@ -106,15 +102,22 @@ class MainWindow(QMainWindow):
         self.maps_dir = os.path.join(os.getcwd(), "maps")
         os.makedirs(self.maps_dir, exist_ok=True)
 
-        # Keep a reference to worker so it doesn't get GC'd
+        # Keep a reference to worker so it doesn't get garbage collected
         self._worker: Optional[MapWorker] = None
 
     def set_busy(self, busy: bool):
+        """
+        Disables buttons when the busy argument is true
+        """
+
         self.generate_placemark_btn.setDisabled(busy)
         self.generate_time_nodes_btn.setDisabled(busy)
 
     def on_generate_placemark(self):
-        name = self.placemark_input.text().strip()
+        """
+        Frontend function called when the generate placemark button is pressed
+        """
+        name = self.placemark_input.text().strip()  # get value from placemark_input widget
         if not name:
             self.status.showMessage("Enter a placemark name first", 4000)
             return
@@ -122,13 +125,18 @@ class MainWindow(QMainWindow):
         self.set_busy(True)
         self.status.showMessage("Generating map from placemark...")
 
-        self._worker = MapWorker(self._generate_from_placemark, name)
+        # Calls the backend function in the first parameter by passing the second parameter as an argument
+        self._worker = MapWorker(self._generate_from_placemark, name) # Map worker runs background tasks as a separate thread
+
         self._worker.progress.connect(self.status.showMessage)
-        self._worker.finished.connect(self._on_map_finished)
-        self._worker.error.connect(self._on_worker_error)
+        self._worker.finished.connect(self._on_map_finished) # calls the _on_map_finished function based on the return value of _generate_from_placemark
+        self._worker.error.connect(self._on_worker_error) # if _generate_from_placemark throws an error, call _on_Worker_error and pass in the exception as an argument
         self._worker.start()
 
     def _generate_from_placemark(self, name: str):
+        """Backend function for generating from the placemark with the same name as the argument passed in
+        Saves the map to a html output file.
+        """
         rm = RouteMap()
         rm.generate_from_placemark(name)
         out = os.path.join(self.maps_dir, "gui_map_placemark")
@@ -137,25 +145,29 @@ class MainWindow(QMainWindow):
         return os.path.abspath(out + ".html")
 
     def on_generate_time_nodes(self):
-        name = self.placemark_input.text().strip()
+        """
+        Frontend function called when the generate from time nodes button is pressed
+        """
+        name = self.placemark_input.text().strip() # Similar to before, gets text input
         if not name:
             self.status.showMessage("Enter a placemark name first", 4000)
             return
 
-        timestep = float(self.timestep_spin.value())
-        show_markers = bool(self.markers_cb.isChecked())
-        hover = bool(self.hover_cb.isChecked())
+        timestep = float(self.timestep_spin.value()) # Gets numerical input
+        hover = bool(self.hover_cb.isChecked()) # Gets boolean input from a checkbox
 
         self.set_busy(True)
         self.status.showMessage("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, show_markers, hover)
+        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, hover) # Cals the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
         self._worker.error.connect(self._on_worker_error)
         self._worker.start()
 
-    def _generate_from_time_nodes(self, name: str, timestep: float, show_markers: bool, hover: bool):
+    def _generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
+        """Backend function to generate map with tie node siulations
+        """
         # parse route
         route = parse_route_table(name)
 
@@ -165,13 +177,15 @@ class MainWindow(QMainWindow):
             route.simulate_interval(TIME_STEP=timestep)
 
         rm = RouteMap()
-        # use show_markers and hover options
-        rm.generate_from_time_nodes(route.segments, route.time_nodes, show_markers=show_markers, hover_tooltips=hover)
+        # use hover options
+        rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
         out = os.path.join(self.maps_dir, "gui_map_time_nodes")
         rm.save_map(out)
         return os.path.abspath(out + ".html")
 
     def _on_map_finished(self, filepath: str):
+        """After map is generated, load it in the viewer
+        """
         try:
             if not filepath:
                 raise RuntimeError("No file returned from worker")
