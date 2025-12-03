@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # d2 = Displacement(p1, p2)
     print(d1)
     s1 = Segment(p0, p1, v_eff= Speed(kmph=40))
-    nodes = sim_velocity_an_shi(s1)
+    nodes = simulate_speed_profile(s1)
     print(nodes[0].Fg, s1.gradient)
     # plot_points(nodes, x_field="speed", y_field="current", name="speed_vs_current")
     plot_multiple_datasets([nodes], "mph", "epm", 'v_eff')
