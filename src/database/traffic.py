@@ -3,14 +3,15 @@
 import sqlite3
 import requests
 import json
+import time
 from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
 from .parse_route_table import parse_route_table
 
-BATCH_SIZE = 10
+BATCH_SIZE = 5 # Reduced to avoid rate limiting
 
 # --- DEBUG SETUP ---
-DEBUG = False # Toggle this to False to disable debug output
+DEBUG = True # Toggle this to False to disable debug output
 
 def debug_print(*args, **kwargs):
     if DEBUG:
@@ -57,8 +58,10 @@ def overpass_query(points):
 
     query_string = "[out:json];("
     for bbox in points:
-        query_string += f'''\nnode[highway~"{'|'.join(types)}"]{bbox};'''
-    query_string += '''\n);out body;'''
+        # Fixed bbox format
+        bbox_str = f"({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]})"
+        query_string += f'\nnode[highway~"{"|".join(types)}"]{bbox_str};'
+    query_string += '\n);out body;'
 
     return query_string
 
@@ -73,53 +76,118 @@ def overpass_batch_request(points):
     overpass_url = "http://overpass-api.de/api/interpreter"
     query = overpass_query(points)
 
-    response = requests.get(overpass_url, params={'data': query})
-
-    if response.status_code == 200:
+    try:
+        response = requests.get(overpass_url, params={'data': query}, timeout=30)
+        
+        if response.status_code == 429:
+            debug_print("Rate limited, waiting 5 seconds...")
+            time.sleep(5)
+            response = requests.get(overpass_url, params={'data': query}, timeout=30)
+            
+        response.raise_for_status()
+        
         debug_print("SUCCESS")
-        try:
-            data = response.json()
-            return data['elements']
-        except json.JSONDecodeError as e:
-            debug_print(f"Error decoding JSON: {e}")
-    else:
-        debug_print(f"Error: HTTP status code {response.status_code}")
-        debug_print(f"Response content:\n{response.text}")
+        data = response.json()
+        return data['elements']
+        
+    except requests.exceptions.RequestException as e:
+        debug_print(f"Error making Overpass request: {e}")
+    except json.JSONDecodeError as e:
+        debug_print(f"Error decoding JSON: {e}")
+        debug_print(f"Response content:\n{response.text[:500]}...")
+    
     return []
 
-def regroup(batchs, coords, threshold = 0.055):
+def lookup(nodes):
+    '''
+    Creates a hashmap for efficient node searching.
+    '''
+    lookup = {}
+    for node in nodes:
+        lat_key = round(node['lat'], 5)
+        lon_key = round(node['lon'], 5)
+
+        key = (lat_key, lon_key)
+        
+        if key not in lookup:
+            lookup[key] = []
+        lookup[key].append(node)
+    
+    return lookup
+
+def find_closest_node(lookup, coord, threshold=50):
+    '''
+    Efficiently finds the closest node.
+    '''
+    matches = []
+
+    # search main grid cell
+    rounded_key = (round(coord.lat, 5), round(coord.lon, 5))
+    keys_to_check = [rounded_key]
+
+    # search 8 neighbors
+    lat_step = 0.00001
+    lon_step = 0.00001
+
+    for lat_offset in [-lat_step, 0, lat_step]:
+        for lon_offset in [-lon_step, 0, lon_step]:
+            neighbor_key = (
+                round(coord.lat + lat_offset, 5),
+                round(coord.lon + lon_offset, 5)
+            )
+            if neighbor_key not in keys_to_check:
+                keys_to_check.append(neighbor_key)
+
+    # check all keys
+    for key in keys_to_check:
+        if key in lookup:
+            for node in lookup[key]:
+                node_coord = Coordinate(node["lat"], node["lon"])
+                distance = Displacement(coord, node_coord).mag
+                if distance <= threshold:
+                    matches.append(node)
+
+    return matches
+
+def regroup(batchs, coords, threshold = 50):
     '''
     Groups nodes around original coordinate points.
     Args:
-        nodes: Dict containing information ('id', 'lat', 'lon') on found nodes
+        batchs: Dict containing information ('id', 'lat', 'lon') on found nodes
         points: List containing original coordinate points [(reference_point)]
         threshold: Max distance a node can be from a point
     Returns:
         clusters: Dict {reference_point: [nodes]}
     '''
-    clusters = {coord : [] for coord in coords}
-    print(f"Nodes & Coords:\n{batchs}")
+    # Flatten all nodes from batches
+    all_nodes = []
     for batch in batchs:
-        for node in batch:
-            min_distance = float('inf')
-            closest_point = None
+        all_nodes.extend(batch)
+    #Unduplicate 
+    unique = {}
+    for n in all_nodes:
+        unique[n['id']] = n
+    all_nodes = list(unique.values())
+    debug_print(f"Total nodes from Overpass: {len(all_nodes)}")
+    debug_print(f"Total coordinates to check: {len(coords)}")
+    
+    if not all_nodes:
+        debug_print("No nodes found from Overpass")
+        return {coord: [] for coord in coords}
+    
+    # Create spatial lookup for efficient searching
+    spatial_lookup = lookup(all_nodes)
+    
+    clusters = {coord: [] for coord in coords}
+    matches_found = 0
+    
+    for coord in coords:
+        closest_node = find_closest_node(spatial_lookup, coord, threshold)
+        if closest_node:
+            nearby = find_closest_node(spatial_lookup, coord, threshold)
+            clusters[coord].extend(nearby)
 
-            for coord in coords:
-                # convert point to dict for haversine function
-                # point_dict = {'lat': coord[0], 'lon': coord[1]}
-                # print(type(node[0]))
-                
-                # print(f"Single Node:\n{node}")
-                node_coord = Coordinate(node["lat"], node["lon"])
-                distance = Displacement(coord, node_coord).mag
-                if (distance < min_distance and distance <= threshold):
-                    min_distance = distance
-                    closest_point = coord
-                    print("monkey", type(closest_point))
-            print(node)
-            clusters[closest_point].append(node)
-            print("something")
-
+    debug_print(f"Coordinates with traffic nodes: {matches_found}/{len(coords)}")
     return clusters
 
 # def haversine(point1, point2):
@@ -147,14 +215,17 @@ def priority_stops(clusters):
     priority_nodes = {}
     
     for ref, nodes in clusters.items():
-        high = None
-        best_node = None
+        if not nodes:
+            priority_nodes[ref] = None
+            continue
+            
+        high = float('inf') 
         
         for node in nodes:
             stop_type = node.get('tags', {}).get('highway')
             current = stop_priority.get(stop_type, float('inf'))
-            
-            if (high is None or current < high):
+    
+            if current < high:
                 high = current
                 best_node = node
         
@@ -171,7 +242,7 @@ def debugging_clusters(clusters):
         None
     '''
     for i, (point, nodes) in enumerate(clusters.items(), 1):
-        debug_print(f"\nCluster {i} (Reference: {point[0]:.6f}, {point[1]:.6f}):")
+        debug_print(f"\nCluster {i} (Reference: {point.lat:.6f}, {point.lon:.6f}):")
         debug_print(f"Nodes found: {len(nodes)}")
         for node in nodes:
             debug_print(f"  - ID: {node['id']}", end="")
@@ -190,12 +261,11 @@ def debugging_priority(nodes):
     '''
     for ref, node in nodes.items():
         if node:
-            if node:
-                debug_print(f"\nCluster at {ref}:")
-                debug_print(f"  Priority node ID: {node['id']}")
-                debug_print(f"  Type: {node.get('tags', {}).get('highway')}")
-            else:
-                debug_print(f"\nCluster at {ref}: No priority nodes found")
+            debug_print(f"\nCluster at {ref}:")
+            debug_print(f"  Priority node ID: {node['id']}")
+            debug_print(f"  Type: {node.get('tags', {}).get('highway')}")
+        else:
+            debug_print(f"\nCluster at {ref}: No priority nodes found")
     debug_print()
 
 
@@ -205,30 +275,33 @@ def update_traffic(segment_id):
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     for i in range(0, len(batch_bboxes), BATCH_SIZE):
+        if i == 20:
+            break
         batch = batch_bboxes[i:i+BATCH_SIZE]
         try:
             traffic_data.append(overpass_batch_request(batch))
-            print(f"Data up to {i}")
-            break
+            print(f"Data up to {i + BATCH_SIZE}") 
+            #break, collects all traffic data
         except Exception as e:
             print(f"Error fetching batch: {e}")
-            traffic_data.append([None] for _ in batch)
+            traffic_data.append([None] * len(batch))
 
     grouped = regroup(traffic_data, coord_points)
     priority_nodes = priority_stops(grouped)
-    for ref, node in priority_nodes.items:
-        if node != 0:
+    debug_print(priority_nodes)
+    for ref, node in priority_nodes.items():
+        if node != None:
             # store in db
             print(f"{ref}:\t{node['id']}")
             db = sqlite3.connect('data.sqlite')
             cursor = db.cursor()
             # add power here
-            cursor.execute('UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?', (node['id'], ref[0], ref[1]))
+            cursor.execute('UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?', (node['id'], ref.lat, ref.lon))
 
             db.commit()
             db.close()
-        else:
-            raise ValueError(f"Could not find Stop Node")
+        # else:
+        #     raise ValueError(f"Could not find Stop Node")
 
 
 def main():
