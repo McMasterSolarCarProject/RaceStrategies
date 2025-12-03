@@ -8,3 +8,5 @@ pytest
 pandas
 folium
 pytest
+PyQt5
+PyQtWebEngine
