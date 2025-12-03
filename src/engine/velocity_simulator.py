@@ -3,16 +3,15 @@ from .kinematics import Speed, UNIT_VEC, Vec, Velocity
 from ..utils.graph import plot_points, plot_multiple_datasets
 from .models import Motor
 
-RESOLUTION = 1
 
-def sim_velocity_an_shi(segment, speed_lim: Speed = Speed(mph=60)):
-    min_speed = Speed(mph= 10)
-    max_speed = speed_lim
+def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=10), max_speed_lim: Speed = Speed(mph=60), RESOLUTION: float = 1):
+    min_speed = min_speed_lim
+    max_speed = max_speed_lim
     velocityNodes = []
     speed = min_speed.mps
     motor = Motor(torque = 0)
     while speed < max_speed.mps:
-        v = VelocityNode(segment, motor, Velocity(UNIT_VEC, Speed(speed)))
+        v = VelocityNode(segment, motor, Velocity(segment.unit_vector(), Speed(speed)))
         if v.solve_velocity(segment):
             velocityNodes.append(v)
             speed += RESOLUTION

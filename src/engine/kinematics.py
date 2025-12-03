@@ -124,22 +124,28 @@ class Displacement(Vec):  # East-North-Up
 class Speed:
     def __init__(self, mps: float = None, kmph: float = None, mph: float = None):
         if mps is not None:
-            self.mps = mps
-            self.kmph = mps * 3.6
-            self.mph = mps * 2.23694
+            self._mps = mps
 
         elif kmph is not None:
-            self.mps = kmph / 3.6
-            self.kmph = kmph
-            self.mph = kmph / 1.60934
+            self._mps = kmph / 3.6
 
         elif mph is not None:
-            self.mps = mph / 2.23694
-            self.kmph = mph * 1.60934
-            self.mph = mph
+            self._mps = mph / 2.23694
         else:
-            self.mps = self.mph = self.kmph = 0
+            self._mps = 0
 
+    @property
+    def mps(self) -> float:
+        return self._mps
+    
+    @property
+    def kmph(self) -> float:
+        return self._mps * 3.6
+    
+    @property
+    def mph(self) -> float:
+        return self._mps * 2.23694
+    
     @classmethod
     def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = 0.2):
         if rpm is not None:
