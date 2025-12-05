@@ -2,6 +2,7 @@ from __future__ import annotations
 from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, ZERO_VELOCITY
 from ..utils.constants import *
 from .models import Motor
+from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
 class Segment(Displacement):  # Meters
@@ -80,9 +81,8 @@ class TimeNode(StateNode):
 
 class VelocityNode(StateNode):
     #constant vel --> motor force -->  power, torque --> energy per metre (epm)
-    def __init__(self, segment: Segment, motor: Motor, speed: Speed = Speed(0)):
+    def __init__(self, segment: Segment, speed: Speed = Speed(0)):
         super().__init__(segment, 0, 0, speed)
-        self.motor = motor
 
     def solve_velocity(self,):
         self.Fd_calc(self.speed)
@@ -92,8 +92,8 @@ class VelocityNode(StateNode):
         self.Fm = self.Fg + self.Frr + self.Fd
         self.P_mech = self.Fm * self.speed.mps
         self.torque = self.Fm * wheel_radius
-        self.motor.update_velocity(self.speed)
-        if self.motor.velocity.mps < self.speed.mps:
+        motor.update_velocity(self.speed)
+        if motor.velocity.mps < self.speed.mps:
             print("dunno")
             return False
             raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")

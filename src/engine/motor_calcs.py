@@ -7,9 +7,9 @@ from sklearn.pipeline import make_pipeline, Pipeline
 from math import pi
 import matplotlib.pyplot as plt
 
-from src.utils.constants import TORQUE_CURRENT_RPM_DATA, wheel_radius, battery_voltage
+from ..utils.constants import TORQUE_CURRENT_RPM_DATA, wheel_radius, battery_voltage
 # from ..src.utils.graph import plot_dual_axis_fit
-from src.engine.kinematics import Speed
+from ..engine.kinematics import Speed
         
 
 import numpy as np
@@ -23,6 +23,8 @@ class MotorModel:
         self.data = {}
         self.fits = {}
         self.load_data(TORQUE_CURRENT_RPM_DATA)
+        self.fit_at_reference_voltage()
+        self.original_fits = copy.deepcopy(self.fits)
 
     def load_data(self, data):
         A = np.array(data, float)
@@ -62,6 +64,7 @@ class MotorModel:
         self.voltage = V_new
 
         # update BOTH rpm fits in-place
+        self.fits = copy.deepcopy(self.original_fits)
         for fit_key in ["rpm|torque", "rpm|current"]:
             if fit_key in self.fits:
                 mdl = self.fits[fit_key]
@@ -159,8 +162,19 @@ class MotorModel:
         else:
             raise ValueError(f"Unknown speed unit: {unit}. Use 'rpm', 'kmph', 'mph', or 'mps'")
 
+    def torque_from_speed(self, rpm: float) -> float:
+        rpm_torque_fit = self.fits["rpm|torque"]  # rpm = a*T + b
+        a = float(rpm_torque_fit.coef_)
+        b = float(rpm_torque_fit.intercept_)
+        return (rpm - b) / a
+
+    def speed_from_torque(self, torque: float) -> float:
+        rpm_torque_fit = self.fits["rpm|torque"]  # rpm = a*T + b
+        a = float(rpm_torque_fit.coef_)
+        b = float(rpm_torque_fit.intercept_)
+        return a*torque + b
+
     def plot_model(self, voltage: float, unit:str):
-        self.fit_at_reference_voltage()
         self.set_voltage(voltage)
 
          # Unit labels mapping
@@ -185,8 +199,6 @@ class MotorModel:
 
 
 motor = MotorModel()
-motor.fit_at_reference_voltage()
-# motor.plot_model(101, unit = "rpm")
-# motor.plot_model(101, unit="mph")
-# motor.plot_model(101, unit="mps")
-motor.plot_model(85, unit = "mph")
+motor.set_voltage(85)
+if __name__ == "__main__":
+    motor.plot_model(100.8, unit = "mph")
