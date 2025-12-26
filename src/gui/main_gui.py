@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import time
 from typing import Optional
+import sqlite3
 
 from PyQt5.QtCore import QThread, pyqtSignal, QUrl
 from PyQt5.QtWidgets import (
@@ -16,11 +17,14 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QStatusBar,
+    QComboBox,
+    QFileDialog,
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 from .route_map import RouteMap
 from ..database.parse_route_table import parse_route_table
+from ..database.init_route_table import init_route_db
 
 
 class MapWorker(QThread):
@@ -32,6 +36,8 @@ class MapWorker(QThread):
             progress(str): optional progress messages
     """
 
+    # Running self.finished.connect, self.error.connect, and self.progress.connect effectively causes those functions to be called when running .emit
+    # eg. when connecting showMessage to self.progress, running self.progress.emit("Hello world") will run showMessage() with "Hello world" passed as an argument
     finished = pyqtSignal(object)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
@@ -64,16 +70,28 @@ class MainWindow(QMainWindow):
         # Controls at the top header
         ctrl = QHBoxLayout()
 
+        # For a file upload, have a readonly text
+        ctrl.addWidget(QLabel("KML File"))
+        self.kml_input = QLineEdit()
+        self.kml_input.setReadOnly(True)
+        self.kml_input.setPlaceholderText("Select a .kml file...")
+        ctrl.addWidget(self.kml_input)
+
+        self.upload_kml_btn = QPushButton("Browse…")
+        self.upload_kml_btn.clicked.connect(self.on_upload_kml)
+        ctrl.addWidget(self.upload_kml_btn)
+
         ctrl.addWidget(QLabel("Placemark:"))
-        self.placemark_input = QLineEdit()  # Text input. Probably should change to drop down later
-        self.placemark_input.setPlaceholderText("e.g. A. Independence to Topeka")
+        self.placemark_input = QComboBox()
+        self.placemark_input.setEditable(False)
+        self.placemark_input.setMinimumWidth(250)
         ctrl.addWidget(self.placemark_input)
 
         self.generate_placemark_btn = QPushButton("Generate from Placemark")
         self.generate_placemark_btn.clicked.connect(self.on_generate_placemark)
         ctrl.addWidget(self.generate_placemark_btn)
 
-        self.generate_time_nodes_btn = QPushButton("Simulate & Generate from Time Nodes")
+        self.generate_time_nodes_btn = QPushButton("Simulate && Generate from Time Nodes")
         self.generate_time_nodes_btn.clicked.connect(self.on_generate_time_nodes)
         ctrl.addWidget(self.generate_time_nodes_btn)
 
@@ -105,6 +123,9 @@ class MainWindow(QMainWindow):
         # Keep a reference to worker so it doesn't get garbage collected
         self._worker: Optional[MapWorker] = None
 
+        # After creating all widgets, perform these initialization tasks
+        self._populate_placemark_dropdown()
+
     def set_busy(self, busy: bool):
         """
         Disables buttons when the busy argument is true
@@ -113,28 +134,84 @@ class MainWindow(QMainWindow):
         self.generate_placemark_btn.setDisabled(busy)
         self.generate_time_nodes_btn.setDisabled(busy)
 
+    def on_upload_kml(self):
+        """
+        Frontend function called when the upload kml button is pressed
+        """
+        # Opens a dialog that only filters for KML files
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select KML File", "", "KML Files (*.kml)")
+        if file_path:
+            self.kml_input.setText(file_path)
+            print(f"Selected file: {file_path}")
+
+        self.set_busy(True)  # Disables buttons until worker finished or worker error
+        self.status.showMessage(f"Uploading kml file {file_path}...")
+
+        # Calls the backend function in the first parameter by passing the second parameter as an argument
+        self._worker = MapWorker(self._upload_kml, file_path)  # Map worker runs background tasks as a separate thread
+
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._populate_placemark_dropdown)  # Populates the dropdown with new segment ids
+        self._worker.error.connect(self._on_worker_error)  # if _upload_kml throws an error, call _on_worker_error and pass in the exception as an argument
+        self._worker.start()
+
+    def _upload_kml(self, path: str) -> None:
+        """
+        Backend function that uses the uploaded kml file to populate the data.sqlite file
+        """
+        init_route_db(remake=True, kml_path=path)
+
+    def _populate_placemark_dropdown(self):
+        """
+        Populate the placemark dropdown using segment_id values in data.sqlite.
+        """
+        db_path = "data.sqlite"
+        self.placemark_input.clear()
+        if not os.path.exists(db_path):
+            self.status.showMessage("data.sqlite not found")
+            return
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT DISTINCT segment_id FROM route_data WHERE segment_id IS NOT NULL")
+                segment_ids = sorted(row[0] for row in cur.fetchall())
+            conn.close()  # With block doesn't automatically close sqlite connection
+
+            if not segment_ids:
+                self.status.showMessage("No segments found in database")
+                return
+            self.placemark_input.addItems(segment_ids)
+            self.status.showMessage("All segments successfully uploaded")
+
+        except Exception as e:
+            self.status.showMessage(f"Error: {e}")
+        finally:
+            self.set_busy(False)
+
     def on_generate_placemark(self):
         """
         Frontend function called when the generate placemark button is pressed
         """
-        name = self.placemark_input.text().strip()  # get value from placemark_input widget
+        name = self.placemark_input.currentText().strip()  # get value from placemark_input widget
         if not name:
-            self.status.showMessage("Enter a placemark name first", 4000)
-            return
+            self.status.showMessage("Enter a placemark name first")
+            return None
 
-        self.set_busy(True)
+        self.set_busy(True)  # Disables buttons until worker finished or worker error
         self.status.showMessage("Generating map from placemark...")
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = MapWorker(self._generate_from_placemark, name) # Map worker runs background tasks as a separate thread
+        self._worker = MapWorker(self._generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
-        self._worker.finished.connect(self._on_map_finished) # calls the _on_map_finished function based on the return value of _generate_from_placemark
-        self._worker.error.connect(self._on_worker_error) # if _generate_from_placemark throws an error, call _on_Worker_error and pass in the exception as an argument
+        self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
+        self._worker.error.connect(self._on_worker_error)  # if _generate_from_placemark throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
 
     def _generate_from_placemark(self, name: str):
-        """Backend function for generating from the placemark with the same name as the argument passed in
+        """
+        Backend function for generating from the placemark with the same name as the argument passed in
         Saves the map to a html output file.
         """
         rm = RouteMap()
@@ -148,25 +225,26 @@ class MainWindow(QMainWindow):
         """
         Frontend function called when the generate from time nodes button is pressed
         """
-        name = self.placemark_input.text().strip() # Similar to before, gets text input
+        name = self.placemark_input.currentText().strip()  # Similar to before, gets text input
         if not name:
             self.status.showMessage("Enter a placemark name first", 4000)
             return
 
-        timestep = float(self.timestep_spin.value()) # Gets numerical input
-        hover = bool(self.hover_cb.isChecked()) # Gets boolean input from a checkbox
+        timestep = float(self.timestep_spin.value())  # Gets numerical input
+        hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
 
         self.set_busy(True)
         self.status.showMessage("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, hover) # Cals the first function with other parameters as arguments into the first parameter
+        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, hover)  # Cals the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
         self._worker.error.connect(self._on_worker_error)
         self._worker.start()
 
     def _generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
-        """Backend function to generate map with tie node siulations
+        """
+        Backend function to generate map with the node simulations
         """
         # parse route
         route = parse_route_table(name)
@@ -184,7 +262,8 @@ class MainWindow(QMainWindow):
         return os.path.abspath(out + ".html")
 
     def _on_map_finished(self, filepath: str):
-        """After map is generated, load it in the viewer
+        """
+        After map is generated, load it in the viewer
         """
         try:
             if not filepath:

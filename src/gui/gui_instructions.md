@@ -1,0 +1,1 @@
+To run, type `py -m src.gui.main_gui` in the terminal.
