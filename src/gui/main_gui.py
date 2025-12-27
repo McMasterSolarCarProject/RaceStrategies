@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
+import sys
 from typing import Optional
-import sqlite3
 
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import (
@@ -21,9 +21,10 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 
-from .worker import Worker
+from .worker import Worker, WorkerResult
 from .services.kml_service import upload_kml
 from .services.db_service import get_segment_ids
+from .controllers.state_controller import StateController
 from .controllers.map_controller import MapController
 
 
@@ -89,19 +90,15 @@ class MainWindow(QMainWindow):
         # Keep a reference to worker so it doesn't get garbage collected
         self._worker: Optional[Worker] = None
 
+        # Used to control busy and idle states. Add more buttons here to control state
+        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn)
+
         # Create a map controller (may eventually want to do something similar for graphs)
         self.map_controller = MapController(os.path.join(os.getcwd(), "maps"))
         os.makedirs(self.map_controller.maps_dir, exist_ok=True)
 
         # After creating all widgets, perform these initialization tasks
         self._populate_placemark_dropdown()
-
-    def set_busy(self, busy: bool):
-        """
-        Disables buttons when the busy argument is true
-        """
-        self.generate_placemark_btn.setDisabled(busy)
-        self.generate_time_nodes_btn.setDisabled(busy)
 
     def on_upload_kml(self):
         """
@@ -113,16 +110,25 @@ class MainWindow(QMainWindow):
             self.kml_input.setText(file_path)
             print(f"Selected file: {file_path}")
 
-        self.set_busy(True)  # Disables buttons until worker finished or worker error
-        self.status.showMessage(f"Uploading kml file {file_path}...")
+        self.state.busy(f"Uploading kml file {file_path}...")  # Disables buttons until worker finished or worker error
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
         self._worker = Worker(upload_kml, file_path)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
-        self._worker.finished.connect(self._populate_placemark_dropdown)  # Populates the dropdown with new segment ids
-        self._worker.error.connect(self._on_worker_error)  # if _upload_kml throws an error, call _on_worker_error and pass in the exception as an argument
+        self._worker.finished.connect(self._on_kml_finished)  # Populates the dropdown with new segment ids
+        # self._worker.error.connect(self._on_worker_error)  # if _upload_kml throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
+
+    def _on_kml_finished(self, result: WorkerResult):
+        """
+        After KML is loaded, populate the placemark dropdown
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+        else:
+            self._populate_placemark_dropdown()
+        self.state.idle()
 
     def _populate_placemark_dropdown(self):
         """
@@ -139,8 +145,6 @@ class MainWindow(QMainWindow):
             self.status.showMessage("Segments loaded successfully")
         except Exception as e:
             self.status.showMessage(f"Error: {e}", 3000)
-        finally:
-            self.set_busy(False)
 
     def on_generate_placemark(self):
         """
@@ -151,15 +155,14 @@ class MainWindow(QMainWindow):
             self.status.showMessage("Enter a placemark name first")
             return None
 
-        self.set_busy(True)  # Disables buttons until worker finished or worker error
-        self.status.showMessage("Generating map from placemark...")
+        self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
         self._worker = Worker(self.map_controller.generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
-        self._worker.error.connect(self._on_worker_error)  # if _generate_from_placemark throws an error, call _on_worker_error and pass in the exception as an argument
+        # self._worker.error.connect(self._on_worker_error)  # if _generate_from_placemark throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
 
     def on_generate_time_nodes(self):
@@ -174,19 +177,23 @@ class MainWindow(QMainWindow):
         timestep = float(self.timestep_spin.value())  # Gets numerical input
         hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
 
-        self.set_busy(True)
-        self.status.showMessage("Parsing route and running simulation (this may take a while)...")
+        self.state.busy("Parsing route and running simulation (this may take a while)...")
 
         self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
-        self._worker.error.connect(self._on_worker_error)
+        # self._worker.error.connect(self._on_worker_error)
         self._worker.start()
 
-    def _on_map_finished(self, filepath: str):
+    def _on_map_finished(self, result: WorkerResult):
         """
         After map is generated, load it in the viewer
         """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+            return
+
+        filepath = result.value
         try:
             if not filepath:
                 raise RuntimeError("No file returned from worker")
@@ -196,21 +203,14 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.status.showMessage(f"Error loading map: {e}")
         finally:
-            self.set_busy(False)
-
-    def _on_worker_error(self, msg: str):
-        self.status.showMessage(f"Worker error: {msg}")
-        self.set_busy(False)
+            self.state.idle()
 
 
 def run_app():
-    import sys
-
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     run_app()
