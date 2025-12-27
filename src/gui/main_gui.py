@@ -1,10 +1,9 @@
 from __future__ import annotations
 import os
-import time
 from typing import Optional
 import sqlite3
 
-from PyQt5.QtCore import QThread, pyqtSignal, QUrl
+from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -22,39 +21,10 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 
-from .route_map import RouteMap
-from ..database.parse_route_table import parse_route_table
-from ..database.init_route_table import init_route_db
-
-
-class MapWorker(QThread):
-    """Generic worker thread to run a blocking map generation or simulation function.
-
-    Emits:
-            finished(object): result returned by the function (usually the saved file path)
-            error(str): error message if exception occurs
-            progress(str): optional progress messages
-    """
-
-    # Running self.finished.connect, self.error.connect, and self.progress.connect effectively causes those functions to be called when running .emit
-    # eg. when connecting showMessage to self.progress, running self.progress.emit("Hello world") will run showMessage() with "Hello world" passed as an argument
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str)
-
-    def __init__(self, func, *args, **kwargs):
-        super().__init__()
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        try:
-            self.progress.emit("starting...")
-            res = self.func(*self.args, **self.kwargs)
-            self.finished.emit(res)
-        except Exception as e:
-            self.error.emit(str(e))
+from .worker import Worker
+from .services.kml_service import upload_kml
+from .services.db_service import get_segment_ids
+from .controllers.map_controller import MapController
 
 
 class MainWindow(QMainWindow):
@@ -116,12 +86,12 @@ class MainWindow(QMainWindow):
         self.status = QStatusBar()
         self.setStatusBar(self.status)
 
-        # Make sure maps folder exists
-        self.maps_dir = os.path.join(os.getcwd(), "maps")
-        os.makedirs(self.maps_dir, exist_ok=True)
-
         # Keep a reference to worker so it doesn't get garbage collected
-        self._worker: Optional[MapWorker] = None
+        self._worker: Optional[Worker] = None
+
+        # Create a map controller (may eventually want to do something similar for graphs)
+        self.map_controller = MapController(os.path.join(os.getcwd(), "maps"))
+        os.makedirs(self.map_controller.maps_dir, exist_ok=True)
 
         # After creating all widgets, perform these initialization tasks
         self._populate_placemark_dropdown()
@@ -130,7 +100,6 @@ class MainWindow(QMainWindow):
         """
         Disables buttons when the busy argument is true
         """
-
         self.generate_placemark_btn.setDisabled(busy)
         self.generate_time_nodes_btn.setDisabled(busy)
 
@@ -148,44 +117,28 @@ class MainWindow(QMainWindow):
         self.status.showMessage(f"Uploading kml file {file_path}...")
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = MapWorker(self._upload_kml, file_path)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(upload_kml, file_path)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._populate_placemark_dropdown)  # Populates the dropdown with new segment ids
         self._worker.error.connect(self._on_worker_error)  # if _upload_kml throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
 
-    def _upload_kml(self, path: str) -> None:
-        """
-        Backend function that uses the uploaded kml file to populate the data.sqlite file
-        """
-        init_route_db(remake=True, kml_path=path)
-
     def _populate_placemark_dropdown(self):
         """
         Populate the placemark dropdown using segment_id values in data.sqlite.
         """
-        db_path = "data.sqlite"
         self.placemark_input.clear()
-        if not os.path.exists(db_path):
-            self.status.showMessage("data.sqlite not found")
-            return
 
         try:
-            with sqlite3.connect(db_path) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT DISTINCT segment_id FROM route_data WHERE segment_id IS NOT NULL")
-                segment_ids = sorted(row[0] for row in cur.fetchall())
-            conn.close()  # With block doesn't automatically close sqlite connection
-
+            segment_ids = get_segment_ids()
             if not segment_ids:
                 self.status.showMessage("No segments found in database")
                 return
             self.placemark_input.addItems(segment_ids)
-            self.status.showMessage("All segments successfully uploaded")
-
+            self.status.showMessage("Segments loaded successfully")
         except Exception as e:
-            self.status.showMessage(f"Error: {e}")
+            self.status.showMessage(f"Error: {e}", 3000)
         finally:
             self.set_busy(False)
 
@@ -202,24 +155,12 @@ class MainWindow(QMainWindow):
         self.status.showMessage("Generating map from placemark...")
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = MapWorker(self._generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
         self._worker.error.connect(self._on_worker_error)  # if _generate_from_placemark throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
-
-    def _generate_from_placemark(self, name: str):
-        """
-        Backend function for generating from the placemark with the same name as the argument passed in
-        Saves the map to a html output file.
-        """
-        rm = RouteMap()
-        rm.generate_from_placemark(name)
-        out = os.path.join(self.maps_dir, "gui_map_placemark")
-        rm.save_map(out)
-        # return absolute path to saved file
-        return os.path.abspath(out + ".html")
 
     def on_generate_time_nodes(self):
         """
@@ -236,30 +177,11 @@ class MainWindow(QMainWindow):
         self.set_busy(True)
         self.status.showMessage("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, hover)  # Cals the first function with other parameters as arguments into the first parameter
+        self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
         self._worker.error.connect(self._on_worker_error)
         self._worker.start()
-
-    def _generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
-        """
-        Backend function to generate map with the node simulations
-        """
-        # parse route
-        route = parse_route_table(name)
-
-        # simulate (this mutates route and adds .segments and .time_nodes)
-        # use TIME_STEP kwarg like existing code
-        if hasattr(route, "simulate_interval"):
-            route.simulate_interval(TIME_STEP=timestep)
-
-        rm = RouteMap()
-        # use hover options
-        rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
-        out = os.path.join(self.maps_dir, "gui_map_time_nodes")
-        rm.save_map(out)
-        return os.path.abspath(out + ".html")
 
     def _on_map_finished(self, filepath: str):
         """
