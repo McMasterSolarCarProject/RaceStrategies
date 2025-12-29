@@ -18,14 +18,15 @@ from PyQt5.QtWidgets import (
     QStatusBar,
     QComboBox,
     QFileDialog,
+    QSplitter,
 )
-from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 from .worker import Worker, WorkerResult
 from .services.kml_service import upload_kml
 from .services.db_service import get_segment_ids
 from .controllers.state_controller import StateController
 from .controllers.map_controller import MapController
+from .controllers.graph_controller import GraphController
 
 
 class MainWindow(QMainWindow):
@@ -79,9 +80,21 @@ class MainWindow(QMainWindow):
 
         v.addLayout(ctrl)
 
-        # Web view for the folium HTML
-        self.webview = QWebEngineView()
-        v.addWidget(self.webview)
+        # Splitter to show both map and graphs
+        splitter = QSplitter()
+
+        # Create a map controller (may eventually want to do something similar for graphs)
+        self.map_controller = MapController(os.path.join(os.getcwd(), "maps"))
+        os.makedirs(self.map_controller.maps_dir, exist_ok=True)
+
+        splitter.addWidget(self.map_controller)
+
+        # Graph controller widget
+        self.graph_controller = GraphController(None, self.on_generate_graphs)
+        splitter.addWidget(self.graph_controller)
+        splitter.setSizes([600, 400])
+
+        v.addWidget(splitter)
 
         # Status bar at the bottom
         self.status = QStatusBar()
@@ -91,11 +104,10 @@ class MainWindow(QMainWindow):
         self._worker: Optional[Worker] = None
 
         # Used to control busy and idle states. Add more buttons here to control state
-        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn)
+        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.graph_controller.generate_button)
 
-        # Create a map controller (may eventually want to do something similar for graphs)
-        self.map_controller = MapController(os.path.join(os.getcwd(), "maps"))
-        os.makedirs(self.map_controller.maps_dir, exist_ok=True)
+        # Store current interval simulator for graph controller
+        # self._current_interval_simulator = None
 
         # After creating all widgets, perform these initialization tasks
         self._populate_placemark_dropdown()
@@ -116,11 +128,10 @@ class MainWindow(QMainWindow):
         self._worker = Worker(upload_kml, file_path)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
-        self._worker.finished.connect(self._on_kml_finished)  # Populates the dropdown with new segment ids
-        # self._worker.error.connect(self._on_worker_error)  # if _upload_kml throws an error, call _on_worker_error and pass in the exception as an argument
+        self._worker.finished.connect(self._on_kml_uploaded)  # Populates the dropdown with new segment ids
         self._worker.start()
 
-    def _on_kml_finished(self, result: WorkerResult):
+    def _on_kml_uploaded(self, result: WorkerResult):
         """
         After KML is loaded, populate the placemark dropdown
         """
@@ -153,7 +164,7 @@ class MainWindow(QMainWindow):
         name = self.placemark_input.currentText().strip()  # get value from placemark_input widget
         if not name:
             self.status.showMessage("Enter a placemark name first")
-            return None
+            return
 
         self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
@@ -162,7 +173,6 @@ class MainWindow(QMainWindow):
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
-        # self._worker.error.connect(self._on_worker_error)  # if _generate_from_placemark throws an error, call _on_worker_error and pass in the exception as an argument
         self._worker.start()
 
     def on_generate_time_nodes(self):
@@ -182,7 +192,20 @@ class MainWindow(QMainWindow):
         self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
-        # self._worker.error.connect(self._on_worker_error)
+        self._worker.start()
+
+    def on_generate_graphs(self):
+        """
+        Frontend function called when the generate graphs button is pressed
+        """
+        if self.map_controller.simulated_route is None:
+            self.status.showMessage("No route simulated yet. Please generate a map first.", 4000)
+            return
+
+        self.state.busy("Generating graphs...")
+        self._worker = Worker(self.graph_controller.generate_graphs)
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._on_graphs_finished)
         self._worker.start()
 
     def _on_map_finished(self, result: WorkerResult):
@@ -198,19 +221,34 @@ class MainWindow(QMainWindow):
             if not filepath:
                 raise RuntimeError("No file returned from worker")
             url = QUrl.fromLocalFile(str(filepath))
-            self.webview.load(url)
+            self.map_controller.webview.load(url)
             self.status.showMessage(f"Loaded: {filepath}", 5000)
+
+            self.graph_controller.simulated_route = self.map_controller.simulated_route
         except Exception as e:
             self.status.showMessage(f"Error loading map: {e}")
         finally:
             self.state.idle()
 
+    def _on_graphs_finished(self, result: WorkerResult):
+        """
+        After graphs are generated, load them in the viewer
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+            return
+        self.state.idle("Graphs generated successfully")
+
 
 def run_app():
+    """
+    Launches the PyQT application
+    """
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     run_app()

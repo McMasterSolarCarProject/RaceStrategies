@@ -124,5 +124,5 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
 
 if __name__ == "__main__":
     start = time.time()
-    init_route_db()
+    init_route_db(remake=True)
     print(time.time() - start)

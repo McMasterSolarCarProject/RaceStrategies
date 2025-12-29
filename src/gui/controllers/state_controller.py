@@ -2,6 +2,9 @@ from PyQt5.QtWidgets import QPushButton, QStatusBar
 
 
 class StateController:
+    """
+    Handles the busy and idle states of the PyQT app
+    """
     def __init__(self, status_bar: QStatusBar, *buttons: list[QPushButton]):
         self.status = status_bar
         self.buttons = buttons

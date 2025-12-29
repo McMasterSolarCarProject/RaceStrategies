@@ -19,6 +19,15 @@ class Segment(Displacement):  # Meters
         return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | P eff: {self.t_eff}"
 
 class StateNode:
+    NUMERICAL_METRICS = {
+        "torque": "Torque (Nm)",
+        "Fb": "Braking Force (N)",
+        "velocity.mps": "Velocity (m/s)",
+        "velocity.kmph": "Velocity (km/h)",
+        "velocity.mph": "Velocity (mph)",
+        "Fm": "Motor Force (N)",
+    }
+
     def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, velocity: Velocity = ZERO_VELOCITY):
         self.segment = segment
         self.torque = torque
@@ -34,7 +43,14 @@ class StateNode:
         self.Fm = self.torque * wheel_radius
 
     def Fd_calc(self, velocity: Velocity, wind: Velocity = ZERO_VELOCITY):
-        self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
+        try:
+            (velocity - wind).mag ** 2
+        except OverflowError:
+            print("ERROR: The value of velocity in fd_calc is too high! Try a smaller timestep")
+            print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
+            velocity = Velocity(unit_vec=velocity.unit_vector(), speed=Speed(mps=200))
+        finally:
+            self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - wind).mag ** 2)
 
     def Frr_calc(self, seg: Segment):
         self.Frr = coef_rr * car_mass * accel_g * seg.gradient.cos()
@@ -48,8 +64,25 @@ class StateNode:
     def solar_energy_cal(self):
         self.solar = 0
 
+    @classmethod
+    def get_numerical_metrics(cls) -> list[str]:
+        """
+        Contains a list of all the numerical attributes that can be plotted on a graph.
+        This is to allow the gui app to dynamically display these metrics.
+        If new attributes are added to StateNode, then NUMERICAL_METRICS must be updated.
+        """
+        return list(cls.NUMERICAL_METRICS.keys())
+
 
 class TimeNode(StateNode):
+    NUMERICAL_METRICS = {
+        **StateNode.NUMERICAL_METRICS,
+        "time": "Time (s)",
+        "dist": "Distance (m)",
+        "acc": "Acceleration (m/s²)",
+        "soc": "State of Charge (%)",
+    }
+
     def __init__(self, segment: Segment, motor: Motor, time: float = 0, dist: float = 0, velocity: Velocity = ZERO_VELOCITY, acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
         super().__init__(segment, torque, Fb)
         self.time = time
@@ -72,7 +105,9 @@ class TimeNode(StateNode):
         self.Ft_calc()
         self.solar_energy_cal()
         self.acc = self.Ft / car_mass
-        self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
+        # self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))        self.velocity = Velocity(segment.unit_vector(), Speed(max(0, min(200, initial_TimeNode.velocity.mps + self.acc * time_step))))
+        # Capping at 200 mps due to a overflow error where self.Ft grows very high when the time_step value is too large
+        self.velocity = Velocity(segment.unit_vector(), Speed(max(0, min(200, initial_TimeNode.velocity.mps + self.acc * time_step))))
         self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
 
         # Electrical Calcs

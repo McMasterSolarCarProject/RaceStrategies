@@ -1,18 +1,22 @@
 import os
+
+from PyQt5.QtWidgets import QVBoxLayout, QWidget
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from ..route_map import RouteMap
 from ...database.parse_route_table import parse_route_table
 
 
-class MapController:
-    def __init__(self, maps_dir: str):
-        self._maps_dir = maps_dir
-    
-    @property
-    def maps_dir(self) -> str:
-        """
-        Directory that holds the html files for the generated routes
-        """
-        return self._maps_dir
+# make this into a widget
+class MapController(QWidget):
+    def __init__(self, maps_dir: str, parent=None):
+        super().__init__(parent)
+        self.maps_dir = maps_dir
+        self.simulated_route = None
+        # Web view for the folium HTML
+        self.webview = QWebEngineView()
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.webview)
+        self.setLayout(self.layout)
 
     def generate_from_placemark(self, name: str) -> str:
         """
@@ -21,6 +25,7 @@ class MapController:
         """
         rm = RouteMap()
         rm.generate_from_placemark(name)
+        self.simulated_route = None
         return self._save(rm, "gui_map_placemark")
 
     def generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
@@ -33,9 +38,12 @@ class MapController:
 
         # simulate (this mutates route and adds .segments and .time_nodes)
         # use TIME_STEP kwarg like existing code
+        print("BLABLABLA")
         if hasattr(route, "simulate_interval"):
             route.simulate_interval(TIME_STEP=timestep)
+            self.simulated_route = route
 
+        print(f"Length of time nodes: {len(route.time_nodes)}")
         rm = RouteMap()
         # use hover options
         rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
@@ -45,7 +53,7 @@ class MapController:
         """
         Function that savs the generated html file of the map in the map directory
         """
-        out = os.path.join(self._maps_dir, filename)
+        out = os.path.join(self.maps_dir, filename)
         rm.save_map(out)
         # Return absolute path to saved file
         return os.path.abspath(out + ".html")
