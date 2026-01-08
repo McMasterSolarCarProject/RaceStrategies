@@ -2,14 +2,14 @@ import sqlite3
 import time
 from ..engine.kinematics import Coordinate, Speed, Velocity, Displacement
 from ..engine.nodes import Segment
-from ..engine.velocity_simulator import sim_velocity_an_shi
+from ..engine.velocity_simulator import simulate_speed_profile
 from .parse_route_table import parse_route_table
 
 
 def update_target_velocity(segment_id):
     interval = parse_route_table(segment_id)
     for segment in interval.segments:
-        nodes = sim_velocity_an_shi(segment, segment.speed_limit)
+        nodes = simulate_speed_profile(segment, max_speed_lim=segment.speed_limit)
         upload_best_velocity(nodes, segment_id, segment.id)
 
 def upload_best_velocity(nodes, segment_id, id):

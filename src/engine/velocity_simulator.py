@@ -1,4 +1,4 @@
-from .nodes import VelocityNode
+from .nodes import Segment, VelocityNode
 from .kinematics import Speed, UNIT_VEC, Vec, Velocity
 from ..utils.graph import plot_points, plot_multiple_datasets
 from .models import Motor
@@ -12,10 +12,10 @@ def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=10
     speed = min_speed.mps
     motor = Motor(torque = 0)
     while speed < max_speed.mps:
-        v = VelocityNode(segment, motor, Velocity(segment.unit_vector(), Speed(speed)))
+        v = VelocityNode(segment, Velocity(segment.unit_vector(), Speed(speed)))
         if not v:
             break
-        if v.solve_velocity(segment):
+        if v.solve_velocity():
             velocityNodes.append(v)
             speed += RESOLUTION
         else:

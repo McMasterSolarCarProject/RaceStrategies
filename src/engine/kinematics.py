@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+from ..utils.constants import wheel_radius
 
 
 class Vec:
@@ -147,7 +148,7 @@ class Speed:
         return self._mps * 2.23694
     
     @classmethod
-    def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = 0.2):
+    def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = wheel_radius):
         if rpm is not None:
             return cls(mps=2 * math.pi * radius * rpm / 60)
         elif rps is not None:
@@ -155,10 +156,10 @@ class Speed:
         else:
             return cls()
 
-    def rpm(self, radius: float = 0.2):
+    def rpm(self, radius: float = wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def rps(self, radius: float = 0.2):  # radians per second (SI units)
+    def rps(self, radius: float = wheel_radius):  # radians per second (SI units)
         return self.mps / (2 * math.pi * radius)
     
     def __str__(self):

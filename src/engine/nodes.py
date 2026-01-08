@@ -36,7 +36,7 @@ class StateNode:
         self.Fm = self.torque / wheel_radius
 
     def Fd_calc(self, initial_speed: Speed):
-        velocity = Velocity(initial_speed, self.speed)
+        velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
         self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
@@ -62,7 +62,7 @@ class TimeNode(StateNode):
         self.motor = motor
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, time_step):
-        self.Fm_calc(initial_TimeNode.speed)
+        self.Fm_calc()
         self.Fd_calc(initial_TimeNode.speed)
         self.Frr_calc()
         self.Fg_calc()
@@ -84,7 +84,7 @@ class VelocityNode(StateNode):
     def __init__(self, segment: Segment, speed: Speed = Speed(0)):
         super().__init__(segment, 0, 0, speed)
 
-    def solve_velocity(self,):
+    def solve_velocity(self):
         self.Fd_calc(self.speed)
         self.Fg_calc()
         self.Frr_calc()
@@ -92,8 +92,8 @@ class VelocityNode(StateNode):
         self.Fm = self.Fg + self.Frr + self.Fd
         self.P_mech = self.Fm * self.speed.mps
         self.torque = self.Fm * wheel_radius
-        motor.update_velocity(self.speed)
-        if motor.velocity.mps < self.speed.mps:
+        motor_speed = motor.speed_from_torque(self.torque)
+        if motor_speed < self.speed.rpm():
             print("dunno")
             return False
             raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")
