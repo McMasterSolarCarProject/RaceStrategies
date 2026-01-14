@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, ZERO_VELOCITY
+from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, NULL_COORDINATE, ZERO_VELOCITY
 from ..utils.constants import *
 from .models import Motor
 from .motor_calcs import motor
@@ -19,6 +19,8 @@ class Segment(Displacement):  # Meters
 
     def __str__(self):
         return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | T eff: {self.t_eff}"
+
+NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 
 class StateNode:
     def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
@@ -97,12 +99,13 @@ class VelocityNode(StateNode):
             print("dunno")
             return False
             raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")
-        self.P_bat = self.motor.voltage * self.motor.current
+        self.P_bat = motor.voltage * motor.current_from_torque(self.torque)
         # if self.P_bat == 0:
         #     raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
         self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
         return True
 
+NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)
 
 # make test cases for this stuff
 if __name__ == "__main__":

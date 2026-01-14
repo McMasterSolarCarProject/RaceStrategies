@@ -173,6 +173,12 @@ class MotorModel:
         a = float(rpm_torque_fit.coef_)
         b = float(rpm_torque_fit.intercept_)
         return a*torque + b
+    
+    def current_from_torque(self, torque: float) -> float:
+        current_torque_fit = self.fits["current|torque"]  # current = a*T + b
+        a = float(current_torque_fit.coef_)
+        b = float(current_torque_fit.intercept_)
+        return a*torque + b
 
     def plot_model(self, voltage: float, unit:str):
         self.set_voltage(voltage)

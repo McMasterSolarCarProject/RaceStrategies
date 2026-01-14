@@ -78,6 +78,8 @@ class Coordinate:  # Should Be Calculated in Meters
 
     def __repr__(self):
         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
+    
+NULL_COORDINATE = Coordinate(0,0,0)
 
 
 class Displacement(Vec):  # East-North-Up
@@ -112,15 +114,14 @@ class Displacement(Vec):  # East-North-Up
         return enu_vec.x, enu_vec.y
 
 
-
-
-
     def __str__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
     def __repr__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
+# ZERO_DISPLACEMENT = Displacement(NULL_COORDINATE, NULL_COORDINATE)
+# print(f"Zero displacment Check: {ZERO_DISPLACEMENT.dist}")
 
 class Speed:
     def __init__(self, mps: float = None, kmph: float = None, mph: float = None):
