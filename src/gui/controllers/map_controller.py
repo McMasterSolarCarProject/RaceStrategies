@@ -38,7 +38,6 @@ class MapController(QWidget):
 
         # simulate (this mutates route and adds .segments and .time_nodes)
         # use TIME_STEP kwarg like existing code
-        print("BLABLABLA")
         if hasattr(route, "simulate_interval"):
             route.simulate_interval(TIME_STEP=timestep)
             self.simulated_route = route
