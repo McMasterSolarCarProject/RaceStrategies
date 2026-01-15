@@ -105,7 +105,7 @@ class TimeNode(StateNode):
         self.Ft_calc()
         self.solar_energy_cal()
         self.acc = self.Ft / car_mass
-        # self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))        self.velocity = Velocity(segment.unit_vector(), Speed(max(0, min(200, initial_TimeNode.velocity.mps + self.acc * time_step))))
+        # self.velocity = Velocity(segment.unit_vector(), Speed(initial_TimeNode.velocity.mps + self.acc * time_step))
         # Capping at 200 mps due to a overflow error where self.Ft grows very high when the time_step value is too large
         self.velocity = Velocity(segment.unit_vector(), Speed(max(0, min(200, initial_TimeNode.velocity.mps + self.acc * time_step))))
         self.dist = initial_TimeNode.dist + initial_TimeNode.velocity.mag * time_step + 0.5 * self.acc * time_step ** 2
