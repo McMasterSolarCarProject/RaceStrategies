@@ -8,7 +8,7 @@ from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
 from .parse_route_table import parse_route_table
 
-BATCH_SIZE = 5 # Reduced to avoid rate limiting
+BATCH_SIZE = 20 # Reduced to avoid rate limiting
 
 # --- DEBUG SETUP ---
 DEBUG = True # Toggle this to False to disable debug output
@@ -65,38 +65,70 @@ def overpass_query(points):
 
     return query_string
 
-def overpass_batch_request(points):
+def overpass_batch_request(points, max_retries=20, base_delay=5):
     '''
-    Makes an Overpass request for traffic data.
-    Args:
-        points: List of boundary box tuples [(south, west, north, east)]
-    Returns:
-        data['elements']: Dict containing information ('id', 'lat', 'lon', 'tags') on found nodes
+    Makes a Overpass request with retries.
+    Retries on:
+      - 504 Gateway Timeout
+      - 429 Too Many Requests
+      - transient network errors
+    Always returns a list.
     '''
-    overpass_url = "http://overpass-api.de/api/interpreter"
+    overpass_url = "https://overpass-api.de/api/interpreter"
     query = overpass_query(points)
 
-    try:
-        response = requests.get(overpass_url, params={'data': query}, timeout=30)
-        
-        if response.status_code == 429:
-            debug_print("Rate limited, waiting 5 seconds...")
-            time.sleep(5)
-            response = requests.get(overpass_url, params={'data': query}, timeout=30)
-            
-        response.raise_for_status()
-        
-        debug_print("SUCCESS")
-        data = response.json()
-        return data['elements']
-        
-    except requests.exceptions.RequestException as e:
-        debug_print(f"Error making Overpass request: {e}")
-    except json.JSONDecodeError as e:
-        debug_print(f"Error decoding JSON: {e}")
-        debug_print(f"Response content:\n{response.text[:500]}...")
-    
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(
+                overpass_url,
+                params={'data': query},
+                timeout=60
+            )
+
+            # Retry-worthy HTTP errors
+            if response.status_code in (429, 504):
+                delay = base_delay * attempt
+                debug_print(
+                    f"Overpass HTTP {response.status_code}, "
+                    f"retry {attempt}/{max_retries} in {delay}s..."
+                )
+                time.sleep(delay)
+                continue
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            if 'elements' not in data:
+                debug_print("Overpass response missing 'elements'")
+                return []
+
+            debug_print(
+                f"SUCCESS ({len(data['elements'])} elements)"
+            )
+            return data['elements']
+
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError) as e:
+            delay = base_delay * attempt
+            debug_print(
+                f"Network error: {e}, retry {attempt}/{max_retries} "
+                f"in {delay}s..."
+            )
+            time.sleep(delay)
+
+        except json.JSONDecodeError as e:
+            debug_print(f"JSON decode error: {e}")
+            debug_print(f"Response snippet:\n{response.text[:300]}")
+            return []
+
+        except requests.exceptions.RequestException as e:
+            debug_print(f"Fatal request error: {e}")
+            return []
+
+    debug_print("Max retries exceeded, returning empty result")
     return []
+
 
 def lookup(nodes):
     '''
@@ -182,10 +214,11 @@ def regroup(batchs, coords, threshold = 50):
     matches_found = 0
     
     for coord in coords:
-        closest_node = find_closest_node(spatial_lookup, coord, threshold)
-        if closest_node:
-            nearby = find_closest_node(spatial_lookup, coord, threshold)
+        nearby = find_closest_node(spatial_lookup, coord, threshold)
+        if nearby:
+            matches_found += 1
             clusters[coord].extend(nearby)
+
 
     debug_print(f"Coordinates with traffic nodes: {matches_found}/{len(coords)}")
     return clusters
@@ -212,26 +245,25 @@ def priority_stops(clusters):
     Returns:
         Dict {reference_point: highest_priority_stop}
     """
-    priority_nodes = {}
-    
+    priority_types = {}
+
     for ref, nodes in clusters.items():
-        if not nodes:
-            priority_nodes[ref] = None
-            continue
-            
-        high = float('inf') 
-        
+        best_priority = float('inf')
+        best_type = None
+
         for node in nodes:
             stop_type = node.get('tags', {}).get('highway')
-            current = stop_priority.get(stop_type, float('inf'))
-    
-            if current < high:
-                high = current
-                best_node = node
-        
-        priority_nodes[ref] = best_node
-    
-    return priority_nodes
+            if stop_type is None:
+                continue
+
+            p = stop_priority.get(stop_type, float('inf'))
+            if p < best_priority:
+                best_priority = p
+                best_type = stop_type
+
+        priority_types[ref] = best_type
+
+    return priority_types
 
 def debugging_clusters(clusters):
     '''
@@ -275,8 +307,9 @@ def update_traffic(segment_id):
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     for i in range(0, len(batch_bboxes), BATCH_SIZE):
-        if i == 20:
-            break
+        #for quick check
+        #if i == 100:
+            #break
         batch = batch_bboxes[i:i+BATCH_SIZE]
         try:
             traffic_data.append(overpass_batch_request(batch))
@@ -287,21 +320,24 @@ def update_traffic(segment_id):
             traffic_data.append([None] * len(batch))
 
     grouped = regroup(traffic_data, coord_points)
-    priority_nodes = priority_stops(grouped)
-    debug_print(priority_nodes)
-    for ref, node in priority_nodes.items():
-        if node != None:
-            # store in db
-            print(f"{ref}:\t{node['id']}")
-            db = sqlite3.connect('data.sqlite')
-            cursor = db.cursor()
-            # add power here
-            cursor.execute('UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?', (node['id'], ref.lat, ref.lon))
+    priority_types = priority_stops(grouped)
 
-            db.commit()
-            db.close()
-        # else:
-        #     raise ValueError(f"Could not find Stop Node")
+    for ref, stop_type in priority_types.items():
+        if stop_type is None:
+            continue
+
+        print(f"{ref}:\t{stop_type}")
+
+        db = sqlite3.connect('data.sqlite')
+        cursor = db.cursor()
+        cursor.execute(
+            'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
+            (stop_type, ref.lat, ref.lon)
+        )
+        db.commit()
+        db.close()
+
+
 
 
 def main():
