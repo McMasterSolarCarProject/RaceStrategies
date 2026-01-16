@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, NULL_COORDINATE, ZERO_VELOCITY
 from ..utils.constants import *
-from .models import Motor
 from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
@@ -55,13 +54,12 @@ class StateNode:
 
 
 class TimeNode(StateNode):
-    def __init__(self, segment: Segment, motor: Motor, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
         super().__init__(segment, torque, Fb, speed)
         self.time = time
         self.dist = dist
         self.acc = acc
         self.soc = soc
-        self.motor = motor
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, time_step):
         self.Fm_calc()
@@ -95,13 +93,11 @@ class VelocityNode(StateNode):
         self.P_mech = self.Fm * self.speed.mps
         self.torque = self.Fm * wheel_radius
         motor_speed = motor.speed_from_torque(self.torque)
-        if motor_speed < self.speed.rpm():
+        if motor_speed.mps < self.speed.mps:
             print("dunno")
             return False
-            raise ValueError(f"Power from Torque of {self.torque} is too low for {self.velocity.mps:.2f} m/s")
-        self.P_bat = motor.voltage * motor.current_from_torque(self.torque)
-        # if self.P_bat == 0:
-        #     raise ValueError(f"Power is zero for velocity {self.velocity.mps:.2f} m/s.")
+        # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
+        self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
         self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
         return True
 
