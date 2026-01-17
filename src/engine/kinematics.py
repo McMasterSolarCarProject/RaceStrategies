@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+from ..utils.constants import wheel_radius
 
 
 class Vec:
@@ -77,6 +78,8 @@ class Coordinate:  # Should Be Calculated in Meters
 
     def __repr__(self):
         return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
+    
+NULL_COORDINATE = Coordinate(0,0,0)
 
 
 class Displacement(Vec):  # East-North-Up
@@ -111,37 +114,42 @@ class Displacement(Vec):  # East-North-Up
         return enu_vec.x, enu_vec.y
 
 
-
-
-
     def __str__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
     def __repr__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
+# ZERO_DISPLACEMENT = Displacement(NULL_COORDINATE, NULL_COORDINATE)
+# print(f"Zero displacment Check: {ZERO_DISPLACEMENT.dist}")
 
 class Speed:
     def __init__(self, mps: float = None, kmph: float = None, mph: float = None):
         if mps is not None:
-            self.mps = mps
-            self.kmph = mps * 3.6
-            self.mph = mps * 2.23694
+            self._mps = mps
 
         elif kmph is not None:
-            self.mps = kmph / 3.6
-            self.kmph = kmph
-            self.mph = kmph / 1.60934
+            self._mps = kmph / 3.6
 
         elif mph is not None:
-            self.mps = mph / 2.23694
-            self.kmph = mph * 1.60934
-            self.mph = mph
+            self._mps = mph / 2.23694
         else:
-            self.mps = self.mph = self.kmph = 0
+            self._mps = 0
 
+    @property
+    def mps(self) -> float:
+        return self._mps
+    
+    @property
+    def kmph(self) -> float:
+        return self._mps * 3.6
+    
+    @property
+    def mph(self) -> float:
+        return self._mps * 2.23694
+    
     @classmethod
-    def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = 0.2):
+    def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = wheel_radius):
         if rpm is not None:
             return cls(mps=2 * math.pi * radius * rpm / 60)
         elif rps is not None:
@@ -149,10 +157,10 @@ class Speed:
         else:
             return cls()
 
-    def rpm(self, radius: float = 0.2):
+    def rpm(self, radius: float = wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def rps(self, radius: float = 0.2):  # radians per second (SI units)
+    def rps(self, radius: float = wheel_radius):  # radians per second (SI units)
         return self.mps / (2 * math.pi * radius)
     
     def __str__(self):

@@ -27,7 +27,7 @@ def parse_ASC2024():
     keys = list(placemarks.keys())
     placemarks = {k:placemarks[k] for k in [keys[0], keys[-1]] + keys[1:-1]}
     return placemarks
-    return {"A. Independence to Topeka":placemarks["A. Independence to Topeka"]} # rigged
+
 
 def parse_FSGP_2025():
     return parse_kml_file("data/FSGP_Track.kml")

@@ -6,6 +6,7 @@ from .parse_route import parse_ASC2024, parse_FSGP_2025
 import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 from ..engine.nodes import Segment
+from .curvature_speed_limit import upload_speed_limit
 
 BATCH_SIZE = 50
 
@@ -18,7 +19,8 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
             os.remove(db_path)
             print(f"Deleted existing database: {db_path}")
         else:
-            print(f"Database Exists: {db_path}")
+            print(f"Database exists Already: {db_path}")
+            return
     else:
         print("No existing database found.")
 
@@ -29,7 +31,10 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
         populate_table(placemarks, cursor)
         connection.commit()
         print("Route data initialized.")
-
+    
+        for placemark in placemarks:
+            print(f"Uploading speed limits for {placemark}")
+            upload_speed_limit(placemark)
 
 def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sql") -> None:
     """
@@ -91,6 +96,7 @@ def populate_table(placemarks: dict, cursor):  # Make this better and Document
 
 
 if __name__ == "__main__":
+    print("Started Route DB Initialization")
     start = time.time()
-    init_route_db()
-    print(time.time()-start)
+    init_route_db(remake= False)
+    print(f"Finished creating Database: {time.time()-start}")

@@ -70,7 +70,7 @@ def upload_speed_limit(placemark: str, display: bool= False):
     for i, segment in enumerate(data):
         # nodes = sim_velocity_an_shi(segment, segment.speed_limit)
         if speeds[i] <= 5:
-            print(speeds[i], i, segment.id)
+            print("curvature shi",speeds[i], i, segment.id)
         cursor.execute(
             '''
             UPDATE route_data
