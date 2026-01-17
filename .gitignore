@@ -5,6 +5,7 @@ __pycache__/
 
 
 .vscode/
+maps/*
 # C extensions
 *.so
 
