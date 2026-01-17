@@ -49,6 +49,14 @@ class StateNode:
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
 
+    def Power_calc(self):
+        self.P_mech = self.Fm * self.speed.mps
+        # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
+        self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
+        self.epm = 0
+        if self.speed.mps > 0:
+            self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
+
     def solar_energy_cal(self):
         self.solar = 0
 
@@ -71,6 +79,7 @@ class TimeNode(StateNode):
         self.acc = self.Ft / car_mass
         self.speed = Speed(initial_TimeNode.speed.mps + self.acc * time_step)
         self.dist = initial_TimeNode.dist + initial_TimeNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
+        self.Power_calc()
 
         # Electrical Calcs
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar
@@ -90,15 +99,13 @@ class VelocityNode(StateNode):
         self.Frr_calc()
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.P_mech = self.Fm * self.speed.mps
         self.torque = self.Fm * wheel_radius
         motor_speed = motor.speed_from_torque(self.torque)
         if motor_speed.mps < self.speed.mps:
-            print("dunno")
+            # print("dunno")
             return False
-        # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
-        self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
-        self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
+        
+        self.Power_calc()
         return True
 
 NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)

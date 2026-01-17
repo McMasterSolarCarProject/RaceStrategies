@@ -45,8 +45,7 @@ class SSInterval:
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
                 self.time_nodes.append(current_TimeNode)
 
-                while current_TimeNode.speed.mps > self.brakingNodes[
-                    brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
+                while current_TimeNode.speed.mps > self.brakingNodes[brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
                     # index to the braking node with the same velocity
                     brakingNode += 1
 

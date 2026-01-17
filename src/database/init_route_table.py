@@ -19,7 +19,8 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
             os.remove(db_path)
             print(f"Deleted existing database: {db_path}")
         else:
-            print(f"Database Exists: {db_path}")
+            print(f"Database exists Already: {db_path}")
+            return
     else:
         print("No existing database found.")
 
@@ -95,6 +96,7 @@ def populate_table(placemarks: dict, cursor):  # Make this better and Document
 
 
 if __name__ == "__main__":
+    print("Started Route DB Initialization")
     start = time.time()
-    init_route_db()
-    print(time.time()-start)
+    init_route_db(remake= False)
+    print(f"Finished creating Database: {time.time()-start}")

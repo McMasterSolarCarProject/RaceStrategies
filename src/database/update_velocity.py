@@ -1,5 +1,6 @@
 import sqlite3
 import time
+import os
 from ..engine.kinematics import Coordinate, Speed, Velocity, Displacement
 from ..engine.nodes import Segment, VelocityNode, NULL_VELOCITY_NODE
 from ..engine.velocity_simulator import simulate_speed_profile
@@ -20,22 +21,24 @@ def upload_best_velocity(nodes: list[VelocityNode], segment_id, id):
 
     emp_target = 100
     min_dist = 10000
-    best_node = NULL_VELOCITY_NODE
+    best_node = nodes[0]
     for node in nodes:
         if node.epm <= 0:
+            # print("Skipping node with non-positive epm")
             continue
         if abs(emp_target - node.epm) < min_dist:
             best_node = node
             min_dist = abs(emp_target - node.epm)
-            if min_dist < 1:
+            if min_dist < 1: # correct this so it uses some units
                  break
     
-    # If no valid node found with epm > 0, just use the first node
-    if best_node is NULL_VELOCITY_NODE and nodes:
-        best_node = nodes[0]
-    
-    if best_node is not NULL_VELOCITY_NODE:
-        db = sqlite3.connect('data.sqlite')
+    if best_node:
+        db_path = 'data.sqlite'
+        if not os.path.exists(db_path):
+            print(f"Database file '{db_path}' does not exist. Skipping database update.")
+            return
+        
+        db = sqlite3.connect(db_path)
         cursor = db.cursor()
         # add power here
         cursor.execute('UPDATE route_data SET speed = ?, torque = ? WHERE segment_id = ? AND id = ?', (best_node.speed.kmph, best_node.torque, segment_id, id))
@@ -47,6 +50,7 @@ def upload_best_velocity(nodes: list[VelocityNode], segment_id, id):
 
 
 if __name__ == "__main__":
+    print("Started Velocity Update")
     start = time.time()
     update_target_velocity("A. Independence to Topeka")
-    print(time.time()-start)
+    print(f"Finished updating velocity and torque values: {time.time()-start}")

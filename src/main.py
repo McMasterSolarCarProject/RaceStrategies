@@ -10,13 +10,14 @@ from .database.parse_route_table import parse_route_table
 from .database.update_velocity import update_target_velocity
 
 def main():
+    start = time.time()
+
     table_remake_flag = True
     if table_remake_flag:
-        start = time.time()
         init_route_db(remake= table_remake_flag)
         print(f"Finished creating Database: {time.time()-start}")
         update_target_velocity("A. Independence to Topeka")
-        print(f"Finished updating values: {time.time()-start}")
+        print(f"Finished updating velocity and torque values: {time.time()-start}")
 
     current_tz = timezone("US/Eastern")
     current_time: datetime = datetime.datetime.now(tz=current_tz)
@@ -24,6 +25,7 @@ def main():
     interval.simulate_interval()
 
     interval.plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+    print(f"Completed Display: {time.time()-start}")
 
     input()
 
