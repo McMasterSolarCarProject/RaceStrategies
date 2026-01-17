@@ -7,10 +7,11 @@ import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
+from .traffic import update_traffic
 
 BATCH_SIZE = 50
 
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake = False) -> None:
+def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake = False, update_traffic_data = False) -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
@@ -32,9 +33,14 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
         connection.commit()
         print("Route data initialized.")
     
+    for placemark in placemarks:
+        print(f"Uploading speed limits for {placemark}")
+        upload_speed_limit(placemark)
+
+    if update_traffic_data:
         for placemark in placemarks:
-            print(f"Uploading speed limits for {placemark}")
-            upload_speed_limit(placemark)
+            print(f"Updating traffic data for {placemark}")
+            update_traffic(placemark)
 
 def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sql") -> None:
     """
@@ -57,18 +63,6 @@ def populate_table(placemarks: dict, cursor):  # Make this better and Document
         with open(f"data/limits/{placemark} Limits.csv", "r") as file:
             reader = csv.reader(file)
             speed_limits = [(float(row[1]), float(row[2])) for row in reader]
-
-        # traffic_data = []
-        # coord_points = [Coordinate(c.lat, c.lon) for c in placemark.coords]
-        # batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
-        # for i in range(0, len(batch_bboxes), BATCH_SIZE):
-        #     batch = batch_bboxes[i:i+BATCH_SIZE]
-        #     try:
-        #         traffic_data.extend(overpass_batch_request(batch))
-        #     except Exception as e:
-        #         print(f"Error fetching batch: {e}")
-        #         traffic_data.extend([None] for _ in batch)
-        # grouped = regroup(traffic_data, coord_points)
 
         data = []
         limit_index = 0

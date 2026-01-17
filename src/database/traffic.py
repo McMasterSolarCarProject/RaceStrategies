@@ -8,7 +8,7 @@ from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
 from .parse_route_table import parse_route_table
 
-BATCH_SIZE = 20 # Reduced to avoid rate limiting
+BATCH_SIZE = 50 # Reduced to avoid rate limiting
 
 # --- DEBUG SETUP ---
 DEBUG = True # Toggle this to False to disable debug output
@@ -301,15 +301,15 @@ def debugging_priority(nodes):
     debug_print()
 
 
-def update_traffic(segment_id):
+def update_traffic(segment_id, node_limit: int = 0):
     traffic_data = []
     placemark = parse_route_table(segment_id)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     for i in range(0, len(batch_bboxes), BATCH_SIZE):
         #for quick check
-        #if i == 100:
-            #break
+        if i == node_limit and node_limit != 0:
+            break
         batch = batch_bboxes[i:i+BATCH_SIZE]
         try:
             traffic_data.append(overpass_batch_request(batch))
