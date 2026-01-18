@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.signal import savgol_filter
-from .parse_route_table import parse_route_table
+from .fetch_route_intervals import fetch_route_intervals
 import sqlite3
 
 def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu = 0.01, g = 9.81):
@@ -55,7 +55,7 @@ def upload_speed_limit(placemark: str, display: bool= False):
     lat,lon,dist,az,elev = [],[],[],[],[]
     # with open("data\generated\A. Independence to Topeka.csv",'r') as file:
     #     data = [line.strip().split(',') for line in file]
-    data = parse_route_table(placemark).segments
+    data = fetch_route_intervals(placemark).segments
     for i in range(len(data)):
         lat.append(data[i].p1.lat)
         lon.append(float(data[i].p1.lon))

@@ -22,6 +22,15 @@ class Segment(Displacement):  # Meters
 NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 
 class StateNode:
+    NUMERICAL_METRICS = {
+        "torque": "Torque (Nm)",
+        "Fb": "Braking Force (N)",
+        "speed.mps": "Velocity (m/s)",
+        "speed.kmph": "Velocity (km/h)",
+        "speed.mph": "Velocity (mph)",
+        "Fm": "Motor Force (N)",
+    }
+
     def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
         self.segment = segment
         self.torque = torque
@@ -38,7 +47,14 @@ class StateNode:
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
-        self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - self.segment.wind).mag ** 2)
+        try:
+            (velocity - self.segment.wind).mag ** 2
+        except OverflowError:
+            print("ERROR: The value of velocity in fd_calc is too high! Try a smaller timestep")
+            print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
+            velocity = Velocity(unit_vec=velocity.unit_vector(), speed=Speed(mps=200))
+        finally:
+            self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
         self.Frr = coef_rr * car_mass * accel_g * self.segment.gradient.cos()
@@ -60,8 +76,25 @@ class StateNode:
     def solar_energy_cal(self):
         self.solar = 0
 
+    @classmethod
+    def get_numerical_metrics(cls) -> list[str]:
+        """
+        Contains a list of all the numerical attributes that can be plotted on a graph.
+        This is to allow the gui app to dynamically display these metrics.
+        If new attributes are added to StateNode, then NUMERICAL_METRICS must be updated.
+        """
+        return list(cls.NUMERICAL_METRICS.keys())
+
 
 class TimeNode(StateNode):
+    NUMERICAL_METRICS = {
+        **StateNode.NUMERICAL_METRICS,
+        "time": "Time (s)",
+        "dist": "Distance (m)",
+        "acc": "Acceleration (m/s²)",
+        "soc": "State of Charge (%)",
+    }
+
     def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
         super().__init__(segment, torque, Fb, speed)
         self.time = time

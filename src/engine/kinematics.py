@@ -54,7 +54,7 @@ class Vec:
 
     def unit_vector(self):
         if self.mag == 0:
-            print("zero div")
+            # print("zero div")
             return Vec(0, 1)
         return Vec(self.x / self.mag, self.y / self.mag, self.z / self.mag)
 

@@ -29,8 +29,6 @@ def parse_ASC2024():
     return placemarks
 
 
-def parse_FSGP_2025():
-    return parse_kml_file("data/FSGP_Track.kml")
 
 if __name__ == "__main__":
     # Bunches all the places and their respective checkpoints

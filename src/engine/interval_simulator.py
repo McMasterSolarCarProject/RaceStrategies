@@ -105,8 +105,8 @@ if __name__ == "__main__":
     # s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
     # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
     # a = SSInterval([s1, s2])
-    from ..database.parse_route_table import parse_route_table
-    a = parse_route_table("A. Independence to Topeka", max_segments=100)
+    from ..database.fetch_route_intervals import fetch_route_intervals
+    a = fetch_route_intervals("A. Independence to Topeka", max_segments=100)
     a.simulate_interval()
     print(len(a.time_nodes))
 

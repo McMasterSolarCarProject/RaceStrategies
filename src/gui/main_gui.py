@@ -1,9 +1,9 @@
 from __future__ import annotations
 import os
-import time
+import sys
 from typing import Optional
 
-from PyQt5.QtCore import QThread, pyqtSignal, QUrl
+from PyQt5.QtCore import QUrl
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -16,39 +16,17 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QStatusBar,
+    QComboBox,
+    QFileDialog,
+    QSplitter,
 )
-from PyQt5.QtWebEngineWidgets import QWebEngineView
 
-from .route_map import RouteMap
-from ..database.parse_route_table import parse_route_table
-
-
-class MapWorker(QThread):
-    """Generic worker thread to run a blocking map generation or simulation function.
-
-    Emits:
-            finished(object): result returned by the function (usually the saved file path)
-            error(str): error message if exception occurs
-            progress(str): optional progress messages
-    """
-
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str)
-
-    def __init__(self, func, *args, **kwargs):
-        super().__init__()
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        try:
-            self.progress.emit("starting...")
-            res = self.func(*self.args, **self.kwargs)
-            self.finished.emit(res)
-        except Exception as e:
-            self.error.emit(str(e))
+from .worker import Worker, WorkerResult
+from .services.kml_service import upload_kml
+from .services.db_service import get_segment_ids
+from .controllers.state_controller import StateController
+from .controllers.map_controller import MapController
+from .controllers.graph_controller import GraphController
 
 
 class MainWindow(QMainWindow):
@@ -64,16 +42,28 @@ class MainWindow(QMainWindow):
         # Controls at the top header
         ctrl = QHBoxLayout()
 
+        # For a file upload, have a readonly text
+        ctrl.addWidget(QLabel("KML File"))
+        self.kml_input = QLineEdit()
+        self.kml_input.setReadOnly(True)
+        self.kml_input.setPlaceholderText("Select a .kml file...")
+        ctrl.addWidget(self.kml_input)
+
+        self.upload_kml_btn = QPushButton("Browse…")
+        self.upload_kml_btn.clicked.connect(self.on_upload_kml)
+        ctrl.addWidget(self.upload_kml_btn)
+
         ctrl.addWidget(QLabel("Placemark:"))
-        self.placemark_input = QLineEdit()  # Text input. Probably should change to drop down later
-        self.placemark_input.setPlaceholderText("e.g. A. Independence to Topeka")
+        self.placemark_input = QComboBox()
+        self.placemark_input.setEditable(False)
+        self.placemark_input.setMinimumWidth(250)
         ctrl.addWidget(self.placemark_input)
 
         self.generate_placemark_btn = QPushButton("Generate from Placemark")
         self.generate_placemark_btn.clicked.connect(self.on_generate_placemark)
         ctrl.addWidget(self.generate_placemark_btn)
 
-        self.generate_time_nodes_btn = QPushButton("Simulate & Generate from Time Nodes")
+        self.generate_time_nodes_btn = QPushButton("Simulate && Generate from Time Nodes")
         self.generate_time_nodes_btn.clicked.connect(self.on_generate_time_nodes)
         ctrl.addWidget(self.generate_time_nodes_btn)
 
@@ -90,121 +80,170 @@ class MainWindow(QMainWindow):
 
         v.addLayout(ctrl)
 
-        # Web view for the folium HTML
-        self.webview = QWebEngineView()
-        v.addWidget(self.webview)
+        # Splitter to show both map and graphs
+        splitter = QSplitter()
+
+        # Create a map controller (may eventually want to do something similar for graphs)
+        self.map_controller = MapController(os.path.join(os.getcwd(), "maps"))
+        os.makedirs(self.map_controller.maps_dir, exist_ok=True)
+
+        splitter.addWidget(self.map_controller)
+
+        # Graph controller widget
+        self.graph_controller = GraphController(None, self.on_generate_graphs)
+        splitter.addWidget(self.graph_controller)
+        splitter.setSizes([600, 400])
+
+        v.addWidget(splitter)
 
         # Status bar at the bottom
         self.status = QStatusBar()
         self.setStatusBar(self.status)
 
-        # Make sure maps folder exists
-        self.maps_dir = os.path.join(os.getcwd(), "maps")
-        os.makedirs(self.maps_dir, exist_ok=True)
-
         # Keep a reference to worker so it doesn't get garbage collected
-        self._worker: Optional[MapWorker] = None
+        self._worker: Optional[Worker] = None
 
-    def set_busy(self, busy: bool):
-        """
-        Disables buttons when the busy argument is true
-        """
+        # Used to control busy and idle states. Add more buttons here to control state
+        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.graph_controller.generate_button)
 
-        self.generate_placemark_btn.setDisabled(busy)
-        self.generate_time_nodes_btn.setDisabled(busy)
+        # Store current interval simulator for graph controller
+        # self._current_interval_simulator = None
+
+        # After creating all widgets, perform these initialization tasks
+        self._populate_placemark_dropdown()
+
+    def on_upload_kml(self):
+        """
+        Frontend function called when the upload kml button is pressed
+        """
+        # Opens a dialog that only filters for KML files
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select KML File", "", "KML Files (*.kml)")
+        if file_path:
+            self.kml_input.setText(file_path)
+            print(f"Selected file: {file_path}")
+
+        self.state.busy(f"Uploading kml file {file_path}...")  # Disables buttons until worker finished or worker error
+
+        # Calls the backend function in the first parameter by passing the second parameter as an argument
+        self._worker = Worker(upload_kml, file_path)  # Map worker runs background tasks as a separate thread
+
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._on_kml_uploaded)  # Populates the dropdown with new segment ids
+        self._worker.start()
+
+    def _on_kml_uploaded(self, result: WorkerResult):
+        """
+        After KML is loaded, populate the placemark dropdown
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+        else:
+            self._populate_placemark_dropdown()
+        self.state.idle()
+
+    def _populate_placemark_dropdown(self):
+        """
+        Populate the placemark dropdown using segment_id values in data.sqlite.
+        """
+        self.placemark_input.clear()
+
+        try:
+            segment_ids = get_segment_ids()
+            if not segment_ids:
+                self.status.showMessage("No segments found in database")
+                return
+            self.placemark_input.addItems(segment_ids)
+            self.status.showMessage("Segments loaded successfully")
+        except Exception as e:
+            self.status.showMessage(f"Error: {e}", 3000)
 
     def on_generate_placemark(self):
         """
         Frontend function called when the generate placemark button is pressed
         """
-        name = self.placemark_input.text().strip()  # get value from placemark_input widget
+        name = self.placemark_input.currentText().strip()  # get value from placemark_input widget
         if not name:
-            self.status.showMessage("Enter a placemark name first", 4000)
+            self.status.showMessage("Enter a placemark name first")
             return
 
-        self.set_busy(True)
-        self.status.showMessage("Generating map from placemark...")
+        self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = MapWorker(self._generate_from_placemark, name) # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
-        self._worker.finished.connect(self._on_map_finished) # calls the _on_map_finished function based on the return value of _generate_from_placemark
-        self._worker.error.connect(self._on_worker_error) # if _generate_from_placemark throws an error, call _on_Worker_error and pass in the exception as an argument
+        self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
         self._worker.start()
-
-    def _generate_from_placemark(self, name: str):
-        """Backend function for generating from the placemark with the same name as the argument passed in
-        Saves the map to a html output file.
-        """
-        rm = RouteMap()
-        rm.generate_from_placemark(name)
-        out = os.path.join(self.maps_dir, "gui_map_placemark")
-        rm.save_map(out)
-        # return absolute path to saved file
-        return os.path.abspath(out + ".html")
 
     def on_generate_time_nodes(self):
         """
         Frontend function called when the generate from time nodes button is pressed
         """
-        name = self.placemark_input.text().strip() # Similar to before, gets text input
+        name = self.placemark_input.currentText().strip()  # Similar to before, gets text input
         if not name:
             self.status.showMessage("Enter a placemark name first", 4000)
             return
 
-        timestep = float(self.timestep_spin.value()) # Gets numerical input
-        hover = bool(self.hover_cb.isChecked()) # Gets boolean input from a checkbox
+        timestep = float(self.timestep_spin.value())  # Gets numerical input
+        hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
 
-        self.set_busy(True)
-        self.status.showMessage("Parsing route and running simulation (this may take a while)...")
+        self.state.busy("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = MapWorker(self._generate_from_time_nodes, name, timestep, hover) # Cals the first function with other parameters as arguments into the first parameter
+        self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
-        self._worker.error.connect(self._on_worker_error)
         self._worker.start()
 
-    def _generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
-        """Backend function to generate map with tie node siulations
+    def on_generate_graphs(self):
         """
-        # parse route
-        route = parse_route_table(name)
-
-        # simulate (this mutates route and adds .segments and .time_nodes)
-        # use TIME_STEP kwarg like existing code
-        if hasattr(route, "simulate_interval"):
-            route.simulate_interval(TIME_STEP=timestep)
-
-        rm = RouteMap()
-        # use hover options
-        rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
-        out = os.path.join(self.maps_dir, "gui_map_time_nodes")
-        rm.save_map(out)
-        return os.path.abspath(out + ".html")
-
-    def _on_map_finished(self, filepath: str):
-        """After map is generated, load it in the viewer
+        Frontend function called when the generate graphs button is pressed
         """
+        if self.map_controller.simulated_route is None:
+            self.status.showMessage("No route simulated yet. Please generate a map first.", 4000)
+            return
+
+        self.state.busy("Generating graphs...")
+        self._worker = Worker(self.graph_controller.generate_graphs)
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._on_graphs_finished)
+        self._worker.start()
+
+    def _on_map_finished(self, result: WorkerResult):
+        """
+        After map is generated, load it in the viewer
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+            return
+
+        filepath = result.value
         try:
             if not filepath:
                 raise RuntimeError("No file returned from worker")
             url = QUrl.fromLocalFile(str(filepath))
-            self.webview.load(url)
+            self.map_controller.webview.load(url)
             self.status.showMessage(f"Loaded: {filepath}", 5000)
+
+            self.graph_controller.simulated_route = self.map_controller.simulated_route
         except Exception as e:
             self.status.showMessage(f"Error loading map: {e}")
         finally:
-            self.set_busy(False)
+            self.state.idle()
 
-    def _on_worker_error(self, msg: str):
-        self.status.showMessage(f"Worker error: {msg}")
-        self.set_busy(False)
+    def _on_graphs_finished(self, result: WorkerResult):
+        """
+        After graphs are generated, load them in the viewer
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+            return
+        self.state.idle("Graphs generated successfully")
 
 
 def run_app():
-    import sys
-
+    """
+    Launches the PyQT application
+    """
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()

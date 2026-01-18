@@ -2,42 +2,68 @@ import sqlite3
 import datetime
 import csv
 import os
-from .parse_route import parse_ASC2024, parse_FSGP_2025
+from .parse_route import parse_ASC2024, parse_kml_file
 import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
+from .update_velocity import update_target_velocity
 
-BATCH_SIZE = 50
-
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake = False, update_traffic_data = False) -> None:
+def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None, update_velocity: bool = True, update_traffic_data: bool = False) -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
+    placemarks = None
+    
     if os.path.exists(db_path):
         if remake:
             os.remove(db_path)
             print(f"Deleted existing database: {db_path}")
         else:
             print(f"Database exists Already: {db_path}")
-            return
     else:
         print("No existing database found.")
 
-    with sqlite3.connect(db_path) as connection:
-        cursor = connection.cursor()
-        create_route_table(cursor, schema_path)
-        placemarks = parse_ASC2024()
-        populate_table(placemarks, cursor)
-        connection.commit()
-        print("Route data initialized.")
-    
-    for placemark in placemarks:
-        print(f"Uploading speed limits for {placemark}")
-        upload_speed_limit(placemark)
+    if not os.path.exists(db_path) or remake:
+        try:
+            with sqlite3.connect(db_path) as connection:
+                cursor = connection.cursor()
+                create_route_table(cursor, schema_path)
 
-    if update_traffic_data:
+                # Changed to be generic
+                if not kml_path:
+                    placemarks = parse_ASC2024()
+                else:
+                    if not os.path.exists(kml_path):
+                        raise FileNotFoundError(f"KML path {kml_path} not found")
+                    elif not kml_path.lower().endswith(".kml"):
+                        raise ValueError(f"File {kml_path} is not a KML file")
+                    else:
+                        placemarks = parse_kml_file(kml_path)
+
+                populate_table(placemarks, cursor)
+            connection.commit()
+        except Exception as e:
+            raise e
+        finally:
+            connection.close()
+        print("Route data initialized.")
+    else:
+        # If database exists and we're not remaking, still get placemarks for velocity update
+        if update_velocity or update_traffic_data:
+            if not kml_path:
+                placemarks = parse_ASC2024()
+            else:
+                placemarks = parse_kml_file(kml_path)
+    
+    if update_velocity and placemarks:
+        for placemark in placemarks:
+            print(f"Uploading speed limits for {placemark}")
+            upload_speed_limit(placemark)
+            update_target_velocity(placemark)
+
+    if update_traffic_data and placemarks:
         for placemark in placemarks:
             print(f"Updating traffic data for {placemark}")
             update_traffic(placemark)
@@ -54,7 +80,12 @@ def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sq
         schema_sql = f.read()
         cursor.executescript(schema_sql)
 
-def populate_table(placemarks: dict, cursor):  # Make this better and Document
+
+def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make this better and Document
+    """
+    Populate route_data table with segment data and speed limits.
+    - If speed limit CSV is missing, rows are inserted with speed = NULL and marked as speed_unknown.
+    """
     print(f"Generating Route data")
 
     for placemark in placemarks.keys():
@@ -71,20 +102,17 @@ def populate_table(placemarks: dict, cursor):  # Make this better and Document
             s = Segment(c, coords[coord_index + 1])
             tdist += s.dist
             # dist = calc_distance(placemarks[placemark], c)
-            while speed_limits[limit_index][0] <= tdist:
-                limit_index += 1
+            if speed_limits != None:
+                while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
+                    limit_index += 1
+                speed_limit = speed_limits[limit_index][1]
+            else:
+                speed_limit = -1  # value to indicate missing speed limit
 
-            # current = (c.lat, c.lon)
-            stop = None
-            # if (current in grouped and grouped[current]):
-            #     stop = priority_stops({current: grouped[current]})[current]
-            #     stop = stop.get('tags', {}).get('highway')
+            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, None, None, None, None, -1, -1])
 
-
-            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limits[limit_index][1], stop, None, None, None, -1, -1])
-            
-        data.append([placemark, data[-1][1]+1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
-        # run batch stuff here 
+        data.append([placemark, data[-1][1] + 1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
+        # run batch stuff here
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
 

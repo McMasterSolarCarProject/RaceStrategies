@@ -4,7 +4,7 @@ from .config import save_plot
 
 import matplotlib.pyplot as plt
 
-def plot_SSInterval(datasets, x_field, y_fields, name, labels=None):
+def plot_SSInterval(datasets, x_field, y_fields, name, labels=None, ax=None, xlabel=None, ylabel=None, title=None):
     import matplotlib.pyplot as plt
 
     def resolve_attr(obj, attr_path):
@@ -17,7 +17,10 @@ def plot_SSInterval(datasets, x_field, y_fields, name, labels=None):
         y_fields = [y_fields]
 
     colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']
-    fig, ax = plt.subplots(figsize=(8, 6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        fig = ax.get_figure()
 
     for i, points in enumerate(datasets):
         x_coords = [resolve_attr(point, x_field) for point in points]
@@ -32,19 +35,20 @@ def plot_SSInterval(datasets, x_field, y_fields, name, labels=None):
             color = colors[(i * len(y_fields) + j) % len(colors)]
             ax.plot(x_coords, y_coords, marker='o', linestyle='-', color=color, label=label)
 
-    ax.set_xlabel(x_field)
-    ax.set_ylabel(", ".join(y_fields))
-    ax.set_title(f'{name}: {", ".join(y_fields)} vs {x_field}')
+    ax.set_xlabel(xlabel if xlabel else x_field)
+    ax.set_ylabel(ylabel if ylabel else ", ".join(y_fields))
+    ax.set_title(title if title else f'{name}: {", ".join(y_fields)} vs {x_field}')
     ax.legend()
     ax.grid(True)
-    fig.tight_layout()
-    fig.show()
+    if ax is None:
+        fig.tight_layout()
+        fig.show()
     return fig, ax
 
 
 def plot_points(points, x_field, y_field, name):
     x_coords = [getattr(point, x_field) for point in points]
-    y_coords = [getattr(point.velocity, y_field) for point in points]
+    y_coords = [getattr(point.speed, y_field) for point in points]
 
     plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='b', label=f'{x_field} vs {y_field}')
 
@@ -74,7 +78,7 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
     plt.figure(figsize=(8, 6))  # Set figure size
 
     for i, points in enumerate(datasets):
-        x_coords = [getattr(point.velocity, x_field) for point in points]
+        x_coords = [getattr(point.speed, x_field) for point in points]
         y_coords = [getattr(point, y_field) for point in points]
 
         label = labels[i] if labels else f'Dataset {i + 1}'
