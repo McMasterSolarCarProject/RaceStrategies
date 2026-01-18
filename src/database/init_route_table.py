@@ -9,9 +9,7 @@ from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
 
-BATCH_SIZE = 50
-
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake = False, update_traffic_data = False) -> None:
+def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None, update_traffic_data: bool = False) -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
