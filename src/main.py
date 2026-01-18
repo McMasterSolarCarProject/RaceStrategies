@@ -10,9 +10,9 @@ from .database.fetch_route_intervals import fetch_route_intervals
 from .database.update_velocity import update_target_velocity
 
 def main():
-    start = time.time()
-    init_route_db(remake= False, update_traffic_data= False)
-    print(f"Finished creating Database: {time.time()-start}")
+    start = time.perf_counter()
+    init_route_db(remake= False, update_traffic_data= False, update_velocity= False)
+    print(f"Finished creating Database: {time.perf_counter()-start}")
 
     current_tz = timezone("US/Eastern")
     current_time: datetime = datetime.datetime.now(tz=current_tz)
@@ -23,7 +23,7 @@ def main():
         intervals[i].simulate_interval()
         intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
-    print(f"Completed Display: {time.time()-start}")
+    print(f"Completed Display: {time.perf_counter()-start}")
     
     import matplotlib.pyplot as plt
     plt.show()

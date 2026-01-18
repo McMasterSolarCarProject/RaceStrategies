@@ -25,7 +25,7 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
 
     if segments:
         ssintervals.append(SSInterval(segments))
-
+        
     cursor.close()
     conn.close()
 

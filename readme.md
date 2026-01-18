@@ -26,3 +26,6 @@ modify src/__main__.py for the first time to create the database
 ## Database:
 - Why are there multiple parse_route files? Rename things to make them make more sense
 - init_route_table gotta be remade so its more modular
+
+## Utils:
+ - Create a config type python module which takes some json files with a bunch of sim configs
