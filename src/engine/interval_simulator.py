@@ -67,7 +67,7 @@ class SSInterval:
         initial_TimeNode = self.brakingNodes[-1]
         for segment in self.segments[::-1]:
             while initial_TimeNode.dist >= segment.tdist - segment.dist:
-                if initial_TimeNode.speed.mps <= segment.v_eff.mps:  # if the velocity is under
+                if initial_TimeNode.speed.mps <= segment.speed_limit.mps:  # if the velocity is under
                     current_TimeNode = TimeNode(segment, initial_TimeNode.time + TIME_STEP, Fb=BRAKE)
                     current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
                     self.brakingNodes.append(current_TimeNode)

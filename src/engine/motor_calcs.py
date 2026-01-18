@@ -102,7 +102,6 @@ class MotorModel:
 
 
 motor = MotorModel()
-print(motor.ref_voltage)
 new_voltage = 85
 motor.set_voltage(new_voltage)
 if __name__ == "__main__":
