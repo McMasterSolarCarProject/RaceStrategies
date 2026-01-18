@@ -15,7 +15,7 @@ class RouteMap:
         self.speed_colors = [mcolors.to_hex(color) for color in colormap]
 
     def generate_from_placemark(self, placemark_name: str, color: str = "#FF0000"):
-        route = fetch_route_intervals(placemark_name)[0]
+        route = fetch_route_intervals(placemark_name)
         coordinates = route.get_coordinate_pairs()
         # for coordinate in coordinates:
         #     folium.Marker(coordinate).add_to(self.folium_map)

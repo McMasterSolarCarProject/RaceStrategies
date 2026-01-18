@@ -5,7 +5,7 @@ import sqlite3
 
 #RENAME TO FETCH_ROUTE_INTERVALS
 
-def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval]:
+def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
     conn = sqlite3.connect("data.sqlite")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -29,7 +29,7 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
     cursor.close()
     conn.close()
 
-    return ssintervals
+    return ssintervals if split_at_stops else ssintervals[0]
 
 
 def parse_segment(placemark, checkpoint):

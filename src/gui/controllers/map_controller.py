@@ -34,7 +34,7 @@ class MapController(QWidget):
         Saves the map to a html output file.
         """
         # parse route
-        route = fetch_route_intervals(name)[0]
+        route = fetch_route_intervals(name)
 
         # simulate (this mutates route and adds .segments and .time_nodes)
         # use TIME_STEP kwarg like existing code

@@ -16,7 +16,8 @@ def main():
 
     current_tz = timezone("US/Eastern")
     current_time: datetime = datetime.datetime.now(tz=current_tz)
-    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=True, max_nodes=None)
+    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=False, max_nodes=None)
+    intervals = [intervals]
     for i in range(min(3, len(intervals))):
         print(f"Simulating Interval {i+1} of {len(intervals)}")
         intervals[i].simulate_interval()
