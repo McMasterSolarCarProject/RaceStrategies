@@ -15,6 +15,7 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
 
     ssintervals = []
     segments = []
+    print(len(rows))
     max_nodes = min(max_nodes, len(rows)) if max_nodes is not None else len(rows)
     for i, checkpoint in enumerate(rows[:max_nodes-1]):
         segments.append(create_segment(checkpoint, rows[i+1]))
@@ -28,7 +29,7 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
         
     cursor.close()
     conn.close()
-
+    print(len(ssintervals[0].segments))
     return ssintervals if split_at_stops else ssintervals[0]
 
 
