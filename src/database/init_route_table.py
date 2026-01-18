@@ -6,11 +6,10 @@ from .parse_route import parse_ASC2024, parse_kml_file
 import time
 from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 from ..engine.nodes import Segment
+from .curvature_speed_limit import upload_speed_limit
+from .traffic import update_traffic
 
-BATCH_SIZE = 50
-
-
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None) -> None:
+def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None, update_traffic_data: bool = False) -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
@@ -19,7 +18,8 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
             os.remove(db_path)
             print(f"Deleted existing database: {db_path}")
         else:
-            print(f"Database Exists: {db_path}")
+            print(f"Database exists Already: {db_path}")
+            return
     else:
         print("No existing database found.")
 
@@ -46,7 +46,15 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
     finally:
         connection.close()
     print("Route data initialized.")
+    
+    for placemark in placemarks:
+        print(f"Uploading speed limits for {placemark}")
+        upload_speed_limit(placemark)
 
+    if update_traffic_data:
+        for placemark in placemarks:
+            print(f"Updating traffic data for {placemark}")
+            update_traffic(placemark)
 
 def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sql") -> None:
     """
@@ -70,30 +78,11 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
 
     for placemark in placemarks.keys():
         print(placemark)
-
-        limits_path = f"data/limits/{placemark} Limits.csv"
-        if os.path.exists(limits_path):
-            with open(limits_path, "r") as file:
-                reader = csv.reader(file)
-                speed_limits = [(float(row[1]), float(row[2])) for row in reader]
-            speed_limits.sort(key=lambda x: x[0])  # Ensures all speed limit data is sorted in order of index
-        else:
-            print(f"WARNING: Missing speed limits for {placemark}")
-            speed_limits = None
-
-        # traffic_data = []
-        # coord_points = [Coordinate(c.lat, c.lon) for c in placemark.coords]
-        # batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
-        # for i in range(0, len(batch_bboxes), BATCH_SIZE):
-        #     batch = batch_bboxes[i:i+BATCH_SIZE]
-        #     try:
-        #         traffic_data.extend(overpass_batch_request(batch))
-        #     except Exception as e:
-        #         print(f"Error fetching batch: {e}")
-        #         traffic_data.extend([None] for _ in batch)
-        # grouped = regroup(traffic_data, coord_points)
-
         coords = placemarks[placemark]
+        with open(f"data/limits/{placemark} Limits.csv", "r") as file:
+            reader = csv.reader(file)
+            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
+
         data = []
         limit_index = 0
         tdist = 0
@@ -107,14 +96,8 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
                 speed_limit = speed_limits[limit_index][1]
             else:
                 speed_limit = -1  # value to indicate missing speed limit
-
-            # current = (c.lat, c.lon)
-            stop = None
-            # if (current in grouped and grouped[current]):
-            #     stop = priority_stops({current: grouped[current]})[current]
-            #     stop = stop.get('tags', {}).get('highway')
-
-            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, stop, None, None, None, -1, -1])
+                
+            data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, None, None, None, None, -1, -1])
 
         data.append([placemark, data[-1][1] + 1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
         # run batch stuff here
@@ -123,6 +106,7 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
 
 
 if __name__ == "__main__":
+    print("Started Route DB Initialization")
     start = time.time()
-    init_route_db(remake=True)
-    print(time.time() - start)
+    init_route_db(remake= False)
+    print(f"Finished creating Database: {time.time()-start}")

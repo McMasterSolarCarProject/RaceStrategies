@@ -62,7 +62,7 @@ class RouteMap:
                 pass
 
             try:
-                kmph = getattr(getattr(tn, "velocity", None), "kmph", None)
+                kmph = getattr(getattr(tn, "speed", None), "kmph", None)
                 if kmph is not None:
                     parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
             except Exception:
@@ -133,7 +133,7 @@ class RouteMap:
 
     def get_speed_color(self, time_node: TimeNode):
         try:
-            color = self.speed_colors[min(int(time_node.velocity.kmph)+100, len(self.speed_colors) - 1)]
+            color = self.speed_colors[min(int(time_node.speed.kmph)+100, len(self.speed_colors) - 1)]
         except IndexError:
             color = self.speed_colors[0]
         return color
@@ -184,8 +184,8 @@ def format_time_node_tooltip(time_node, segment=None):
     # Basics
     dist_m   = _safe_get(time_node, "dist", None)
     t_s      = _safe_get(time_node, "time", None)
-    kmph     = _safe_get(time_node, "velocity.kmph", None)
-    mps      = _safe_get(time_node, "velocity.mps", None)
+    kmph     = _safe_get(time_node, "speed.kmph", None)
+    mps      = _safe_get(time_node, "speed.mps", None)
     accel    = _safe_get(time_node, "accel", None)          # if you store it
     # torque   = _safe_get(time_node, "torque", None)
     Fb       = _safe_get(time_node, "Fb", None)             # braking force (N)
