@@ -5,6 +5,9 @@ set up the python venv with requirments.txt
 run sim with:
 python -m src
 
+run gui with:
+python -m src.gui.main_gui
+
 modify src/__main__.py for the first time to create the database
  - set function main to true, run once then set it back to false
 

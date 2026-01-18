@@ -4,4 +4,4 @@ def upload_kml(path: str) -> None:
     """
     Backend function that uses the uploaded kml file to populate the data.sqlite file
     """
-    init_route_db(remake=True, kml_path=path)
+    init_route_db(remake=False, kml_path=path) # set this to true to remake database each time

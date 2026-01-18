@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 import matplotlib.colors as mcolors
 import numpy as np
-from ..database.parse_route_table import parse_route_table
+from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.nodes import TimeNode, Segment
 import time
 
@@ -15,7 +15,7 @@ class RouteMap:
         self.speed_colors = [mcolors.to_hex(color) for color in colormap]
 
     def generate_from_placemark(self, placemark_name: str, color: str = "#FF0000"):
-        route = parse_route_table(placemark_name)
+        route = fetch_route_intervals(placemark_name)[0]
         coordinates = route.get_coordinate_pairs()
         # for coordinate in coordinates:
         #     folium.Marker(coordinate).add_to(self.folium_map)
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     route_map.save_map("maps/route_map")
 
     start = time.time()
-    a = parse_route_table("A. Independence to Topeka")
+    a = fetch_route_intervals("A. Independence to Topeka")
     a.simulate_interval(TIME_STEP=0.5)
     end = time.time()
     print(f"simulation done! took {end - start} seconds")

@@ -73,7 +73,7 @@ class GraphController(QWidget):
 
         # Set defaults:
         self.x1_dropdown.setCurrentText("dist")
-        self.y1_dropdown.setCurrentText("velocity.kmph")
+        self.y1_dropdown.setCurrentText("speed.kmph")
         self.x2_dropdown.setCurrentText("time")
         self.y2_dropdown.setCurrentText("soc")
 

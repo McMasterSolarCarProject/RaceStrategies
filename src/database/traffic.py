@@ -6,7 +6,7 @@ import json
 import time
 from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
-from .parse_route_table import parse_route_table
+from .fetch_route_intervals import fetch_route_intervals
 
 BATCH_SIZE = 50 # Reduced to avoid rate limiting
 
@@ -303,7 +303,7 @@ def debugging_priority(nodes):
 
 def update_traffic(segment_id, node_limit: int = 0):
     traffic_data = []
-    placemark = parse_route_table(segment_id)
+    placemark = fetch_route_intervals(segment_id)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     for i in range(0, len(batch_bboxes), BATCH_SIZE):

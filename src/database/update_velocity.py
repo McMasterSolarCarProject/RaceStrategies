@@ -4,11 +4,11 @@ import os
 from ..engine.kinematics import Coordinate, Speed, Velocity, Displacement
 from ..engine.nodes import Segment, VelocityNode, NULL_VELOCITY_NODE
 from ..engine.velocity_simulator import simulate_speed_profile
-from .parse_route_table import parse_route_table
+from .fetch_route_intervals import fetch_route_intervals
 
 
 def update_target_velocity(segment_id):
-    interval = parse_route_table(segment_id)
+    interval = fetch_route_intervals(segment_id)
     for segment in interval.segments:
         nodes = simulate_speed_profile(segment, max_speed_lim=segment.speed_limit)
         upload_best_velocity(nodes, segment_id, segment.id)

@@ -3,7 +3,7 @@ import os
 from PyQt5.QtWidgets import QVBoxLayout, QWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from ..route_map import RouteMap
-from ...database.parse_route_table import parse_route_table
+from ...database.fetch_route_intervals import fetch_route_intervals
 
 
 # make this into a widget
@@ -34,7 +34,7 @@ class MapController(QWidget):
         Saves the map to a html output file.
         """
         # parse route
-        route = parse_route_table(name)
+        route = fetch_route_intervals(name)[0]
 
         # simulate (this mutates route and adds .segments and .time_nodes)
         # use TIME_STEP kwarg like existing code

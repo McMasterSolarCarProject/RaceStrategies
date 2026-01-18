@@ -8,6 +8,7 @@ from .traffic import overpass_batch_request, generate_boundary, priority_stops, 
 from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
+from .update_velocity import update_target_velocity
 
 def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None, update_traffic_data: bool = False) -> None:
     """
@@ -50,6 +51,7 @@ def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.s
     for placemark in placemarks:
         print(f"Uploading speed limits for {placemark}")
         upload_speed_limit(placemark)
+        update_target_velocity(placemark)
 
     if update_traffic_data:
         for placemark in placemarks:
@@ -96,7 +98,7 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
                 speed_limit = speed_limits[limit_index][1]
             else:
                 speed_limit = -1  # value to indicate missing speed limit
-                
+
             data.append([placemark, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, None, None, None, None, -1, -1])
 
         data.append([placemark, data[-1][1] + 1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])

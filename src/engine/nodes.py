@@ -25,9 +25,9 @@ class StateNode:
     NUMERICAL_METRICS = {
         "torque": "Torque (Nm)",
         "Fb": "Braking Force (N)",
-        "velocity.mps": "Velocity (m/s)",
-        "velocity.kmph": "Velocity (km/h)",
-        "velocity.mph": "Velocity (mph)",
+        "speed.mps": "Velocity (m/s)",
+        "speed.kmph": "Velocity (km/h)",
+        "speed.mph": "Velocity (mph)",
         "Fm": "Motor Force (N)",
     }
 
