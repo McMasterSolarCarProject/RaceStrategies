@@ -22,7 +22,9 @@ def main():
         intervals[i].simulate_interval()
         intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
     print(f"Completed Display: {time.time()-start}")
-
+    
+    import matplotlib.pyplot as plt
+    plt.show()
     input()
 
 

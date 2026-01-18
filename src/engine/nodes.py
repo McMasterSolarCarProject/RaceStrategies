@@ -48,7 +48,7 @@ class StateNode:
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
         try:
-            (velocity - wind).mag ** 2
+            (velocity - self.segment.wind).mag ** 2
         except OverflowError:
             print("ERROR: The value of velocity in fd_calc is too high! Try a smaller timestep")
             print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
