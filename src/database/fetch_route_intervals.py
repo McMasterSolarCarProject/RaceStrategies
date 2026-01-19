@@ -15,12 +15,14 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
 
     ssintervals = []
     segments = []
-    print(len(rows))
+    print(f"Total rows: {len(rows)}, split_at_stops: {split_at_stops}")
     max_nodes = min(max_nodes, len(rows)) if max_nodes is not None else len(rows)
     for i, checkpoint in enumerate(rows[:max_nodes-1]):
         segments.append(create_segment(checkpoint, rows[i+1]))
+        print(f"Row {i}: stop_type={checkpoint['stop_type']}")
 
-        if rows[i+1]["stop_type"] and split_at_stops:
+        if checkpoint["stop_type"] and split_at_stops:
+            print(f"  -> Splitting at row {i}")
             ssintervals.append(SSInterval(segments))
             segments = []
 
