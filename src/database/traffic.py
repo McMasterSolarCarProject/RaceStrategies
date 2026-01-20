@@ -301,43 +301,35 @@ def debugging_priority(nodes):
     debug_print()
 
 
-def update_traffic(segment_id, node_limit: int = 0):
-    traffic_data = []
+def update_traffic(segment_id):
     placemark = fetch_route_intervals(segment_id)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
-    for i in range(0, len(batch_bboxes), BATCH_SIZE):
-        #for quick check
-        if i == node_limit and node_limit != 0:
-            break
-        batch = batch_bboxes[i:i+BATCH_SIZE]
-        try:
-            traffic_data.append(overpass_batch_request(batch))
-            print(f"Data up to {i + BATCH_SIZE}") 
-            #break, collects all traffic data
-        except Exception as e:
-            print(f"Error fetching batch: {e}")
-            traffic_data.append([None] * len(batch))
-
-    grouped = regroup(traffic_data, coord_points)
-    priority_types = priority_stops(grouped)
-
-    for ref, stop_type in priority_types.items():
-        if stop_type is None:
-            continue
-
-        print(f"{ref}:\t{stop_type}")
-
-        db = sqlite3.connect('data.sqlite')
-        cursor = db.cursor()
-        cursor.execute(
-            'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
-            (stop_type, ref.lat, ref.lon)
-        )
-        db.commit()
+    db = sqlite3.connect('data.sqlite')
+    cursor = db.cursor()
+    try:
+        for i in range(0, len(batch_bboxes), BATCH_SIZE):
+            batch_boxes = batch_bboxes[i:i + BATCH_SIZE]
+            batch_coords = coord_points[i:i + BATCH_SIZE]
+            try:
+                batch_nodes = overpass_batch_request(batch_boxes)
+            except Exception as e:
+                print(f"Error fetching batch {i}: {e}")
+                continue
+            grouped = regroup([batch_nodes], batch_coords)
+            priority_types = priority_stops(grouped)
+            for ref, stop_type in priority_types.items():
+                if stop_type is None:
+                    continue
+                print(f"{ref}:\t{stop_type}")
+                cursor.execute(
+                    'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
+                    (stop_type, ref.lat, ref.lon)
+                )
+            db.commit()  
+            print(f"Database updated up to batch ending at index {i + BATCH_SIZE}")
+    finally:
         db.close()
-
-
 
 
 def main():
