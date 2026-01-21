@@ -4,7 +4,6 @@ import csv
 import os
 from .parse_route import parse_ASC2024, parse_kml_file
 import time
-from .traffic import overpass_batch_request, generate_boundary, priority_stops, regroup
 from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
