@@ -2,6 +2,11 @@
 
 set up the python venv with requirments.txt
 
+setup database by running:
+```bash
+python -m src.database
+```
+
 run sim with:
 
 ```bash
@@ -12,8 +17,8 @@ run gui with:
 python -m src.gui.main_gui
 ```
 
-modify src/__main__.py for the first time to create the database
- - set function main to true, run once then set it back to false
+modify database setup in database.__main__.py
+modify sim setup in src.main.py
 
 # Stuff That Needs to Be Done
 ## General:
