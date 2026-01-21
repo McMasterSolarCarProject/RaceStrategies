@@ -3,7 +3,7 @@ from scipy.signal import savgol_filter
 from .fetch_route_intervals import fetch_route_intervals
 import sqlite3
 
-def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu = 0.01, g = 9.81):
+def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu = 0.90, g = 9.81):
     #lat lon elev --> x y z
     azimuths = np.radians(np.array(azimuths))
     lats = np.array(lats)

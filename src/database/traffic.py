@@ -301,8 +301,8 @@ def debugging_priority(nodes):
     debug_print()
 
 
-def update_traffic(segment_id):
-    placemark = fetch_route_intervals(segment_id)
+def update_traffic(placemark_name: str):
+    placemark = fetch_route_intervals(placemark_name)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     db = sqlite3.connect('data.sqlite')

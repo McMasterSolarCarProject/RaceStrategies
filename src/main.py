@@ -11,8 +11,8 @@ from .database import init_route_db, fetch_route_intervals, update_target_veloci
 def main():
     start = time.perf_counter()
     # init_route_db(remake= False)
-    # placemarks = ["A. Independence to Topeka"]
-    # # placemarks = parse_kml_file()
+    # # # placemarks = ["A. Independence to Topeka"]
+    # placemarks = parse_kml_file()
     # for placemark in placemarks:
     #     if True:  # Set to True to update velocity data
     #         # print(f"Updating velocity data for {placemark}")
@@ -26,7 +26,7 @@ def main():
     # current_time: datetime = datetime.datetime.now(tz=current_tz)
 
     intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=False, max_nodes=None)
-    intervals = [intervals]
+    intervals = [intervals] if type(intervals) is SSInterval else intervals
     print(len(intervals))
     intervals = intervals
     for i in range(min(10000, len(intervals))):

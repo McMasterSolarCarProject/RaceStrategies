@@ -5,12 +5,12 @@ import sqlite3
 
 #RENAME TO FETCH_ROUTE_INTERVALS
 
-def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
+def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
     conn = sqlite3.connect("data.sqlite")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     query = "SELECT * FROM route_data WHERE segment_id = ? ORDER BY id"
-    cursor.execute(query, (placemark,))
+    cursor.execute(query, (placemark_name,))
     rows = cursor.fetchall()
 
     ssintervals = []
@@ -32,15 +32,16 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
     cursor.close()
     conn.close()
     # print(f"{len(ssintervals[0].segments)} segments in the first interval")
+    # Needed so that other functions can get the entire placemark without splitting
     return ssintervals if split_at_stops else ssintervals[0]
 
 
-def parse_segment(placemark, checkpoint):
+def parse_segment(placemark_name: str, checkpoint):
     conn = sqlite3.connect("data.sqlite")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     query = "SELECT * FROM route_data WHERE segment_id = ? AND id IN (?, ?) ORDER BY id"
-    cursor.execute(query, (placemark, checkpoint, checkpoint + 1))
+    cursor.execute(query, (placemark_name, checkpoint, checkpoint + 1))
     rows = cursor.fetchall()
     if len(rows) != 2:
         print("Invalid amount of rows taken")

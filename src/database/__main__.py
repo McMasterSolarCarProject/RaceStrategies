@@ -22,7 +22,7 @@ def main(route_db_path: str = "data.sqlite", kml_path: str = "data/Main Route.km
         print(f"Updating placemark {i}/{len(placemarks)}: {placemark}")
         upload_speed_limit(placemark)
         update_target_velocity(placemark)
-        # update_traffic(placemark)
+        update_traffic(placemark)
     
     print(f"\nCompleted in {time.perf_counter()-start:.2f}s")
     

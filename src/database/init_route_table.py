@@ -4,7 +4,7 @@ import csv
 import os
 from .parse_kml import parse_kml_file
 import time
-from ..engine.nodes import Segment
+from ..engine.nodes import Segment, Coordinate
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
 from .update_velocity import update_target_velocity
@@ -83,6 +83,30 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
         # run batch stuff here
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
+
+
+def update_speed_limits_from_csv(placemark: list[Coordinate], db_path: str = "data.sqlite") -> None:
+    """Update speed limits in existing database from CSV files."""
+    print(f"Updating speed limits from CSV files...")
+    
+    
+    with sqlite3.connect(db_path) as connection:
+        cursor = connection.cursor()
+        
+        # Read speed limits from CSV
+        with open(f"data/limits/{placemark} Limits.csv", "r") as file:
+            reader = csv.reader(file)
+            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
+        
+        # Update speed limits in database for this placemark
+        for i, (distance, speed) in enumerate(speed_limits):
+            next_distance = speed_limits[i + 1][0] if i + 1 < len(speed_limits) else float('inf')
+            cursor.execute(
+                "UPDATE route_data SET speed_limit = ? WHERE segment_id = ? AND cumulative_distance >= ? AND cumulative_distance < ?",
+                (speed, placemark, distance, next_distance)
+            )
+    
+    print("Speed limits updated.")
 
 if __name__ == "__main__":
     print("Started Route DB Initialization")

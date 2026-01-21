@@ -1,6 +1,7 @@
 from .nodes import Segment, TimeNode
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
+from .motor_calcs import motor
 
 P_STALL = 100
 MAX_TORQUE = 2500
@@ -38,7 +39,8 @@ class SSInterval:
                     current_TimeNode.Fb = BRAKE
 
                 elif initial_TimeNode.speed.mps < segment.v_eff.mps:
-                    current_TimeNode.torque = MAX_TORQUE
+                    # current_TimeNode.torque = MAX_TORQUE
+                    current_TimeNode.torque = motor.torque_from_speed(initial_TimeNode.speed)*10
 
                 else:
                     current_TimeNode.torque = segment.t_eff
