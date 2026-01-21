@@ -16,7 +16,7 @@ def update_target_velocity(segment_id):
 def upload_best_velocity(nodes: list[VelocityNode], segment_id, id):
     # for now just pick one with epm of 100
     if not nodes:
-        print(f"No velocity nodes generated for segment {segment_id} id {id}")
+        # print(f"No velocity nodes generated for segment {segment_id} id {id}")
         return
 
     emp_target = 100

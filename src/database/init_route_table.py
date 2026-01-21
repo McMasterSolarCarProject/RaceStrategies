@@ -2,70 +2,39 @@ import sqlite3
 import datetime
 import csv
 import os
-from .parse_route import parse_ASC2024, parse_kml_file
+from .parse_kml import parse_kml_file
 import time
 from ..engine.nodes import Segment
 from .curvature_speed_limit import upload_speed_limit
 from .traffic import update_traffic
 from .update_velocity import update_target_velocity
 
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = None, update_velocity: bool = True, update_traffic_data: bool = False) -> None:
+def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = "data/Main Route.kml") -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
-    placemarks = None
-    
-    if os.path.exists(db_path):
-        if remake:
-            os.remove(db_path)
-            print(f"Deleted existing database: {db_path}")
-        else:
-            print(f"Database exists Already: {db_path}")
-    else:
-        print("No existing database found.")
 
-    if not os.path.exists(db_path) or remake:
-        try:
-            with sqlite3.connect(db_path) as connection:
-                cursor = connection.cursor()
-                create_route_table(cursor, schema_path)
+    if remake and os.path.exists(db_path):
+        os.remove(db_path)
+        print(f"Deleted existing database: {db_path}")
 
-                # Changed to be generic
-                if not kml_path:
-                    placemarks = parse_ASC2024()
-                else:
-                    if not os.path.exists(kml_path):
-                        raise FileNotFoundError(f"KML path {kml_path} not found")
-                    elif not kml_path.lower().endswith(".kml"):
-                        raise ValueError(f"File {kml_path} is not a KML file")
-                    else:
-                        placemarks = parse_kml_file(kml_path)
+    if not os.path.exists(db_path):
+        if not os.path.exists(kml_path):
+            raise FileNotFoundError(f"KML path {kml_path} not found")
+        if not kml_path.lower().endswith(".kml"):
+            raise ValueError(f"File {kml_path} is not a KML file")
+        
+        placemarks = parse_kml_file(kml_path)
 
-                populate_table(placemarks, cursor)
-            connection.commit()
-        except Exception as e:
-            raise e
-        finally:
-            connection.close()
+        with sqlite3.connect(db_path) as connection:
+            cursor = connection.cursor()
+            create_route_table(cursor, schema_path)
+            populate_table(placemarks, cursor)
+
         print("Route data initialized.")
     else:
-        # If database exists and we're not remaking, still get placemarks for velocity update
-        if update_velocity or update_traffic_data:
-            if not kml_path:
-                placemarks = parse_ASC2024()
-            else:
-                placemarks = parse_kml_file(kml_path)
+        print(f"Database exists Already: {db_path}")
     
-    if update_velocity and placemarks:
-        for placemark in placemarks:
-            print(f"Uploading speed limits for {placemark}")
-            upload_speed_limit(placemark)
-            update_target_velocity(placemark)
-
-    if update_traffic_data and placemarks:
-        for placemark in placemarks:
-            print(f"Updating traffic data for {placemark}")
-            update_traffic(placemark)
 
 def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sql") -> None:
     """
@@ -85,10 +54,10 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
     Populate route_data table with segment data and speed limits.
     - If speed limit CSV is missing, rows are inserted with speed = NULL and marked as speed_unknown.
     """
-    print(f"Generating Route data")
+    print(f"Populating route data for {len(placemarks)} placemarks...")
 
     for placemark in placemarks.keys():
-        print(placemark)
+        print(f"Processing: {placemark}")
         coords = placemarks[placemark]
         with open(f"data/limits/{placemark} Limits.csv", "r") as file:
             reader = csv.reader(file)
@@ -114,7 +83,6 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
         # run batch stuff here
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
-
 
 if __name__ == "__main__":
     print("Started Route DB Initialization")

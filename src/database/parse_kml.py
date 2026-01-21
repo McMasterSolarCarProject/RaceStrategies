@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from ..engine.kinematics import Coordinate
-# RENAME TO PARSE_KML
-def parse_kml_file(filename):
+
+def parse_kml_file(filename: str = "data/Main Route.kml") -> dict[str, list[Coordinate]]:
     root = ET.parse(filename).getroot()
     placemarks = {}
     for child in root[0]:
@@ -20,10 +20,12 @@ def parse_kml_file(filename):
                 parts = line.split(",")
                 coords.append(Coordinate(float(parts[1]), float(parts[0]), float(parts[2])))
             placemarks[name] = coords
+
+    if filename == "data/Main Route.kml":
+        placemarks = parse_ASC2024(placemarks)
     return placemarks
 
-def parse_ASC2024():
-    placemarks = parse_kml_file("data/Main Route.kml")
+def parse_ASC2024(placemarks):
     keys = list(placemarks.keys())
     placemarks = {k:placemarks[k] for k in [keys[0], keys[-1]] + keys[1:-1]}
     return placemarks
