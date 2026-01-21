@@ -1,5 +1,6 @@
-from .nodes import *
+from .nodes import Segment, TimeNode
 import matplotlib.pyplot as plt
+from .kinematics import Speed, Velocity
 
 P_STALL = 100
 MAX_TORQUE = 2500
@@ -19,7 +20,7 @@ class SSInterval:
         self.total_dist = self.segments[-1].tdist
         # print(self.total_dist)
 
-    def simulate_interval(self, TIME_STEP: float = 0.1):
+    def simulate_interval(self, TIME_STEP: float = 0.1, VELOCITY_STEP: Speed = Speed(kmph=0.1)):
         self.time_nodes = [TimeNode(self.segments[0], torque=MAX_TORQUE, speed=self.startSpeed, soc= 100)]
         self.simulate_braking(-TIME_STEP)
         print(f"{len(self.brakingNodes)}")
@@ -43,6 +44,9 @@ class SSInterval:
                     current_TimeNode.torque = segment.t_eff
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
+                if current_TimeNode.acc / TIME_STEP > VELOCITY_STEP.mps:
+                    current_TimeNode.solve_TimeNode(initial_TimeNode, VELOCITY_STEP.mps / current_TimeNode.acc)
+
                 self.time_nodes.append(current_TimeNode)
 
                 while current_TimeNode.speed.mps > self.brakingNodes[brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
