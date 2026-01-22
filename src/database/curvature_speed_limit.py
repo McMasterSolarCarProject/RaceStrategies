@@ -2,6 +2,7 @@ import numpy as np
 from scipy.signal import savgol_filter
 from .fetch_route_intervals import fetch_route_intervals
 import sqlite3
+import csv
 
 def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu = 0.90, g = 9.81):
     #lat lon elev --> x y z
@@ -50,12 +51,12 @@ def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu
     speed_limit = np.clip(speed_limit, 0, 120)
     return [float(speed) for speed in speed_limit]
 
-def upload_speed_limit(placemark: str, display: bool= False):
+def update_curvature_speed_limits(placemark_name: str, display: bool= False):
     # for now just pick one with epm of 100
     lat,lon,dist,az,elev = [],[],[],[],[]
     # with open("data\generated\A. Independence to Topeka.csv",'r') as file:
     #     data = [line.strip().split(',') for line in file]
-    data = fetch_route_intervals(placemark).segments
+    data = fetch_route_intervals(placemark_name).segments
     for i in range(len(data)):
         lat.append(data[i].p1.lat)
         lon.append(float(data[i].p1.lon))
@@ -77,7 +78,7 @@ def upload_speed_limit(placemark: str, display: bool= False):
             UPDATE route_data
             SET speed_limit = MIN(speed_limit, ?)
             WHERE segment_id = ? AND id = ?
-            ''', (speeds[i], placemark, segment.id))
+            ''', (speeds[i], placemark_name, segment.id))
     db.commit()
     db.commit()
     db.close()
@@ -96,9 +97,32 @@ def upload_speed_limit(placemark: str, display: bool= False):
         plt.tight_layout()
         plt.show()
 
-if __name__ == "__main__":
+def update_speed_limits_from_csv(placemark_name: str, db_path: str = "data.sqlite") -> None:
+    """Update speed limits in existing database from CSV files."""
+    print(f"Updating speed limits from CSV files...")
+    
+    
+    with sqlite3.connect(db_path) as connection:
+        cursor = connection.cursor()
+        
+        # Read speed limits from CSV
+        with open(f"data/limits/{placemark_name} Limits.csv", "r") as file:
+            reader = csv.reader(file)
+            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
+        
+        # Update speed limits in database for this placemark
+        for i, (distance, speed) in enumerate(speed_limits):
+            next_distance = speed_limits[i + 1][0] if i + 1 < len(speed_limits) else float('inf')
+            cursor.execute(
+                "UPDATE route_data SET speed_limit = ? WHERE segment_id = ? AND cumulative_distance >= ? AND cumulative_distance < ?",
+                (speed, placemark_name, distance, next_distance)
+            )
+    
+    print("Speed limits updated.")
 
-    upload_speed_limit("A. Independence to Topeka", display= True)
+if __name__ == "__main__":
+    update_speed_limits_from_csv("A. Independence to Topeka")
+    # update_curvature_speed_limits("A. Independence to Topeka", display= True)
     # lat,lon,dist,az,elev = [],[],[],[],[]
     # with open("data\generated\A. Independence to Topeka.csv",'r') as file:
     #     data = [line.strip().split(',') for line in file]
