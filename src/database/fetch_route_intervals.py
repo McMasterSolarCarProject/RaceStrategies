@@ -3,13 +3,12 @@ from ..engine.nodes import Segment
 from ..engine.interval_simulator import SSInterval
 import sqlite3
 
-#RENAME TO FETCH_ROUTE_INTERVALS
 
 def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
     conn = sqlite3.connect("data.sqlite")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    query = "SELECT * FROM route_data WHERE segment_id = ? ORDER BY id"
+    query = "SELECT * FROM route_data WHERE placemark_name = ? ORDER BY id"
     cursor.execute(query, (placemark_name,))
     rows = cursor.fetchall()
 
@@ -31,16 +30,14 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
         
     cursor.close()
     conn.close()
-    # print(f"{len(ssintervals[0].segments)} segments in the first interval")
-    # Needed so that other functions can get the entire placemark without splitting
     return ssintervals if split_at_stops else ssintervals[0]
 
 
-def parse_segment(placemark_name: str, checkpoint):
+def fetch_segment(placemark_name: str, checkpoint):
     conn = sqlite3.connect("data.sqlite")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    query = "SELECT * FROM route_data WHERE segment_id = ? AND id IN (?, ?) ORDER BY id"
+    query = "SELECT * FROM route_data WHERE placemark_name = ? AND id IN (?, ?) ORDER BY id"
     cursor.execute(query, (placemark_name, checkpoint, checkpoint + 1))
     rows = cursor.fetchall()
     if len(rows) != 2:
@@ -53,6 +50,7 @@ def parse_segment(placemark_name: str, checkpoint):
 
     return segment
 
+
 def create_segment(checkpoint: sqlite3.Row, next_checkpoint: sqlite3.Row) -> Segment:
     current_coord = Coordinate(checkpoint["lat"], checkpoint["lon"], checkpoint["elevation"])
     next_coord = Coordinate(next_checkpoint["lat"], next_checkpoint["lon"], next_checkpoint["elevation"])
@@ -64,7 +62,7 @@ if __name__ == "__main__":
     # intervals = fetch_route_intervals("A. Independence to Topeka")
     # for segment in intervals[0].segments:
     #     print(segment)
-    seg = parse_segment("A. Independence to Topeka", 1)
+    seg = fetch_segment("A. Independence to Topeka", 1)
     print(seg)
     # for segment in ssInterval.segments:
     #     print(segment)

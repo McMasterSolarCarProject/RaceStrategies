@@ -77,7 +77,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool= False):
             '''
             UPDATE route_data
             SET speed_limit = MIN(speed_limit, ?)
-            WHERE segment_id = ? AND id = ?
+            WHERE placemark_name = ? AND id = ?
             ''', (speeds[i], placemark_name, segment.id))
     db.commit()
     db.commit()
@@ -101,7 +101,8 @@ def update_speed_limits_from_csv(placemark_name: str, db_path: str = "data.sqlit
     """Update speed limits in existing database from CSV files."""
     print(f"Updating speed limits from CSV files...")
     
-    
+    fetch_route_intervals(placemark_name)  # Ensure placemark exists in DB
+    coords = placemarks[placemark_name]
     with sqlite3.connect(db_path) as connection:
         cursor = connection.cursor()
         
@@ -110,11 +111,23 @@ def update_speed_limits_from_csv(placemark_name: str, db_path: str = "data.sqlit
             reader = csv.reader(file)
             speed_limits = [(float(row[1]), float(row[2])) for row in reader]
         
+        for coord_index, c in enumerate(coords[:-1]):
+            s = Segment(c, coords[coord_index + 1])
+            tdist += s.dist
+            # dist = calc_distance(placemarks[placemark], c)
+            if speed_limits != None:
+                while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
+                    limit_index += 1
+                speed_limit = speed_limits[limit_index][1]
+            else:
+                speed_limit = -1  # value to indicate missing speed limit
+
+
         # Update speed limits in database for this placemark
         for i, (distance, speed) in enumerate(speed_limits):
             next_distance = speed_limits[i + 1][0] if i + 1 < len(speed_limits) else float('inf')
             cursor.execute(
-                "UPDATE route_data SET speed_limit = ? WHERE segment_id = ? AND cumulative_distance >= ? AND cumulative_distance < ?",
+                "UPDATE route_data SET speed_limit = ? WHERE placemark_name = ? AND cumulative_distance >= ? AND cumulative_distance < ?",
                 (speed, placemark_name, distance, next_distance)
             )
     
