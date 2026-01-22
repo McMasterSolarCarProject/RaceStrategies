@@ -1,4 +1,4 @@
-from .init_route_table import init_route_db
+from .init_route_table import init_route_db, update_speed_limits_only
 from .parse_kml import parse_kml_file
 from .curvature_speed_limit import upload_speed_limit
 from .update_velocity import update_target_velocity
@@ -27,4 +27,9 @@ def main(route_db_path: str = "data.sqlite", kml_path: str = "data/Main Route.km
     print(f"\nCompleted in {time.perf_counter()-start:.2f}s")
     
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "speeds":
+        update_speed_limits_only()
+        upload_speed_limit("A. Independence to Topeka")
+    else:
+        main()

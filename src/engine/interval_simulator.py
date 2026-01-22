@@ -46,7 +46,7 @@ class SSInterval:
                     current_TimeNode.torque = segment.t_eff
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
-                if current_TimeNode.acc / TIME_STEP > VELOCITY_STEP.mps:
+                if current_TimeNode.acc * TIME_STEP > VELOCITY_STEP.mps:
                     current_TimeNode.solve_TimeNode(initial_TimeNode, VELOCITY_STEP.mps / current_TimeNode.acc)
 
                 self.time_nodes.append(current_TimeNode)
