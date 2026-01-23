@@ -7,14 +7,13 @@ from ..engine.velocity_simulator import simulate_speed_profile
 from .fetch_route_intervals import fetch_route_intervals
 
 
-def update_target_velocity(placemark_name: str):
+def update_target_velocity(placemark_name: str, db_path: str = "data.sqlite") -> None:
     placemark = fetch_route_intervals(placemark_name)
     for segment in placemark.segments:
         velocity_nodes = simulate_speed_profile(segment, max_speed_lim=segment.speed_limit)
-        upload_best_velocity(velocity_nodes, placemark_name, segment.id)
+        upload_best_velocity(velocity_nodes, placemark_name, segment.id, db_path)
 
-
-def upload_best_velocity(nodes: list[VelocityNode], placemark_name: str, id: int):
+def upload_best_velocity(nodes: list[VelocityNode], placemark_name: str, id: int, db_path: str = "data.sqlite"):
     if len(nodes) == 0:
         print(f"No velocity nodes generated for segment {placemark_name} id {id}")
         return
@@ -34,7 +33,6 @@ def upload_best_velocity(nodes: list[VelocityNode], placemark_name: str, id: int
                  break
     
     if best_node:
-        db_path = 'data.sqlite'
         if not os.path.exists(db_path):
             print(f"Database file '{db_path}' does not exist. Skipping database update.")
             return

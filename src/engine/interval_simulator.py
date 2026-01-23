@@ -14,7 +14,7 @@ class SSInterval:
         self.segments = segments
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
-            self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
+            self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
 
         self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))

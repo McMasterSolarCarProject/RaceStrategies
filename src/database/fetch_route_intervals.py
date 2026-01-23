@@ -4,8 +4,8 @@ from ..engine.interval_simulator import SSInterval
 import sqlite3
 
 
-def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
-    conn = sqlite3.connect("data.sqlite")
+def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "data.sqlite") -> list[SSInterval] | SSInterval:
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     query = "SELECT * FROM route_data WHERE placemark_name = ? ORDER BY id"
@@ -33,8 +33,8 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
     return ssintervals if split_at_stops else ssintervals[0]
 
 
-def fetch_segment(placemark_name: str, checkpoint):
-    conn = sqlite3.connect("data.sqlite")
+def fetch_segment(placemark_name: str, checkpoint, db_path: str = "data.sqlite") -> Segment:
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     query = "SELECT * FROM route_data WHERE placemark_name = ? AND id IN (?, ?) ORDER BY id"

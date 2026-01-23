@@ -1,17 +1,18 @@
 import numpy as np
 from scipy.signal import savgol_filter
 from .fetch_route_intervals import fetch_route_intervals
+from .init_route_table import get_speed_limits, lookup_speed_limit
 import sqlite3
-import csv
 
-def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu = 0.90, g = 9.81):
-    #lat lon elev --> x y z
+def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu=0.01, g=9.81):
+    """Calculate speed limits based on road curvature."""
     azimuths = np.radians(np.array(azimuths))
     lats = np.array(lats)
     lons = np.array(lons)
     elevs = np.array(elevs)
     s = np.array(s)
     
+    # Convert lat/lon/elev to x/y/z
     x = np.zeros_like(s)
     y = np.zeros_like(s)
     z = elevs - elevs[0]
@@ -19,122 +20,109 @@ def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu
         segment_length = s[i] - s[i-1]
         x[i] = x[i-1] + segment_length * np.sin(azimuths[i-1])
         y[i] = y[i-1] + segment_length * np.cos(azimuths[i-1])
+    
     x = savgol_filter(x, window, poly)
     y = savgol_filter(y, window, poly)
     z = savgol_filter(z, window, poly)
 
-    #curvature
-    s = np.asarray(s)
+    # Calculate gradients
+    x_s = np.gradient(x, s)
+    y_s = np.gradient(y, s)
+    z_s = np.gradient(z, s)
 
-    x_s = np.gradient(x,s)
-    y_s = np.gradient(y,s)
-    z_s = np.gradient(z,s)
+    x_ss = np.gradient(x_s, s)
+    y_ss = np.gradient(y_s, s)
+    z_ss = np.gradient(z_s, s)
 
-    x_ss = np.gradient(x_s,s)
-    y_ss = np.gradient(y_s,s)
-    z_ss = np.gradient(z_s,s)
-
-    # kappa = |v x a| / |v|^3
-    cross_x = y_s*z_ss - z_s*y_ss
+    # Curvature: kappa = |v x a| / |v|^3
+    cross_x = y_s * z_ss - z_s * y_ss
     cross_y = z_s * x_ss - x_s * z_ss
     cross_z = x_s * y_ss - y_s * x_ss
+    
     numerator = np.sqrt(cross_x**2 + cross_y**2 + cross_z**2)
     v = np.sqrt(x_s**2 + y_s**2 + z_s**2 + 1e-16)
-    denominator = v ** 3
-    curvature = numerator / denominator
+    curvature = numerator / (v ** 3)
     curvature = np.clip(curvature, 1e-4, 0.2)
 
-    #vmax = sqrt(mu*g*cos(theta)/kappa)
+    # Speed limit: vmax = sqrt(mu*g*cos(theta)/kappa)
     theta = np.arctan2(z_s, np.sqrt(x_s**2 + y_s**2))
-    speed_limit = list(np.sqrt(mu * g * np.cos(theta) / curvature) * 3.6)
+    speed_limit = np.sqrt(mu * g * np.cos(theta) / curvature) * 3.6
     speed_limit = savgol_filter(speed_limit, 11, poly)
     speed_limit = np.clip(speed_limit, 0, 120)
-    return [float(speed) for speed in speed_limit]
+    
+    return speed_limit
 
-def update_curvature_speed_limits(placemark_name: str, display: bool= False):
-    # for now just pick one with epm of 100
-    lat,lon,dist,az,elev = [],[],[],[],[]
-    # with open("data\generated\A. Independence to Topeka.csv",'r') as file:
-    #     data = [line.strip().split(',') for line in file]
-    data = fetch_route_intervals(placemark_name).segments
-    for i in range(len(data)):
-        lat.append(data[i].p1.lat)
-        lon.append(float(data[i].p1.lon))
-        elev.append(float(data[i].elevation))
-        dist.append(float(data[i].tdist))
-        az.append(float(data[i].azimuth))
-    speeds = curvature_speed_limits(lat,lon,elev, az, dist)
-
-
-    db = sqlite3.connect('data.sqlite')
-    cursor = db.cursor()
-    for i, segment in enumerate(data):
-        # nodes = sim_velocity_an_shi(segment, segment.speed_limit)
-        if speeds[i] <= 5:
-            # print("curvature shi",speeds[i], i, segment.id)
-            pass
-        cursor.execute(
-            '''
-            UPDATE route_data
-            SET speed_limit = MIN(speed_limit, ?)
-            WHERE placemark_name = ? AND id = ?
-            ''', (speeds[i], placemark_name, segment.id))
-    db.commit()
-    db.commit()
-    db.close()
-
+def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_path: str="data.sqlite") -> None:
+    """Update speed limits in database based on road curvature."""
+    
+    # Fetch route segments
+    intervals = fetch_route_intervals(placemark_name)
+    segments = intervals.segments
+    
+    # Extract coordinate data
+    lats = np.array([seg.p1.lat for seg in segments])
+    lons = np.array([seg.p1.lon for seg in segments])
+    elevs = np.array([seg.elevation for seg in segments])
+    dists = np.array([seg.tdist for seg in segments])
+    azimuths = np.array([seg.azimuth for seg in segments])
+    
+    # Calculate speeds
+    speeds = curvature_speed_limits(lats, lons, elevs, azimuths, dists)
+    
+    # Prepare batch update data
+    update_data = [(float(speeds[i]), placemark_name, segments[i].id) for i in range(len(segments))]
+    
+    # Batch update database
+    with sqlite3.connect(db_path) as db:
+        cursor = db.cursor()
+        cursor.executemany(
+            "UPDATE route_data SET speed_limit = MIN(speed_limit, ?) WHERE placemark_name = ? AND id = ?",
+            update_data
+        )
+        db.commit()
+    
     if display:
         import matplotlib.pyplot as plt
-        speeds = np.array(speeds)
-        dist = np.array(dist)
-
-        plt.figure(figsize=(10,6))
-        plt.plot(dist/1000, speeds, color='blue', linewidth=1, label='Raw Speed Limit')
-        plt.grid(True, linestyle='--', alpha=0.6)
         low_speed_mask = speeds < 80
-        plt.scatter(dist[low_speed_mask]/1000, speeds[low_speed_mask],
-                color='red', s=20, label='Low-Speed Zones (<80 km/h)')
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(dists/1000, speeds, color='blue', linewidth=1, label='Curvature Speed Limit')
+        plt.scatter(dists[low_speed_mask]/1000, speeds[low_speed_mask],
+                    color='red', s=20, label='Low-Speed Zones (<80 km/h)')
+        plt.xlabel('Distance (km)')
+        plt.ylabel('Speed Limit (km/h)')
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.legend()
         plt.tight_layout()
         plt.show()
 
-def update_speed_limits_from_csv(placemark_name: str, db_path: str = "data.sqlite") -> None:
+def update_speed_limits_from_csv(placemark_name, db_path: str = "data.sqlite") -> None:
     """Update speed limits in existing database from CSV files."""
     print(f"Updating speed limits from CSV files...")
     
-    fetch_route_intervals(placemark_name)  # Ensure placemark exists in DB
-    coords = placemarks[placemark_name]
+    placemark = fetch_route_intervals(placemark_name, db_path=db_path)
     with sqlite3.connect(db_path) as connection:
         cursor = connection.cursor()
-        
-        # Read speed limits from CSV
-        with open(f"data/limits/{placemark_name} Limits.csv", "r") as file:
-            reader = csv.reader(file)
-            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
-        
-        for coord_index, c in enumerate(coords[:-1]):
-            s = Segment(c, coords[coord_index + 1])
-            tdist += s.dist
-            # dist = calc_distance(placemarks[placemark], c)
-            if speed_limits != None:
-                while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
-                    limit_index += 1
-                speed_limit = speed_limits[limit_index][1]
-            else:
-                speed_limit = -1  # value to indicate missing speed limit
+        speed_limits = get_speed_limits(placemark_name)
+        update_data = []
+        limit_index = 0
+        for s in placemark.segments:
 
+            speed_limit, limit_index = lookup_speed_limit(speed_limits, s.tdist, limit_index)
+            update_data.append((speed_limit, placemark_name, s.id))
+            # update_data = [(float(speeds[i]), placemark_name, segments[i].id) for i in range(len(placemark.segments))]
+    
+        cursor.executemany(
+            "UPDATE route_data SET speed_limit = ? WHERE placemark_name = ? AND id = ?",
+            update_data
+        )
 
-        # Update speed limits in database for this placemark
-        for i, (distance, speed) in enumerate(speed_limits):
-            next_distance = speed_limits[i + 1][0] if i + 1 < len(speed_limits) else float('inf')
-            cursor.execute(
-                "UPDATE route_data SET speed_limit = ? WHERE placemark_name = ? AND cumulative_distance >= ? AND cumulative_distance < ?",
-                (speed, placemark_name, distance, next_distance)
-            )
     
     print("Speed limits updated.")
 
 if __name__ == "__main__":
     update_speed_limits_from_csv("A. Independence to Topeka")
+    update_curvature_speed_limits("A. Independence to Topeka", display= True)
     # update_curvature_speed_limits("A. Independence to Topeka", display= True)
     # lat,lon,dist,az,elev = [],[],[],[],[]
     # with open("data\generated\A. Independence to Topeka.csv",'r') as file:

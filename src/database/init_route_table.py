@@ -62,7 +62,11 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
 
-def get_speed_limits(placemark_name: str) -> list:
+def get_speed_limits(placemark_name: str) -> list[tuple[float, float]]:
+    """
+    Reads speed limit data from CSV for the given placemark.
+    Returns a list of tuples (distance_index, speed_limit).
+    """
     limits_path = f"data/limits/{placemark_name} Limits.csv"
     if os.path.exists(limits_path):
         with open(limits_path, "r") as file:
@@ -73,6 +77,19 @@ def get_speed_limits(placemark_name: str) -> list:
         print(f"WARNING: Missing speed limits for {placemark_name}")
         speed_limits = []
     return speed_limits
+
+
+def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -> tuple[float, int]:
+    """
+    Look up the speed limit for a given distance.
+    """
+    if not speed_limits:
+        return -1, 0
+    
+    while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
+        limit_index += 1
+    
+    return speed_limits[limit_index][1], limit_index
     
 
 def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list:
@@ -82,14 +99,8 @@ def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list:
     for coord_index, c in enumerate(coords[:-1]):
         s = Segment(c, coords[coord_index + 1])
         tdist += s.dist
-        # dist = calc_distance(placemarks[placemark_name], c)
-        if len(speed_limits) > 0:
-            while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
-                limit_index += 1
-            speed_limit = speed_limits[limit_index][1]
-        else:
-            speed_limit = -1  # value to indicate missing speed limit
-
+        
+        speed_limit, limit_index = lookup_speed_limit(speed_limits, tdist, limit_index)
         data.append([placemark_name, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, None, None, None, None, -1, -1])
     data.append([placemark_name, data[-1][1] + 1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
     return data
