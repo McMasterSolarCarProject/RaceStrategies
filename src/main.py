@@ -6,6 +6,7 @@ from .engine.kinematics import Coordinate, Speed
 from .engine.interval_simulator import SSInterval  # Adjust as needed
 from .engine.nodes import Segment
 from .database import init_route_db, fetch_route_intervals, update_target_velocity, update_traffic, parse_kml_file, upload_speed_limit  
+from .engine.interval_simulator import join_intervals
 
 
 def main():
@@ -25,15 +26,17 @@ def main():
     # current_tz = timezone("US/Eastern")
     # current_time: datetime = datetime.datetime.now(tz=current_tz)
 
-    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=False, max_nodes=None)
-    intervals = [intervals]
+    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=True, max_nodes=None)
+    # intervals = [intervals]
     print(len(intervals))
-    intervals = intervals
+    # intervals = intervals
     for i in range(min(10000, len(intervals))):
         print(f"Simulating Interval {i+1} of {len(intervals)}")
         intervals[i].simulate_interval()
-        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        # intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
+    master = join_intervals(intervals)
+    master.plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
     print(f"Completed Display: {time.perf_counter()-start}")
     
     import matplotlib.pyplot as plt

@@ -1,4 +1,6 @@
+from __future__ import annotations
 from .nodes import Segment, TimeNode
+import copy
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
 
@@ -15,10 +17,45 @@ class SSInterval:
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
 
-        self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
+        self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.total_dist = self.segments[-1].tdist
         # print(self.total_dist)
+
+    def __iadd__(self, other: SSInterval):
+        if not (hasattr(self, 'time_nodes') and hasattr(other, 'time_nodes')):
+            print("sim interval first you goof")
+            return self
+        
+        # Calculate offsets from current end
+        time_offset = self.time_nodes[-1].time
+        dist_offset = self.time_nodes[-1].dist
+        
+        # Add copies of other's nodes with shifted values
+        for node in other.time_nodes:
+            new_node = copy.copy(node)
+            new_node.time += time_offset
+            new_node.dist += dist_offset
+            self.time_nodes.append(new_node)
+            
+        if hasattr(other, 'brakingNodes'):
+            if not hasattr(self, 'brakingNodes'):
+                self.brakingNodes = []
+            for node in other.brakingNodes:
+                new_node = copy.copy(node)
+                new_node.time += time_offset
+                new_node.dist += dist_offset
+                self.brakingNodes.append(new_node)
+            
+        # Add segments and recalculate in-place tdists
+        self.segments += other.segments
+        self.segments[0].tdist = self.segments[0].dist
+        for seg_id in range(1, len(self.segments)):
+            self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
+            
+        self.total_dist = self.segments[-1].tdist
+        
+        return self
 
     def simulate_interval(self, TIME_STEP: float = 0.1, VELOCITY_STEP: Speed = Speed(kmph=0.1)):
         self.time_nodes = [TimeNode(self.segments[0], torque=MAX_TORQUE, speed=self.startSpeed, soc= 100)]
@@ -92,7 +129,25 @@ class SSInterval:
 
     def plot(self, x: str, y: str, name: str):
         from ..utils.graph import plot_SSInterval
-        return plot_SSInterval([self.time_nodes, self.brakingNodes], x, y, name)
+        return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+
+
+def join_intervals(intervals: list[SSInterval]) -> SSInterval:
+    """Combines a list of intervals into a single master interval using proxies to save memory."""
+    if not intervals:
+        return None
+    
+    # Start with a copy of the first one to avoid modifying it
+    result = SSInterval(intervals[0].segments[:])
+    if hasattr(intervals[0], 'time_nodes'):
+        result.time_nodes = intervals[0].time_nodes[:]
+    if hasattr(intervals[0], 'brakingNodes'):
+        result.brakingNodes = intervals[0].brakingNodes[:]
+    
+    for i in range(1, len(intervals)):
+        result += intervals[i]
+        
+    return result
 
 
 if __name__ == "__main__":
