@@ -36,7 +36,17 @@ class StateNode:
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
+        
         self.Fm = 0
+        self.Fd = 0
+        self.Frr = 0
+        self.Fg = 0
+        self.Ft = 0
+
+        self.P_mech = 0
+        self.P_bat = 0
+        self.epm = 0
+        self.solar = 0
 
     def Fm_calc(self):
         # if velocity.mag <= 0.2:
@@ -119,6 +129,12 @@ class TimeNode(StateNode):
 
     def __str__(self):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
+    
+    def __getattr__(self, name):
+        """Return 0 for missing attributes instead of raising AttributeError."""
+        default = -10
+        print(f"Attribute '{name}' not found. Returning {default}.")
+        return default
 
 
 class VelocityNode(StateNode):
@@ -141,6 +157,7 @@ class VelocityNode(StateNode):
         self.Power_calc()
         return True
 
+NULL_TIME_NODE = TimeNode(NULL_SEGMENT)
 NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)
 
 # make test cases for this stuff

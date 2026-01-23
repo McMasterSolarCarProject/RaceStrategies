@@ -36,7 +36,7 @@ def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -
     return speed_limits[limit_index][1], limit_index
 
 
-def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu=0.01, g=9.81):
+def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu=0.90, g=9.81):
     """Calculate speed limits based on road curvature."""
     azimuths = np.radians(np.array(azimuths))
     lats = np.array(lats)
