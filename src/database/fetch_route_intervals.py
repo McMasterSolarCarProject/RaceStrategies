@@ -4,7 +4,7 @@ from ..engine.interval_simulator import SSInterval
 import sqlite3
 
 
-def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "data.sqlite") -> list[SSInterval] | SSInterval:
+def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "ASC_2024.sqlite") -> list[SSInterval] | SSInterval:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -33,7 +33,7 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
     return ssintervals if split_at_stops else ssintervals[0]
 
 
-def fetch_segment(placemark_name: str, checkpoint, db_path: str = "data.sqlite") -> Segment:
+def fetch_segment(placemark_name: str, checkpoint, db_path: str = "ASC_2024.sqlite") -> Segment:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -58,6 +58,7 @@ def create_segment(checkpoint: sqlite3.Row, next_checkpoint: sqlite3.Row) -> Seg
     wind = Velocity()
     return Segment(current_coord, next_coord, checkpoint["id"],Speed(kmph=checkpoint["speed_limit"]), checkpoint["ghi"], wind, Speed(kmph= checkpoint["speed"]), checkpoint["torque"])
 
+
 if __name__ == "__main__":
     # intervals = fetch_route_intervals("A. Independence to Topeka")
     # for segment in intervals[0].segments:
@@ -66,4 +67,3 @@ if __name__ == "__main__":
     print(seg)
     # for segment in ssInterval.segments:
     #     print(segment)
-

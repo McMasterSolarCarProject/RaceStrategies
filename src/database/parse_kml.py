@@ -3,7 +3,7 @@ from ..engine.kinematics import Coordinate
 
 KML_NS = "{http://www.opengis.net/kml/2.2}"
 
-def parse_kml_file(filename: str = "data/Main Route.kml") -> dict[str, list[Coordinate]]:
+def parse_kml_file(filename: str = "data/ASC_2024.kml") -> dict[str, list[Coordinate]]:
     """
     Takes a .kml file and returns a dictionary mapping placemark names to lists of Coordinate objects.
     """

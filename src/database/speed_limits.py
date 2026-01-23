@@ -1,8 +1,40 @@
 import numpy as np
 from scipy.signal import savgol_filter
 from .fetch_route_intervals import fetch_route_intervals
-from .init_route_table import get_speed_limits, lookup_speed_limit
 import sqlite3
+import os
+import csv
+
+
+def get_speed_limits(placemark_name: str) -> list[tuple[float, float]]:
+    """
+    Reads speed limit data from CSV for the given placemark.
+    Returns a list of tuples (distance_index, speed_limit).
+    """
+    limits_path = f"data/limits/{placemark_name} Limits.csv"
+    if os.path.exists(limits_path):
+        with open(limits_path, "r") as file:
+            reader = csv.reader(file)
+            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
+        speed_limits.sort(key=lambda x: x[0])  # Ensures all speed limit data is sorted in order of index
+    else:
+        print(f"WARNING: Missing speed limits for {placemark_name}")
+        speed_limits = []
+    return speed_limits
+
+
+def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -> tuple[float, int]:
+    """
+    Look up the speed limit for a given distance.
+    """
+    if not speed_limits:
+        return -1, 0
+    
+    while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
+        limit_index += 1
+    
+    return speed_limits[limit_index][1], limit_index
+
 
 def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu=0.01, g=9.81):
     """Calculate speed limits based on road curvature."""
@@ -52,7 +84,7 @@ def curvature_speed_limits(lats, lons, elevs, azimuths, s, window=31, poly=3, mu
     
     return speed_limit
 
-def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_path: str="data.sqlite") -> None:
+def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_path: str="ASC_2024.sqlite") -> None:
     """Update speed limits in database based on road curvature."""
     
     # Fetch route segments
@@ -96,7 +128,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_p
         plt.tight_layout()
         plt.show()
 
-def update_speed_limits_from_csv(placemark_name, db_path: str = "data.sqlite") -> None:
+def update_speed_limits_from_csv(placemark_name, db_path: str = "ASC_2024.sqlite") -> None:
     """Update speed limits in existing database from CSV files."""
     print(f"Updating speed limits from CSV files...")
     

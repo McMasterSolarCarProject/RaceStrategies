@@ -1,14 +1,11 @@
 import sqlite3
-import csv
 import os
 from .parse_kml import parse_kml_file
+from .speed_limits import get_speed_limits, lookup_speed_limit
 import time
 from ..engine.nodes import Segment
-# from .curvature_speed_limit import update_curvature_speed_limits
-# from .traffic import update_traffic
-# from .update_velocity import update_target_velocity
 
-def init_route_db(db_path: str = "data.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = "data/Main Route.kml") -> None:
+def init_route_db(db_path: str = "ASC_2024.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = "data/ASC_2024.kml") -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
@@ -62,35 +59,6 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
         column_count = ",".join(["?"] * len(data[0]))
         cursor.executemany(f"insert into route_data values ({column_count})", data)
 
-def get_speed_limits(placemark_name: str) -> list[tuple[float, float]]:
-    """
-    Reads speed limit data from CSV for the given placemark.
-    Returns a list of tuples (distance_index, speed_limit).
-    """
-    limits_path = f"data/limits/{placemark_name} Limits.csv"
-    if os.path.exists(limits_path):
-        with open(limits_path, "r") as file:
-            reader = csv.reader(file)
-            speed_limits = [(float(row[1]), float(row[2])) for row in reader]
-        speed_limits.sort(key=lambda x: x[0])  # Ensures all speed limit data is sorted in order of index
-    else:
-        print(f"WARNING: Missing speed limits for {placemark_name}")
-        speed_limits = []
-    return speed_limits
-
-
-def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -> tuple[float, int]:
-    """
-    Look up the speed limit for a given distance.
-    """
-    if not speed_limits:
-        return -1, 0
-    
-    while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
-        limit_index += 1
-    
-    return speed_limits[limit_index][1], limit_index
-    
 
 def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list:
     data = []

@@ -301,7 +301,7 @@ def debugging_priority(nodes):
     debug_print()
 
 
-def update_traffic(placemark_name: str, db_path: str = "data.sqlite") -> None:
+def update_traffic(placemark_name: str, db_path: str = "ASC_2024.sqlite") -> None:
     placemark = fetch_route_intervals(placemark_name)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
