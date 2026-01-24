@@ -4,7 +4,7 @@ from ..utils.graph import plot_points, plot_multiple_datasets
 from .motor_calcs import motor
 
 
-def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=10), max_speed_lim: Speed = Speed(mph=60), RESOLUTION: float = 1):
+def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=10), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 1):
     min_speed = min_speed_lim
     max_speed = max_speed_lim
     velocityNodes = []

@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
 
     def _populate_placemark_dropdown(self):
         """
-        Populate the placemark dropdown using segment_id values in data.sqlite.
+        Populate the placemark dropdown using placemark_name values in data.sqlite.
         """
         self.placemark_input.clear()
 

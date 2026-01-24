@@ -1,5 +1,5 @@
 CREATE TABLE route_data (
-        segment_id TEXT not null,
+        placemark_name TEXT not null,
         id integer not null,
         lat float not null,
         lon float not null,
@@ -12,5 +12,5 @@ CREATE TABLE route_data (
         wind_speed float,
         speed float,
         torque float,
-        PRIMARY KEY (segment_id, id)
+        PRIMARY KEY (placemark_name, id)
     );

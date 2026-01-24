@@ -3,14 +3,13 @@ from ..engine.nodes import Segment
 from ..engine.interval_simulator import SSInterval
 import sqlite3
 
-#RENAME TO FETCH_ROUTE_INTERVALS
 
-def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_nodes: int = None) -> list[SSInterval] | SSInterval:
-    conn = sqlite3.connect("data.sqlite")
+def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "ASC_2024.sqlite") -> list[SSInterval] | SSInterval:
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    query = "SELECT * FROM route_data WHERE segment_id = ? ORDER BY id"
-    cursor.execute(query, (placemark,))
+    query = "SELECT * FROM route_data WHERE placemark_name = ? ORDER BY id"
+    cursor.execute(query, (placemark_name,))
     rows = cursor.fetchall()
 
     ssintervals = []
@@ -31,16 +30,15 @@ def fetch_route_intervals(placemark: str, split_at_stops: bool = False, max_node
         
     cursor.close()
     conn.close()
-    # print(f"{len(ssintervals[0].segments)} segments in the first interval")
     return ssintervals if split_at_stops else ssintervals[0]
 
 
-def parse_segment(placemark, checkpoint):
-    conn = sqlite3.connect("data.sqlite")
+def fetch_segment(placemark_name: str, checkpoint, db_path: str = "ASC_2024.sqlite") -> Segment:
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    query = "SELECT * FROM route_data WHERE segment_id = ? AND id IN (?, ?) ORDER BY id"
-    cursor.execute(query, (placemark, checkpoint, checkpoint + 1))
+    query = "SELECT * FROM route_data WHERE placemark_name = ? AND id IN (?, ?) ORDER BY id"
+    cursor.execute(query, (placemark_name, checkpoint, checkpoint + 1))
     rows = cursor.fetchall()
     if len(rows) != 2:
         print("Invalid amount of rows taken")
@@ -52,6 +50,7 @@ def parse_segment(placemark, checkpoint):
 
     return segment
 
+
 def create_segment(checkpoint: sqlite3.Row, next_checkpoint: sqlite3.Row) -> Segment:
     current_coord = Coordinate(checkpoint["lat"], checkpoint["lon"], checkpoint["elevation"])
     next_coord = Coordinate(next_checkpoint["lat"], next_checkpoint["lon"], next_checkpoint["elevation"])
@@ -59,12 +58,12 @@ def create_segment(checkpoint: sqlite3.Row, next_checkpoint: sqlite3.Row) -> Seg
     wind = Velocity()
     return Segment(current_coord, next_coord, checkpoint["id"],Speed(kmph=checkpoint["speed_limit"]), checkpoint["ghi"], wind, Speed(kmph= checkpoint["speed"]), checkpoint["torque"])
 
+
 if __name__ == "__main__":
     # intervals = fetch_route_intervals("A. Independence to Topeka")
     # for segment in intervals[0].segments:
     #     print(segment)
-    seg = parse_segment("A. Independence to Topeka", 1)
+    seg = fetch_segment("A. Independence to Topeka", 1)
     print(seg)
     # for segment in ssInterval.segments:
     #     print(segment)
-

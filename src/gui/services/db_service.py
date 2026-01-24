@@ -12,7 +12,7 @@ def get_segment_ids(path: str = DB_PATH) -> list[str]:
 
     with sqlite3.connect(path) as conn:
         cur = conn.cursor()
-        cur.execute("SELECT DISTINCT segment_id FROM route_data WHERE segment_id IS NOT NULL")
+        cur.execute("SELECT DISTINCT placemark_name FROM route_data WHERE placemark_name IS NOT NULL")
         segment_ids = sorted(row[0] for row in cur.fetchall())
     conn.close()  # With block doesn't automatically close sqlite connection
     return segment_ids
