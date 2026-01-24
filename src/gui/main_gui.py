@@ -177,6 +177,7 @@ class MainWindow(QMainWindow):
         if result.error:
             self.state.idle(f"Worker error: {str(result.error)}")
         else:
+            self.sqlite_path = result.value
             self._populate_placemark_dropdown()
         self.state.idle()
 
