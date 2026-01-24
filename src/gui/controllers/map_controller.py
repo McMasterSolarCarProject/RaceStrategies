@@ -8,6 +8,8 @@ from ...database.fetch_route_intervals import fetch_route_intervals
 
 # make this into a widget
 class MapController(QWidget):
+    DEFAULT_DB_PATH = "ASC_2024.sqlite"
+
     def __init__(self, maps_dir: str, parent=None):
         super().__init__(parent)
         self.maps_dir = maps_dir
@@ -18,23 +20,23 @@ class MapController(QWidget):
         self.layout.addWidget(self.webview)
         self.setLayout(self.layout)
 
-    def generate_from_placemark(self, name: str) -> str:
+    def generate_from_placemark(self, name: str, db_path: str = DEFAULT_DB_PATH) -> str:
         """
         Backend function for generating from the placemark with the same name as the given argument.
         Saves the map to a html output file.
         """
         rm = RouteMap()
-        rm.generate_from_placemark(name)
+        rm.generate_from_placemark(name, db_path=db_path)
         self.simulated_route = None
         return self._save(rm, "gui_map_placemark")
 
-    def generate_from_time_nodes(self, name: str, timestep: float, hover: bool) -> str:
+    def generate_from_time_nodes(self, name: str, timestep: float, hover: bool, db_path: str = DEFAULT_DB_PATH) -> str:
         """
         Backend function to generate map with the node simulations.
         Saves the map to a html output file.
         """
         # parse route
-        route = fetch_route_intervals(name)
+        route = fetch_route_intervals(name, db_path=db_path)
 
         # simulate (this mutates route and adds .segments and .time_nodes)
         # use TIME_STEP kwarg like existing code

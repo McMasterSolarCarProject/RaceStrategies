@@ -58,6 +58,8 @@ class MainWindow(QMainWindow):
         self.db_input.setReadOnly(True)
         self.db_input.setPlaceholderText("Select a .sqlite file...")
         ctrl.addWidget(self.db_input)
+        # Store the SQLite database path
+        self.sqlite_path = "data.sqlite"
 
         self.upload_db_btn = QPushButton("Browse…")
         self.upload_db_btn.clicked.connect(self.on_upload_sqlite)
@@ -112,9 +114,6 @@ class MainWindow(QMainWindow):
 
         # Keep a reference to worker so it doesn't get garbage collected
         self._worker: Optional[Worker] = None
-
-        # Store the SQLite database path
-        self.sqlite_path: Optional[str] = "data.sqlite"
 
         # Used to control busy and idle states. Add more buttons here to control state
         self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.upload_db_btn, self.graph_controller.generate_button)
@@ -198,7 +197,7 @@ class MainWindow(QMainWindow):
         self.placemark_input.clear()
 
         try:
-            segment_ids = get_segment_ids()
+            segment_ids = get_segment_ids(path=self.sqlite_path)
             if not segment_ids:
                 self.status.showMessage("No segments found in database")
                 return
@@ -219,7 +218,7 @@ class MainWindow(QMainWindow):
         self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = Worker(self.map_controller.generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_from_placemark, name, self.sqlite_path)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
@@ -239,7 +238,9 @@ class MainWindow(QMainWindow):
 
         self.state.busy("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
+        self._worker = Worker(
+            self.map_controller.generate_from_time_nodes, name, timestep, hover, self.sqlite_path
+        )  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
         self._worker.start()
