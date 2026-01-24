@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from ..route_map import RouteMap
 from ...database.fetch_route_intervals import fetch_route_intervals
+from ...engine.interval_simulator import SSInterval
 
 
 # make this into a widget
@@ -14,7 +15,6 @@ class MapController(QWidget):
         super().__init__(parent)
         self.maps_dir = maps_dir
         self.simulated_route = None
-        self.split_intervals = None  # Store split intervals for navigation
         # Web view for the folium HTML
         self.webview = QWebEngineView()
         self.layout = QVBoxLayout()
@@ -37,23 +37,9 @@ class MapController(QWidget):
         Saves the map to a html output file.
         """
         # parse route
-        route = fetch_route_intervals(name, db_path=db_path, split_at_stops=split_at_stops)
-
-        if not split_at_stops:
-            # simulate (this mutates route and adds .segments and .time_nodes)
-            # use TIME_STEP kwarg like existing code
-            if hasattr(route, "simulate_interval"):
-                route.simulate_interval(TIME_STEP=timestep)
-                self.simulated_route = route
-
-            rm = RouteMap()
-            # use hover options
-            rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
-            return self._save(rm, "gui_map_time_nodes")
-        else:
-            pass
-
-
+        rm = RouteMap()
+        self.simulated_route = rm.generate_simulated(name, timestep=timestep, hover=hover, db_path=db_path, layered=split_at_stops)
+        return self._save(rm, "gui_map_time_nodes")
 
     def _save(self, rm: RouteMap, filename: str) -> str:
         """
