@@ -1,9 +1,10 @@
-from .nodes import Segment, TimeNode
+from .nodes import Segment, TimeNode, NULL_TIME_NODE
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
+from .motor_calcs import motor
 
 P_STALL = 100
-MAX_TORQUE = 2500
+MAX_TORQUE = 1500
 BRAKE = 1000
 
 
@@ -13,7 +14,7 @@ class SSInterval:
         self.segments = segments
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
-            self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
+            self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
 
         self.startSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
@@ -21,12 +22,12 @@ class SSInterval:
         # print(self.total_dist)
 
     def simulate_interval(self, TIME_STEP: float = 0.1, VELOCITY_STEP: Speed = Speed(kmph=0.1)):
-        self.time_nodes = [TimeNode(self.segments[0], torque=MAX_TORQUE, speed=self.startSpeed, soc= 100)]
-        self.simulate_braking(-TIME_STEP)
+        initial_TimeNode = TimeNode(self.segments[0], speed=self.startSpeed, soc= 100)
+        self.time_nodes = [initial_TimeNode]
+        self.simulate_braking(-TIME_STEP, VELOCITY_STEP)
         print(f"{len(self.brakingNodes)}")
         print("Braking Calculations End Here\n")
         brakingNode = 0
-        initial_TimeNode = self.time_nodes[-1]
         self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
         for segment in self.segments:
             # calc solar power here
@@ -39,13 +40,14 @@ class SSInterval:
 
                 elif initial_TimeNode.speed.mps < segment.v_eff.mps:
                     current_TimeNode.torque = MAX_TORQUE
+                    # current_TimeNode.torque = motor.torque_from_speed(initial_TimeNode.speed)*10
 
                 else:
                     current_TimeNode.torque = segment.t_eff
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
-                if current_TimeNode.acc / TIME_STEP > VELOCITY_STEP.mps:
-                    current_TimeNode.solve_TimeNode(initial_TimeNode, VELOCITY_STEP.mps / current_TimeNode.acc)
+                if abs(current_TimeNode.acc * TIME_STEP) > VELOCITY_STEP.mps:
+                    current_TimeNode.solve_TimeNode(initial_TimeNode, abs(VELOCITY_STEP.mps / current_TimeNode.acc))
 
                 self.time_nodes.append(current_TimeNode)
 
@@ -66,15 +68,20 @@ class SSInterval:
         for node in self.brakingNodes:
             node.time += initial_TimeNode.time
 
-    def simulate_braking(self, TIME_STEP: float = -1):
-        self.brakingNodes = [TimeNode(self.segments[-1], dist=self.total_dist, Fb=BRAKE, speed=self.stopSpeed)]
-        initial_TimeNode = self.brakingNodes[-1]
+    def simulate_braking(self, TIME_STEP: float = -0.1, VELOCITY_STEP: Speed = Speed(kmph=0.1)):
+        initial_TimeNode = TimeNode(self.segments[-1], dist=self.total_dist, speed=self.stopSpeed)
+        self.brakingNodes = [initial_TimeNode]
         for segment in self.segments[::-1]:
             while initial_TimeNode.dist >= segment.tdist - segment.dist:
                 if initial_TimeNode.speed.mps <= segment.speed_limit.mps:  # if the velocity is under
                     current_TimeNode = TimeNode(segment, initial_TimeNode.time + TIME_STEP, Fb=BRAKE)
                     current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
+
+                    if abs(current_TimeNode.acc * TIME_STEP) > VELOCITY_STEP.mps:
+                        current_TimeNode.solve_TimeNode(initial_TimeNode, -abs(VELOCITY_STEP.mps / current_TimeNode.acc))
+
                     self.brakingNodes.append(current_TimeNode)
+                    
                     initial_TimeNode = self.brakingNodes[-1]
 
                     # print(initial_TimeNode)

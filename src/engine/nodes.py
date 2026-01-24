@@ -5,7 +5,7 @@ from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0, tdist: float = 0):
         self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
@@ -14,7 +14,7 @@ class Segment(Displacement):  # Meters
         self.ghi = ghi
         self.wind = wind
         self.speed_limit = speed_limit
-        self.tdist = self.dist
+        self.tdist = tdist
 
     def __str__(self):
         return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | T eff: {self.t_eff}"
@@ -36,7 +36,17 @@ class StateNode:
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
+        
         self.Fm = 0
+        self.Fd = 0
+        self.Frr = 0
+        self.Fg = 0
+        self.Ft = 0
+
+        self.P_mech = 0
+        self.P_bat = 0
+        self.epm = 0
+        self.solar = 0
 
     def Fm_calc(self):
         # if velocity.mag <= 0.2:
@@ -119,6 +129,12 @@ class TimeNode(StateNode):
 
     def __str__(self):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
+    
+    def __getattr__(self, name):
+        """Return 0 for missing attributes instead of raising AttributeError."""
+        default = -10
+        print(f"Attribute '{name}' not found. Returning {default}.")
+        return default
 
 
 class VelocityNode(StateNode):
@@ -141,6 +157,7 @@ class VelocityNode(StateNode):
         self.Power_calc()
         return True
 
+NULL_TIME_NODE = TimeNode(NULL_SEGMENT)
 NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)
 
 # make test cases for this stuff

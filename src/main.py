@@ -2,17 +2,20 @@ import sqlite3
 from pytz import timezone
 import time
 import datetime
+
+from src.database.traffic import update_traffic
 from .engine.kinematics import Coordinate, Speed
 from .engine.interval_simulator import SSInterval  # Adjust as needed
 from .engine.nodes import Segment
-from .database import init_route_db, fetch_route_intervals, update_target_velocity, update_traffic, parse_kml_file, upload_speed_limit  
+from .database import  fetch_route_intervals
 
 
 def main():
     start = time.perf_counter()
+    # update_traffic("A. Independence to Topeka")
     # init_route_db(remake= False)
-    # placemarks = ["A. Independence to Topeka"]
-    # # placemarks = parse_kml_file()
+    # # # placemarks = ["A. Independence to Topeka"]
+    # placemarks = parse_kml_file()
     # for placemark in placemarks:
     #     if True:  # Set to True to update velocity data
     #         # print(f"Updating velocity data for {placemark}")
@@ -25,14 +28,14 @@ def main():
     # current_tz = timezone("US/Eastern")
     # current_time: datetime = datetime.datetime.now(tz=current_tz)
 
-    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=False, max_nodes=None)
-    intervals = [intervals]
+    intervals = fetch_route_intervals("A. Independence to Topeka", split_at_stops=True, max_nodes=None, db_path="ASC_2024.sqlite")
+    intervals = [intervals] if type(intervals) is SSInterval else intervals
     print(len(intervals))
     intervals = intervals
     for i in range(min(10000, len(intervals))):
         print(f"Simulating Interval {i+1} of {len(intervals)}")
         intervals[i].simulate_interval()
-        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph"], "velocity_comparison")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
     print(f"Completed Display: {time.perf_counter()-start}")
     
