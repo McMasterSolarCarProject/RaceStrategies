@@ -53,6 +53,16 @@ class MainWindow(QMainWindow):
         self.upload_kml_btn.clicked.connect(self.on_upload_kml)
         ctrl.addWidget(self.upload_kml_btn)
 
+        ctrl.addWidget(QLabel("SQLite DB"))
+        self.db_input = QLineEdit()
+        self.db_input.setReadOnly(True)
+        self.db_input.setPlaceholderText("Select a .sqlite file...")
+        ctrl.addWidget(self.db_input)
+
+        self.upload_db_btn = QPushButton("Browse…")
+        self.upload_db_btn.clicked.connect(self.on_upload_sqlite)
+        ctrl.addWidget(self.upload_db_btn)
+
         ctrl.addWidget(QLabel("Placemark:"))
         self.placemark_input = QComboBox()
         self.placemark_input.setEditable(False)
@@ -103,8 +113,11 @@ class MainWindow(QMainWindow):
         # Keep a reference to worker so it doesn't get garbage collected
         self._worker: Optional[Worker] = None
 
+        # Store the SQLite database path
+        self.sqlite_path: Optional[str] = "data.sqlite"
+
         # Used to control busy and idle states. Add more buttons here to control state
-        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.graph_controller.generate_button)
+        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.upload_db_btn, self.graph_controller.generate_button)
 
         # Store current interval simulator for graph controller
         # self._current_interval_simulator = None
@@ -131,6 +144,33 @@ class MainWindow(QMainWindow):
         self._worker.finished.connect(self._on_kml_uploaded)  # Populates the dropdown with new segment ids
         self._worker.start()
 
+    def on_upload_sqlite(self):
+        """
+        Frontend function called when the upload SQLite button is pressed
+        """
+        # Opens a dialog that only filters for SQLite files
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select SQLite Database File", "", "SQLite File (*.sqlite)")
+        if not file_path:
+            return
+
+        self.db_input.setText(file_path)
+        print(f"Selected SQLite database: {file_path}")
+
+        self.state.busy(f"Loading database from {file_path}...")
+
+        # Calls the backend function with SQLite file path
+        self._worker = Worker(self._upload_sqlite_impl, file_path)  # Worker runs background tasks as a separate thread
+
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._on_sqlite_uploaded)  # Populates the dropdown with new segment ids
+        self._worker.start()
+
+    def _upload_sqlite_impl(self, sqlite_path: str) -> None:
+        """
+        Backend function that sets the SQLite database path.
+        """
+        self.sqlite_path = sqlite_path
+
     def _on_kml_uploaded(self, result: WorkerResult):
         """
         After KML is loaded, populate the placemark dropdown
@@ -141,9 +181,19 @@ class MainWindow(QMainWindow):
             self._populate_placemark_dropdown()
         self.state.idle()
 
+    def _on_sqlite_uploaded(self, result: WorkerResult):
+        """
+        After SQLite database is initialized, populate the placemark dropdown
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+        else:
+            self._populate_placemark_dropdown()
+        self.state.idle()
+
     def _populate_placemark_dropdown(self):
         """
-        Populate the placemark dropdown using placemark_name values in data.sqlite.
+        Populate the placemark dropdown using placemark_name values in sqlite.
         """
         self.placemark_input.clear()
 
