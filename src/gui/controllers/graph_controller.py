@@ -15,10 +15,10 @@ class GraphController(QWidget):
     Contains a button to generate plots and a canvas to display them.
     """
 
-    def __init__(self, simulated_route: SSInterval, frontend_func: Callable, parent=None):
+    def __init__(self, frontend_func: Callable, parent=None):
         super().__init__(parent)
 
-        self.simulated_route = simulated_route
+        self.simulated_route = None
         # Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)

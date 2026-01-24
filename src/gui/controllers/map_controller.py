@@ -14,45 +14,50 @@ class MapController(QWidget):
         super().__init__(parent)
         self.maps_dir = maps_dir
         self.simulated_route = None
+        self.split_intervals = None  # Store split intervals for navigation
         # Web view for the folium HTML
         self.webview = QWebEngineView()
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.webview)
         self.setLayout(self.layout)
 
-    def generate_from_placemark(self, name: str, db_path: str = DEFAULT_DB_PATH) -> str:
+    def generate_from_placemark(self, name: str, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
         """
         Backend function for generating from the placemark with the same name as the given argument.
         Saves the map to a html output file.
         """
         rm = RouteMap()
-        rm.generate_from_placemark(name, db_path=db_path)
+        rm.generate_from_placemark(name, db_path=db_path, layered=split_at_stops)
         self.simulated_route = None
         return self._save(rm, "gui_map_placemark")
 
-    def generate_from_time_nodes(self, name: str, timestep: float, hover: bool, db_path: str = DEFAULT_DB_PATH) -> str:
+    def generate_from_time_nodes(self, name: str, timestep: float, hover: bool, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
         """
         Backend function to generate map with the node simulations.
         Saves the map to a html output file.
         """
         # parse route
-        route = fetch_route_intervals(name, db_path=db_path)
+        route = fetch_route_intervals(name, db_path=db_path, split_at_stops=split_at_stops)
 
-        # simulate (this mutates route and adds .segments and .time_nodes)
-        # use TIME_STEP kwarg like existing code
-        if hasattr(route, "simulate_interval"):
-            route.simulate_interval(TIME_STEP=timestep)
-            self.simulated_route = route
+        if not split_at_stops:
+            # simulate (this mutates route and adds .segments and .time_nodes)
+            # use TIME_STEP kwarg like existing code
+            if hasattr(route, "simulate_interval"):
+                route.simulate_interval(TIME_STEP=timestep)
+                self.simulated_route = route
 
-        print(f"Length of time nodes: {len(route.time_nodes)}")
-        rm = RouteMap()
-        # use hover options
-        rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
-        return self._save(rm, "gui_map_time_nodes")
+            rm = RouteMap()
+            # use hover options
+            rm.generate_from_time_nodes(route.segments, route.time_nodes, hover_tooltips=hover)
+            return self._save(rm, "gui_map_time_nodes")
+        else:
+            pass
+
+
 
     def _save(self, rm: RouteMap, filename: str) -> str:
         """
-        Function that savs the generated html file of the map in the map directory
+        Function that saves the generated html file of the map in the map directory
         """
         out = os.path.join(self.maps_dir, filename)
         rm.save_map(out)

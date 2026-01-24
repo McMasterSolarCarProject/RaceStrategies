@@ -5,6 +5,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.nodes import TimeNode, Segment
+from ..engine.interval_simulator import SSInterval
 import time
 
 
@@ -13,14 +14,39 @@ class RouteMap:
         self.folium_map = folium.Map()
         colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 200))
         self.speed_colors = [mcolors.to_hex(color) for color in colormap]
+        self.all_coordinates: list[tuple[float, float]] = []
 
-    def generate_from_placemark(self, placemark_name: str, color: str = "#FF0000", db_path: str = "ASC_2024.sqlite"):
-        route = fetch_route_intervals(placemark_name, db_path=db_path)
-        coordinates = route.get_coordinate_pairs()
-        # for coordinate in coordinates:
-        #     folium.Marker(coordinate).add_to(self.folium_map)
-        folium.PolyLine(coordinates, weight=5, opacity=1, color=color).add_to(self.folium_map)
-        self.set_bounding_box(coordinates)
+    def generate_from_ssinterval(self, ssinterval: SSInterval, color: str = "#FF0000"):
+        self.all_coordinates.extend(ssinterval.get_coordinate_pairs())
+        self.set_bounding_box()
+        return folium.PolyLine(self.all_coordinates, weight=5, opacity=1, color=color)
+
+    def generate_from_placemark(self, placemark_name: str, color: str = "#FF0000", db_path: str = "ASC_2024.sqlite", layered: bool = False):
+        route = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=layered)
+        if not layered:
+            generated_map = self.generate_from_ssinterval(route, color=color)
+            generated_map.add_to(self.folium_map)
+        else:
+            self.generate_map_layers(route)
+
+    def generate_map_layers(self, intervals: list):
+        """
+        Generate a layered map where each interval is a separate togglable layer.
+        All intervals are added to the map, but only the first layer is visible by default.
+        """
+        self.all_coordinates = []
+
+        for i, interval in enumerate(intervals):
+            # Create a feature group for this interval
+            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
+
+            generated_map = self.generate_from_ssinterval(interval)
+            generated_map.add_to(layer)
+            layer.add_to(self.folium_map)
+
+        # Add layer control
+        folium.LayerControl().add_to(self.folium_map)
+        self.set_bounding_box()
 
     def generate_from_time_nodes(
         self,
@@ -45,56 +71,27 @@ class RouteMap:
 
         # Helper: build tooltip HTML safely
         def _fmt_tooltip(tn: TimeNode) -> str:
-            # Pull what we can; missing attrs are skipped
             parts = []
-            try:
-                dist = getattr(tn, "dist", None)
-                if dist is not None:
-                    parts.append(f"<b>Dist:</b> {dist/1000:.3f} km")
-            except Exception:
-                pass
 
-            try:
-                t = getattr(tn, "time", None)
-                if t is not None:
-                    parts.append(f"<b>Time:</b> {t:.1f} s")
-            except Exception:
-                pass
+            dist = _safe_get(tn, "dist", None)
+            if dist is not None:
+                parts.append(f"<b>Dist:</b> {dist/1000:.3f} km")
 
-            try:
-                kmph = getattr(getattr(tn, "speed", None), "kmph", None)
-                if kmph is not None:
-                    parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
-            except Exception:
-                pass
+            t = _safe_get(tn, "time", None)
+            if t is not None:
+                parts.append(f"<b>Time:</b> {t:.1f} s")
 
-            try:
-                accel = getattr(tn, "accel", None)
-                if accel is not None:
-                    parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
-            except Exception:
-                pass
+            kmph = _safe_get(tn, "speed.kmph", None)
+            if kmph is not None:
+                parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
 
-            try:
-                torque = getattr(tn, "torque", None)
-                # if torque not in (None, 0):
-                #     parts.append(f"<b>Torque:</b> {torque:.0f} Nm")
-            except Exception:
-                pass
+            accel = _safe_get(tn, "accel", None)
+            if accel is not None:
+                parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
 
-            try:
-                Fb = getattr(tn, "Fb", None)
-                if Fb not in (None, 0):
-                    parts.append(f"<b>Brake F:</b> {Fb:.0f} N")
-            except Exception:
-                pass
-
-            try:
-                soc = getattr(tn, "soc", None)
-                # if soc is not None:
-                #     parts.append(f"<b>SOC:</b> {soc:.1f}%")
-            except Exception:
-                pass
+            Fb = _safe_get(tn, "Fb", None)
+            if Fb not in (None, 0):
+                parts.append(f"<b>Brake F:</b> {Fb:.0f} N")
 
             return "<br>".join(parts) if parts else "Node"
 
@@ -156,10 +153,12 @@ class RouteMap:
 
         return list(zip(zip(lat, lon), time_node_list))
 
-    def set_bounding_box(self, coordinates: list[tuple]):
+    def set_bounding_box(self, coordinates: list[tuple] = []):
         """
         Sets the bounding box of the folium map to fit all given coordinates.
         """
+        if len(coordinates) == 0:
+            coordinates = self.all_coordinates
         arr = np.array(coordinates)
         sw = arr.min(axis=0).tolist()
         ne = arr.max(axis=0).tolist()

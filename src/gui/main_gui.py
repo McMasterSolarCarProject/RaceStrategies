@@ -83,6 +83,10 @@ class MainWindow(QMainWindow):
         self.hover_cb.setChecked(True)
         ctrl.addWidget(self.hover_cb)
 
+        self.split_at_stops_cb = QCheckBox("Split at stops")
+        self.split_at_stops_cb.setChecked(False)
+        ctrl.addWidget(self.split_at_stops_cb)
+
         ctrl.addWidget(QLabel("Time step (s):"))
         self.timestep_spin = QDoubleSpinBox()  # Input for a floating point number
         self.timestep_spin.setRange(0.1, 10.0)
@@ -102,7 +106,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.map_controller)
 
         # Graph controller widget
-        self.graph_controller = GraphController(None, self.on_generate_graphs)
+        self.graph_controller = GraphController(self.on_generate_graphs)
         splitter.addWidget(self.graph_controller)
         splitter.setSizes([600, 400])
 
@@ -120,9 +124,6 @@ class MainWindow(QMainWindow):
 
         # Store current interval simulator for graph controller
         # self._current_interval_simulator = None
-
-        # After creating all widgets, perform these initialization tasks
-        self._populate_placemark_dropdown()
 
     def on_upload_kml(self):
         """
@@ -218,8 +219,10 @@ class MainWindow(QMainWindow):
 
         self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
+        split_at_stops = self.split_at_stops_cb.isChecked()
+        self.map_controller._current_name = name  # Store for navigation
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = Worker(self.map_controller.generate_from_placemark, name, self.sqlite_path)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_from_placemark, name, self.sqlite_path, split_at_stops)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
@@ -236,11 +239,13 @@ class MainWindow(QMainWindow):
 
         timestep = float(self.timestep_spin.value())  # Gets numerical input
         hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
+        split_at_stops = self.split_at_stops_cb.isChecked()
 
         self.state.busy("Parsing route and running simulation (this may take a while)...")
 
+        self.map_controller._current_name = name  # Store for navigation
         self._worker = Worker(
-            self.map_controller.generate_from_time_nodes, name, timestep, hover, self.sqlite_path
+            self.map_controller.generate_from_time_nodes, name, timestep, hover, self.sqlite_path, split_at_stops
         )  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
