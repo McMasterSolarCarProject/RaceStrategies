@@ -18,7 +18,7 @@ class GraphController(QWidget):
     def __init__(self, frontend_func: Callable, parent=None):
         super().__init__(parent)
 
-        self.simulated_route = None
+        self.simulated_route: SSInterval | None = None
         # Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)

@@ -222,7 +222,7 @@ class MainWindow(QMainWindow):
         split_at_stops = self.split_at_stops_cb.isChecked()
         self.map_controller._current_name = name  # Store for navigation
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = Worker(self.map_controller.generate_from_placemark, name, self.sqlite_path, split_at_stops)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_no_simulation, name, self.sqlite_path, split_at_stops)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
 
         self.map_controller._current_name = name  # Store for navigation
         self._worker = Worker(
-            self.map_controller.generate_from_time_nodes, name, timestep, hover, self.sqlite_path, split_at_stops
+            self.map_controller.generate_simulation, name, timestep, hover, self.sqlite_path, split_at_stops
         )  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)

@@ -134,7 +134,7 @@ class TimeNode(StateNode):
         """Return -10 for missing attributes instead of raising AttributeError."""
         if name in StateNode.NUMERICAL_METRICS:
             return -10
-        raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")y
+        raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
 
 
 class VelocityNode(StateNode):
