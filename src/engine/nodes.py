@@ -31,11 +31,12 @@ class StateNode:
         "Fm": "Motor Force (N)",
     }
 
-    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
+    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0), mass: float = None):
         self.segment = segment
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
+        self.mass = mass if mass is not None else car_mass
         
         self.Fm = 0
         self.Fd = 0
@@ -67,10 +68,10 @@ class StateNode:
             self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
-        self.Frr = coef_rr * car_mass * accel_g * self.segment.gradient.cos()
+        self.Frr = coef_rr * self.mass * accel_g * self.segment.gradient.cos()
 
     def Fg_calc(self):
-        self.Fg = car_mass * accel_g * self.segment.gradient.sin()
+        self.Fg = self.mass * accel_g * self.segment.gradient.sin()
 
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
@@ -119,7 +120,7 @@ class TimeNode(StateNode):
         self.Fg_calc()
         self.Ft_calc()
         self.solar_energy_cal()
-        self.acc = self.Ft / car_mass
+        self.acc = self.Ft / self.mass
         self.speed = Speed(initial_TimeNode.speed.mps + self.acc * time_step)
         self.dist = initial_TimeNode.dist + initial_TimeNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
         self.Power_calc()
@@ -132,6 +133,9 @@ class TimeNode(StateNode):
     
     def __getattr__(self, name):
         """Return 0 for missing attributes instead of raising AttributeError."""
+        # Don't intercept special methods - let them raise AttributeError normally
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         default = -10
         print(f"Attribute '{name}' not found. Returning {default}.")
         return default
@@ -139,8 +143,8 @@ class TimeNode(StateNode):
 
 class VelocityNode(StateNode):
     #constant vel --> motor force -->  power, torque --> energy per metre (epm)
-    def __init__(self, segment: Segment, speed: Speed = Speed(0)):
-        super().__init__(segment, 0, 0, speed)
+    def __init__(self, segment: Segment, speed: Speed = Speed(0), mass: float = None):
+        super().__init__(segment, 0, 0, speed, mass)
 
     def solve_velocity(self):
         self.Fd_calc(self.speed)

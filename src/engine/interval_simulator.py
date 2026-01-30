@@ -6,7 +6,7 @@ from .kinematics import Speed, Velocity
 from .motor_calcs import motor
 
 P_STALL = 100
-MAX_TORQUE = 1500
+MAX_TORQUE = 50
 BRAKE = 1000
 
 
@@ -136,7 +136,9 @@ class SSInterval:
 
     def plot(self, x: str, y: str, name: str):
         from ..utils.graph import plot_SSInterval
-        return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        # return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        return plot_SSInterval([self.time_nodes, self.brakingNodes], x, y, name)
+
 
 
 def join_intervals(intervals: list[SSInterval]) -> SSInterval:
