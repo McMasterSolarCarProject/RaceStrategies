@@ -36,16 +36,9 @@ class RouteMap:
             route = [route]
 
         # Simulate all intervals
-        sim_start = time.time()
         for interval in route:
             interval.simulate_interval(TIME_STEP=timestep)
-        sim_end = time.time()
-        print(f"Simulation took {sim_end - sim_start:.2f} seconds")
-        
-        map_start = time.time()
         self._generate_layered_map(route, is_simulated=True, hover_tooltips=hover)
-        map_end = time.time()
-        print(f"Map generation took {map_end - map_start:.2f} seconds")
         return join_intervals(route)
 
     def _generate_layered_map(self, intervals: list[SSInterval], is_simulated: bool, hover_tooltips: bool = True):
@@ -57,23 +50,19 @@ class RouteMap:
 
         for i, interval in enumerate(intervals):
             layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
-            polylines, markers = self._get_polylines_and_markers(interval, is_simulated, hover_tooltips)
+            polylines = self._get_polylines(interval, is_simulated, hover_tooltips)
 
             for polyline in polylines:
                 polyline.add_to(layer)
-
-            if len(markers) > 0:
-                for marker in markers:
-                    marker.add_to(layer)
 
             layer.add_to(self.folium_map)
 
         folium.LayerControl().add_to(self.folium_map)
         self.set_bounding_box()
 
-    def _get_polylines_and_markers(self, interval: SSInterval, is_simulated: bool, hover_tooltips: bool = True) -> tuple[list[folium.PolyLine], list[folium.CircleMarker]]:
+    def _get_polylines(self, interval: SSInterval, is_simulated: bool, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
-        Generate polylines and markers for an interval.
+        Generate polylines for an interval.
         For simulated: interpolates through time nodes and colors by speed.
         For non-simulated: simple polyline from segment coordinates.
         """
@@ -84,14 +73,17 @@ class RouteMap:
             coordinates = interval.get_coordinate_pairs()
             self.all_coordinates.extend(coordinates)
             polyline = folium.PolyLine(coordinates, weight=5, opacity=1, color="#FF0000")
-            return [polyline], []
+            return [polyline]
 
-    def _get_simulated_path(self, ssinterval: SSInterval, hover_tooltips: bool = True) -> tuple[list[folium.PolyLine], list[folium.CircleMarker]]:
+    def _get_simulated_path(self, ssinterval: SSInterval, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
         Draws colored segments between consecutive time nodes.
-        Returns tuple of (polylines list, markers list).
+        Returns list of polylines.
         """
-        coordinates = self.get_time_node_coords(ssinterval.segments, ssinterval.time_nodes)
+        DECIMATION_INTERVAL = 8
+        DECIMATED_NODES = ssinterval.time_nodes[::DECIMATION_INTERVAL]
+
+        coordinates = self.get_time_node_coords(ssinterval.segments, DECIMATED_NODES)
         coordinate_points = [pt for (pt, _tn) in coordinates]
         self.all_coordinates.extend(coordinate_points)
         nodes = [tn for (_pt, tn) in coordinates]
@@ -99,7 +91,6 @@ class RouteMap:
         coordinate_colors = [self.get_speed_color(tn) for tn in nodes[:-1]]
 
         polylines = []
-        markers = []
 
         for start, end, tn, color in zip(
             coordinate_points[:-1],
@@ -108,17 +99,6 @@ class RouteMap:
             coordinate_colors,
         ):
             tip = folium.Tooltip(self._format_tooltip(tn), sticky=True) if hover_tooltips else None
-
-            marker = folium.CircleMarker(
-                location=start,
-                radius=2,
-                color=color,
-                fill=True,
-                fill_color=color,
-                fill_opacity=0.9,
-                tooltip=tip,
-            )
-            markers.append(marker)
 
             polyline = folium.PolyLine(
                 (start, end),
@@ -129,7 +109,7 @@ class RouteMap:
             )
             polylines.append(polyline)
 
-        return polylines, markers
+        return polylines
 
     def _format_tooltip(self, tn: TimeNode) -> str:
         """Build tooltip HTML for a time node."""
@@ -265,7 +245,8 @@ if __name__ == "__main__":
 
     start = time.time()
     a = fetch_route_intervals("A. Independence to Topeka")
-    a.simulate_interval(TIME_STEP=0.5)
+    if a is SSInterval:
+        a.simulate_interval(TIME_STEP=0.5)
     end = time.time()
     print(f"simulation done! took {end - start} seconds")
 
