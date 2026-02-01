@@ -71,13 +71,13 @@ class MainWindow(QMainWindow):
         self.placemark_input.setMinimumWidth(250)
         ctrl.addWidget(self.placemark_input)
 
-        self.generate_placemark_btn = QPushButton("Generate from Placemark")
-        self.generate_placemark_btn.clicked.connect(self.on_generate_placemark)
-        ctrl.addWidget(self.generate_placemark_btn)
+        self.generate_no_simulation_btn = QPushButton("Generate without simulation")
+        self.generate_no_simulation_btn.clicked.connect(self.on_generate_no_simulation)
+        ctrl.addWidget(self.generate_no_simulation_btn)
 
-        self.generate_time_nodes_btn = QPushButton("Simulate && Generate from Time Nodes")
-        self.generate_time_nodes_btn.clicked.connect(self.on_generate_time_nodes)
-        ctrl.addWidget(self.generate_time_nodes_btn)
+        self.generate_simulation_btn = QPushButton("Generate with simulation")
+        self.generate_simulation_btn.clicked.connect(self.on_generate_simulation)
+        ctrl.addWidget(self.generate_simulation_btn)
 
         self.hover_cb = QCheckBox("Hover tooltips")
         self.hover_cb.setChecked(True)
@@ -120,7 +120,7 @@ class MainWindow(QMainWindow):
         self._worker: Optional[Worker] = None
 
         # Used to control busy and idle states. Add more buttons here to control state
-        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.upload_db_btn, self.graph_controller.generate_button)
+        self.state = StateController(self.status, self.generate_no_simulation_btn, self.generate_simulation_btn, self.upload_kml_btn, self.upload_db_btn, self.graph_controller.generate_button)
 
         # Store current interval simulator for graph controller
         # self._current_interval_simulator = None
@@ -208,9 +208,9 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.status.showMessage(f"Error: {e}", 3000)
 
-    def on_generate_placemark(self):
+    def on_generate_no_simulation(self):
         """
-        Frontend function called when the generate placemark button is pressed
+        Frontend function called when the generate without simulation button is pressed
         """
         name = self.placemark_input.currentText().strip()  # get value from placemark_input widget
         if not name:
@@ -228,9 +228,9 @@ class MainWindow(QMainWindow):
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
         self._worker.start()
 
-    def on_generate_time_nodes(self):
+    def on_generate_simulation(self):
         """
-        Frontend function called when the generate from time nodes button is pressed
+        Frontend function called when the generate simulation button is pressed
         """
         name = self.placemark_input.currentText().strip()  # Similar to before, gets text input
         if not name:
