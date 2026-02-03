@@ -131,10 +131,10 @@ class TimeNode(StateNode):
         return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
     
     def __getattr__(self, name):
-        """Return 0 for missing attributes instead of raising AttributeError."""
-        default = -10
-        print(f"Attribute '{name}' not found. Returning {default}.")
-        return default
+        """Return -10 for missing attributes instead of raising AttributeError."""
+        if name in StateNode.NUMERICAL_METRICS:
+            return -10
+        raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
 
 
 class VelocityNode(StateNode):
