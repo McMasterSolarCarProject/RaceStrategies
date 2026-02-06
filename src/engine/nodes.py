@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, NULL_COORDINATE, ZERO_VELOCITY
-from ..utils.constants import *
+from ..utils import constants
 from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
@@ -31,12 +31,11 @@ class StateNode:
         "Fm": "Motor Force (N)",
     }
 
-    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0), mass: float = None):
+    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
         self.segment = segment
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
-        self.mass = mass if mass is not None else car_mass
         
         self.Fm = 0
         self.Fd = 0
@@ -54,7 +53,7 @@ class StateNode:
         #     self.Fm = 50
         # else:
         #     self.Fm = self.power / velocity.mag
-        self.Fm = self.torque / wheel_radius
+        self.Fm = self.torque / constants.wheel_radius
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
@@ -65,13 +64,13 @@ class StateNode:
             print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
             velocity = Velocity(unit_vec=velocity.unit_vector(), speed=Speed(mps=200))
         finally:
-            self.Fd = 0.5 * air_density * coef_drag * cross_section * ((velocity - self.segment.wind).mag ** 2)
+            self.Fd = 0.5 * constants.air_density * constants.coef_drag * constants.cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
-        self.Frr = coef_rr * self.mass * accel_g * self.segment.gradient.cos()
+        self.Frr = constants.coef_rr * constants.car_mass * constants.accel_g * self.segment.gradient.cos()
 
     def Fg_calc(self):
-        self.Fg = self.mass * accel_g * self.segment.gradient.sin()
+        self.Fg = constants.car_mass * constants.accel_g * self.segment.gradient.sin()
 
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
@@ -143,8 +142,8 @@ class TimeNode(StateNode):
 
 class VelocityNode(StateNode):
     #constant vel --> motor force -->  power, torque --> energy per metre (epm)
-    def __init__(self, segment: Segment, speed: Speed = Speed(0), mass: float = None):
-        super().__init__(segment, 0, 0, speed, mass)
+    def __init__(self, segment: Segment, speed: Speed = Speed(0)):
+        super().__init__(segment, 0, 0, speed)
 
     def solve_velocity(self):
         self.Fd_calc(self.speed)
@@ -152,7 +151,7 @@ class VelocityNode(StateNode):
         self.Frr_calc()
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.torque = self.Fm * wheel_radius
+        self.torque = self.Fm * constants.wheel_radius
         motor_speed = motor.speed_from_torque(self.torque)
         if motor_speed.mps < self.speed.mps:
             # print("dunno")

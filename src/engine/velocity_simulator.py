@@ -2,6 +2,7 @@ from .nodes import Segment, VelocityNode
 from .kinematics import Speed, UNIT_VEC, Vec, Velocity
 from ..utils.graph import plot_points, plot_multiple_datasets
 from .motor_calcs import motor
+from ..utils.constants import car_mass, wheel_radius
 
 
 def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
@@ -19,7 +20,7 @@ def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(mph=0)
     return velocityNodes
 
 
-def simulate_speed_profile_with_mass(segment: Segment, mass: float, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
+def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
     """
     Simulate speed profile for a given segment with specified mass override.
     
@@ -35,7 +36,7 @@ def simulate_speed_profile_with_mass(segment: Segment, mass: float, min_speed_li
     velocityNodes = []
     speed = min_speed
     while speed.mps < max_speed.mps:
-        v = VelocityNode(segment, speed=speed, mass=mass)
+        v = VelocityNode(segment, speed=speed)
         if v.solve_velocity():
             velocityNodes.append(v)
             speed = Speed(mps=speed.mps + RESOLUTION)
@@ -55,9 +56,12 @@ def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_
     :param RESOLUTION: Speed resolution step
     :return: List of node lists, one for each mass
     """
+    from ..utils import constants
+    
     nodes_list = []
     for mass in masses:
-        nodes = simulate_speed_profile_with_mass(segment, mass, min_speed_lim, max_speed_lim, RESOLUTION)
+        constants.car_mass = mass
+        nodes = simulate_speed_profile_with_mass(segment, min_speed_lim, max_speed_lim, RESOLUTION)
         nodes_list.append(nodes)
         print(f"Simulated for mass {mass} kg: {len(nodes)} nodes generated.")
     return nodes_list
