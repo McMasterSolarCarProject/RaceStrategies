@@ -84,7 +84,9 @@ class SSInterval:
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
                 if abs(current_TimeNode.acc * TIME_STEP) > VELOCITY_STEP.mps:
-                    current_TimeNode.solve_TimeNode(initial_TimeNode, abs(VELOCITY_STEP.mps / current_TimeNode.acc))
+                    actual_dt = abs(VELOCITY_STEP.mps / current_TimeNode.acc)
+                    current_TimeNode.solve_TimeNode(initial_TimeNode, actual_dt)
+                    current_TimeNode.time = initial_TimeNode.time + actual_dt
 
                 self.time_nodes.append(current_TimeNode)
 
@@ -115,7 +117,9 @@ class SSInterval:
                     current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
 
                     if abs(current_TimeNode.acc * TIME_STEP) > VELOCITY_STEP.mps:
-                        current_TimeNode.solve_TimeNode(initial_TimeNode, -abs(VELOCITY_STEP.mps / current_TimeNode.acc))
+                        actual_dt = -abs(VELOCITY_STEP.mps / current_TimeNode.acc)
+                        current_TimeNode.solve_TimeNode(initial_TimeNode, actual_dt)
+                        current_TimeNode.time = initial_TimeNode.time + actual_dt
 
                     self.brakingNodes.append(current_TimeNode)
                     

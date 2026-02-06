@@ -119,7 +119,7 @@ class TimeNode(StateNode):
         self.Fg_calc()
         self.Ft_calc()
         self.solar_energy_cal()
-        self.acc = self.Ft / self.mass
+        self.acc = self.Ft / constants.car_mass
         self.speed = Speed(initial_TimeNode.speed.mps + self.acc * time_step)
         self.dist = initial_TimeNode.dist + initial_TimeNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
         self.Power_calc()
@@ -135,7 +135,7 @@ class TimeNode(StateNode):
         # Don't intercept special methods - let them raise AttributeError normally
         if name.startswith('__') and name.endswith('__'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        default = -10
+        default = None
         print(f"Attribute '{name}' not found. Returning {default}.")
         return default
 
