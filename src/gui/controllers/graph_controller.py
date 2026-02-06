@@ -1,7 +1,7 @@
 from typing import Callable
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QGridLayout
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 
 from ...engine.interval_simulator import SSInterval
@@ -15,10 +15,10 @@ class GraphController(QWidget):
     Contains a button to generate plots and a canvas to display them.
     """
 
-    def __init__(self, simulated_route: SSInterval, frontend_func: Callable, parent=None):
+    def __init__(self, frontend_func: Callable, parent=None):
         super().__init__(parent)
 
-        self.simulated_route = simulated_route
+        self.simulated_route: SSInterval | None = None
         # Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)

@@ -1,12 +1,12 @@
 from __future__ import annotations
-from .nodes import Segment, TimeNode, NULL_TIME_NODE
+from .nodes import Segment, TimeNode
 import copy
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
 from .motor_calcs import motor
 
 P_STALL = 100
-MAX_TORQUE = 50
+MAX_TORQUE = 20
 BRAKE = 1000
 
 
@@ -136,9 +136,7 @@ class SSInterval:
 
     def plot(self, x: str, y: str, name: str):
         from ..utils.graph import plot_SSInterval
-        # return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
-        return plot_SSInterval([self.time_nodes, self.brakingNodes], x, y, name)
-
+        return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
 
 
 def join_intervals(intervals: list[SSInterval]) -> SSInterval:
@@ -159,31 +157,38 @@ def join_intervals(intervals: list[SSInterval]) -> SSInterval:
     return result
 
 
-if __name__ == "__main__":
-    # from .kinematics import *
-    # p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
-    # # print(p1)
-    # p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
-    # # print(p2)
-    # p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
-    # # print(p3)
-    # d1 = Displacement(p0, p1)
-    # d2 = Displacement(p1, p2)
-    # print(d1)
-    # s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
-    # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
-    # a = SSInterval([s1, s2])
+def test_1():
+    from .kinematics import Coordinate, Displacement
+    p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
+    # print(p1)
+    p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
+    # print(p2)
+    p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
+    # print(p3)
+    d1 = Displacement(p0, p1)
+    d2 = Displacement(p1, p2)
+    print(d1)
+    s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
+    s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
+    a = SSInterval([s1, s2])
+
+def test_2():
     from ..database.fetch_route_intervals import fetch_route_intervals
-    a = fetch_route_intervals("A. Independence to Topeka", max_segments=100)
+    a = fetch_route_intervals("A. Independence to Topeka", max_nodes=100)
     a.simulate_interval()
     print(len(a.time_nodes))
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    a.plot("dist", "velocity.kmph", 'd_v')
+    a.plot("dist", ["speed.kmph"], 'd_v')
     a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')
     import matplotlib.pyplot as plt
     plt.show()    # finally block so they don’t vanish
+
+
+if __name__ == "__main__":
+    # test_1()
+    test_2()
 

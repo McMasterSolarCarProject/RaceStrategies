@@ -1,10 +1,12 @@
 import os
 import sqlite3
 
-DB_PATH = "data.sqlite"
+DB_PATH = "ASC_2024.sqlite"
+
 
 def db_exists(path: str = DB_PATH) -> bool:
     return os.path.exists(path)
+
 
 def get_segment_ids(path: str = DB_PATH) -> list[str]:
     if not db_exists(path):

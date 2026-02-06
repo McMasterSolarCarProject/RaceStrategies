@@ -53,23 +53,39 @@ class MainWindow(QMainWindow):
         self.upload_kml_btn.clicked.connect(self.on_upload_kml)
         ctrl.addWidget(self.upload_kml_btn)
 
+        ctrl.addWidget(QLabel("SQLite DB"))
+        self.db_input = QLineEdit()
+        self.db_input.setReadOnly(True)
+        self.db_input.setPlaceholderText("Select a .sqlite file...")
+        ctrl.addWidget(self.db_input)
+        # Store the SQLite database path
+        self.sqlite_path = "data.sqlite"
+
+        self.upload_db_btn = QPushButton("Browse…")
+        self.upload_db_btn.clicked.connect(self.on_upload_sqlite)
+        ctrl.addWidget(self.upload_db_btn)
+
         ctrl.addWidget(QLabel("Placemark:"))
         self.placemark_input = QComboBox()
         self.placemark_input.setEditable(False)
         self.placemark_input.setMinimumWidth(250)
         ctrl.addWidget(self.placemark_input)
 
-        self.generate_placemark_btn = QPushButton("Generate from Placemark")
-        self.generate_placemark_btn.clicked.connect(self.on_generate_placemark)
-        ctrl.addWidget(self.generate_placemark_btn)
+        self.generate_no_simulation_btn = QPushButton("Generate without simulation")
+        self.generate_no_simulation_btn.clicked.connect(self.on_generate_no_simulation)
+        ctrl.addWidget(self.generate_no_simulation_btn)
 
-        self.generate_time_nodes_btn = QPushButton("Simulate && Generate from Time Nodes")
-        self.generate_time_nodes_btn.clicked.connect(self.on_generate_time_nodes)
-        ctrl.addWidget(self.generate_time_nodes_btn)
+        self.generate_simulation_btn = QPushButton("Generate with simulation")
+        self.generate_simulation_btn.clicked.connect(self.on_generate_simulation)
+        ctrl.addWidget(self.generate_simulation_btn)
 
         self.hover_cb = QCheckBox("Hover tooltips")
         self.hover_cb.setChecked(True)
         ctrl.addWidget(self.hover_cb)
+
+        self.split_at_stops_cb = QCheckBox("Split at stops")
+        self.split_at_stops_cb.setChecked(False)
+        ctrl.addWidget(self.split_at_stops_cb)
 
         ctrl.addWidget(QLabel("Time step (s):"))
         self.timestep_spin = QDoubleSpinBox()  # Input for a floating point number
@@ -90,7 +106,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.map_controller)
 
         # Graph controller widget
-        self.graph_controller = GraphController(None, self.on_generate_graphs)
+        self.graph_controller = GraphController(self.on_generate_graphs)
         splitter.addWidget(self.graph_controller)
         splitter.setSizes([600, 400])
 
@@ -104,13 +120,10 @@ class MainWindow(QMainWindow):
         self._worker: Optional[Worker] = None
 
         # Used to control busy and idle states. Add more buttons here to control state
-        self.state = StateController(self.status, self.generate_placemark_btn, self.generate_time_nodes_btn, self.upload_kml_btn, self.graph_controller.generate_button)
+        self.state = StateController(self.status, self.generate_no_simulation_btn, self.generate_simulation_btn, self.upload_kml_btn, self.upload_db_btn, self.graph_controller.generate_button)
 
         # Store current interval simulator for graph controller
         # self._current_interval_simulator = None
-
-        # After creating all widgets, perform these initialization tasks
-        self._populate_placemark_dropdown()
 
     def on_upload_kml(self):
         """
@@ -131,9 +144,47 @@ class MainWindow(QMainWindow):
         self._worker.finished.connect(self._on_kml_uploaded)  # Populates the dropdown with new segment ids
         self._worker.start()
 
+    def on_upload_sqlite(self):
+        """
+        Frontend function called when the upload SQLite button is pressed
+        """
+        # Opens a dialog that only filters for SQLite files
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select SQLite Database File", "", "SQLite File (*.sqlite)")
+        if not file_path:
+            return
+
+        self.db_input.setText(file_path)
+        print(f"Selected SQLite database: {file_path}")
+
+        self.state.busy(f"Loading database from {file_path}...")
+
+        # Calls the backend function with SQLite file path
+        self._worker = Worker(self._upload_sqlite_impl, file_path)  # Worker runs background tasks as a separate thread
+
+        self._worker.progress.connect(self.status.showMessage)
+        self._worker.finished.connect(self._on_sqlite_uploaded)  # Populates the dropdown with new segment ids
+        self._worker.start()
+
+    def _upload_sqlite_impl(self, sqlite_path: str) -> None:
+        """
+        Backend function that sets the SQLite database path.
+        """
+        self.sqlite_path = sqlite_path
+
     def _on_kml_uploaded(self, result: WorkerResult):
         """
         After KML is loaded, populate the placemark dropdown
+        """
+        if result.error:
+            self.state.idle(f"Worker error: {str(result.error)}")
+        else:
+            self.sqlite_path = result.value
+            self._populate_placemark_dropdown()
+        self.state.idle()
+
+    def _on_sqlite_uploaded(self, result: WorkerResult):
+        """
+        After SQLite database is initialized, populate the placemark dropdown
         """
         if result.error:
             self.state.idle(f"Worker error: {str(result.error)}")
@@ -143,12 +194,12 @@ class MainWindow(QMainWindow):
 
     def _populate_placemark_dropdown(self):
         """
-        Populate the placemark dropdown using placemark_name values in data.sqlite.
+        Populate the placemark dropdown using placemark_name values in sqlite.
         """
         self.placemark_input.clear()
 
         try:
-            segment_ids = get_segment_ids()
+            segment_ids = get_segment_ids(path=self.sqlite_path)
             if not segment_ids:
                 self.status.showMessage("No segments found in database")
                 return
@@ -157,9 +208,9 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.status.showMessage(f"Error: {e}", 3000)
 
-    def on_generate_placemark(self):
+    def on_generate_no_simulation(self):
         """
-        Frontend function called when the generate placemark button is pressed
+        Frontend function called when the generate without simulation button is pressed
         """
         name = self.placemark_input.currentText().strip()  # get value from placemark_input widget
         if not name:
@@ -168,16 +219,18 @@ class MainWindow(QMainWindow):
 
         self.state.busy("Generating map from placemark...")  # Disables buttons until worker finished or worker error
 
+        split_at_stops = self.split_at_stops_cb.isChecked()
+        self.map_controller._current_name = name  # Store for navigation
         # Calls the backend function in the first parameter by passing the second parameter as an argument
-        self._worker = Worker(self.map_controller.generate_from_placemark, name)  # Map worker runs background tasks as a separate thread
+        self._worker = Worker(self.map_controller.generate_no_simulation, name, self.sqlite_path, split_at_stops)  # Map worker runs background tasks as a separate thread
 
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)  # calls the _on_map_finished function based on the return value of _generate_from_placemark
         self._worker.start()
 
-    def on_generate_time_nodes(self):
+    def on_generate_simulation(self):
         """
-        Frontend function called when the generate from time nodes button is pressed
+        Frontend function called when the generate simulation button is pressed
         """
         name = self.placemark_input.currentText().strip()  # Similar to before, gets text input
         if not name:
@@ -186,10 +239,14 @@ class MainWindow(QMainWindow):
 
         timestep = float(self.timestep_spin.value())  # Gets numerical input
         hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
+        split_at_stops = self.split_at_stops_cb.isChecked()
 
         self.state.busy("Parsing route and running simulation (this may take a while)...")
 
-        self._worker = Worker(self.map_controller.generate_from_time_nodes, name, timestep, hover)  # Calls the first function with other parameters as arguments into the first parameter
+        self.map_controller._current_name = name  # Store for navigation
+        self._worker = Worker(
+            self.map_controller.generate_simulation, name, timestep, hover, self.sqlite_path, split_at_stops
+        )  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)
         self._worker.start()
