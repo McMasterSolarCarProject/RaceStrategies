@@ -52,7 +52,7 @@ class SSInterval:
         self.segments += other.segments
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
-            self.segments[seg_id].tdist += self.segments[seg_id - 1].tdist
+            self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
             
         self.total_dist = self.segments[-1].tdist
         
