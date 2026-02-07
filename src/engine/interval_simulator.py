@@ -141,6 +141,8 @@ class SSInterval:
     def plot(self, x: str, y: str, name: str):
         from ..utils.graph import plot_SSInterval
         return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+
 
 
 def join_intervals(intervals: list[SSInterval]) -> SSInterval:
