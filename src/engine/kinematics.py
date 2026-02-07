@@ -160,8 +160,12 @@ class Speed:
     def rpm(self, radius: float = wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def rps(self, radius: float = wheel_radius):  # radians per second (SI units)
+    def rps(self, radius: float = wheel_radius):  # revolutions per second
         return self.mps / (2 * math.pi * radius)
+
+    def angular_velocity(self, radius: float = wheel_radius) -> float:
+        # angular speed in radians per second
+        return self.mps / radius
     
     def __str__(self):
         return f"Speed: {self.mps} m/s"

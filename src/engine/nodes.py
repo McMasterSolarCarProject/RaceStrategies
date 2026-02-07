@@ -53,7 +53,7 @@ class StateNode:
         #     self.Fm = 50
         # else:
         #     self.Fm = self.power / velocity.mag
-        self.Fm = self.torque / constants.wheel_radius
+        self.Fm = self.torque / constants.wheel_radius * constants.num_motors
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
@@ -76,7 +76,7 @@ class StateNode:
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
 
     def Power_calc(self):
-        self.P_mech = self.Fm * self.speed.mps
+        self.P_mech = self.torque * self.speed.angular_velocity() * constants.num_motors
         # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
         self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
         self.epm = 0
@@ -151,7 +151,7 @@ class VelocityNode(StateNode):
         self.Frr_calc()
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.torque = self.Fm * constants.wheel_radius
+        self.torque = self.Fm * constants.wheel_radius / constants.num_motors
         motor_speed = motor.speed_from_torque(self.torque)
         if motor_speed.mps < self.speed.mps:
             # print("dunno")
