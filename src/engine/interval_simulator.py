@@ -6,7 +6,7 @@ from .kinematics import Speed, Velocity
 from .motor_calcs import motor
 
 P_STALL = 100
-MAX_TORQUE = 20
+MAX_TORQUE = 10
 BRAKE = 1000
 
 
@@ -80,7 +80,7 @@ class SSInterval:
                     # current_TimeNode.torque = motor.torque_from_speed(initial_TimeNode.speed)*10
 
                 else:
-                    current_TimeNode.torque = segment.t_eff
+                    current_TimeNode.torque = segment.t_eff / 2 # change ts later fam
 
                 current_TimeNode.solve_TimeNode(initial_TimeNode, TIME_STEP)
                 if abs(current_TimeNode.acc * TIME_STEP) > VELOCITY_STEP.mps:
