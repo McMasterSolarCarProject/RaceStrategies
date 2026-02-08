@@ -149,19 +149,14 @@ class Speed:
         return self._mps * 2.23694
     
     @classmethod
-    def create_from_rpm(cls, rpm: float = None, rps: float = None, radius: float = wheel_radius):
+    def create_from_rpm(cls, rpm: float = None, radius: float = wheel_radius):
         if rpm is not None:
             return cls(mps=2 * math.pi * radius * rpm / 60)
-        elif rps is not None:
-            return cls(mps=2 * math.pi * radius * rps)
         else:
             return cls()
 
     def rpm(self, radius: float = wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
-
-    def rps(self, radius: float = wheel_radius):  # revolutions per second
-        return self.mps / (2 * math.pi * radius)
 
     def angular_velocity(self, radius: float = wheel_radius) -> float:
         # angular speed in radians per second

@@ -160,9 +160,6 @@ class VelocityNode(StateNode):
         self.Power_calc()
         return True
 
-NULL_TIME_NODE = TimeNode(NULL_SEGMENT)
-NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)
-
 # make test cases for this stuff
 if __name__ == "__main__":
     def test_segment():
