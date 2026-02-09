@@ -21,7 +21,7 @@ class SSInterval:
         self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.TIME_STEP = 0.1
-        self.VELOCITY_STEP = Speed(mps = 1)
+        self.VELOCITY_STEP = Speed(mps = 0.1)
         self.total_dist = self.segments[-1].tdist
         # print(self.total_dist)
 
@@ -66,7 +66,7 @@ class SSInterval:
                     break
 
         print(initial_TimeNode.time)
-        print(f"Overshoot: {initial_TimeNode.dist - self.total_dist}")
+        print(f"Overshoot: {initial_TimeNode.dist - self.total_dist}, Speed (kmph): {initial_TimeNode.speed.kmph}")
         for node in self.brakingNodes:
             node.time += initial_TimeNode.time
 
@@ -107,7 +107,7 @@ class SSInterval:
 
     def plot(self, x: str, y: str, name: str):
         from ..utils.graph import plot_SSInterval
-        return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        # return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
         return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
 
     def __iadd__(self, other: SSInterval):
