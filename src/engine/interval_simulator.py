@@ -17,13 +17,13 @@ class SSInterval:
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
+        self.total_dist = self.segments[-1].tdist
+        # print(self.total_dist)
 
         self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.TIME_STEP = 0.1
         self.VELOCITY_STEP = Speed(mps = 0.1)
-        self.total_dist = self.segments[-1].tdist
-        # print(self.total_dist)
 
     
     def simulate_interval(self):
@@ -34,10 +34,17 @@ class SSInterval:
         brakingNode = 0
         self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
         for segment in self.segments:
-            # calc solar power here
             
             while initial_TimeNode.dist <= segment.tdist:
                 current_TimeNode = TimeNode(segment, initial_TimeNode.time + self.TIME_STEP, soc=initial_TimeNode.soc)
+
+                while initial_TimeNode.speed.mps > self.brakingNodes[brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
+                    # index to the braking node with the same velocity
+                    brakingNode += 1
+                
+                while initial_TimeNode.speed.mps < self.brakingNodes[brakingNode-1].speed.mps and brakingNode > 0:
+                    # index to the braking node with the same velocity
+                    brakingNode -= 1
 
                 if initial_TimeNode.dist >= self.brakingNodes[brakingNode].dist:
                     current_TimeNode.Fb = BRAKE
@@ -52,10 +59,6 @@ class SSInterval:
                 self.adaptive_timestep(current_TimeNode, initial_TimeNode)
 
                 self.time_nodes.append(current_TimeNode)
-
-                while current_TimeNode.speed.mps > self.brakingNodes[brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
-                    # index to the braking node with the same velocity
-                    brakingNode += 1
 
                 initial_TimeNode = self.time_nodes[-1]
                 # print(brakingNode)
