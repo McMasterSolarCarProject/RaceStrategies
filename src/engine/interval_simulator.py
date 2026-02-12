@@ -4,9 +4,10 @@ import copy
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
 from .motor_calcs import motor
+from ..utils import constants
 
 P_STALL = 100
-MAX_TORQUE = 20
+MAX_TORQUE = 35
 BRAKE = 1000
 
 
@@ -32,8 +33,10 @@ class SSInterval:
         self.simulate_braking()
         print(f"# Braking Nodes: {len(self.brakingNodes)}")
         brakingNode = 0
-        self.segments[-1].tdist += 20  # avoids edgecase error: velocity doesn't reach stop v
+        stopped = False
         for segment in self.segments:
+            if stopped:
+                break
             
             while initial_TimeNode.dist <= segment.tdist:
                 current_TimeNode = TimeNode(segment, initial_TimeNode.time + self.TIME_STEP, soc=initial_TimeNode.soc)
@@ -58,14 +61,28 @@ class SSInterval:
 
                 self.adaptive_timestep(current_TimeNode, initial_TimeNode)
 
+                # Stall detection: motor can't overcome hill, skip to next segment
+                if current_TimeNode.speed.mps <= 0 and initial_TimeNode.speed.mps <= 0:
+                    Fg = constants.car_mass * constants.accel_g * segment.gradient.sin()
+                    Fm_max = MAX_TORQUE / constants.wheel_radius * constants.num_motors
+                    if Fm_max < Fg:
+                        print(f"⚠️ Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
+                        # Jump the car to the end of this segment so the while loop advances
+                        current_TimeNode.dist = segment.tdist + 0.001
+                        current_TimeNode.speed = Speed(0)
+                        self.time_nodes.append(current_TimeNode)
+                        initial_TimeNode = self.time_nodes[-1]
+                        break
+
                 self.time_nodes.append(current_TimeNode)
 
                 initial_TimeNode = self.time_nodes[-1]
                 # print(brakingNode)
                 # print(initial_TimeNode.dist)
 
-                if initial_TimeNode.speed.mps <= self.stopSpeed.mps:
-                    # assume this may only happen during last segment (allows to break out of for & while loop)
+                if initial_TimeNode.speed.mps <= self.stopSpeed.mps and initial_TimeNode.speed.mps <= Speed(0).mps:
+                    # break out of both while and for loops
+                    stopped = True
                     break
 
         print(initial_TimeNode.time)
@@ -108,9 +125,10 @@ class SSInterval:
             pair_list.append((segment.p2.lat, segment.p2.lon))
         return pair_list
 
-    def plot(self, x: str, y: str, name: str):
+    def plot(self, x: str, y: str, name: str, brake: bool = True):
         from ..utils.graph import plot_SSInterval
-        # return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        if not brake:
+            return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
         return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
 
     def __iadd__(self, other: SSInterval):

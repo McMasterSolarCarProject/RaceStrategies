@@ -128,7 +128,7 @@ class TimeNode(StateNode):
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar
 
     def __str__(self):
-        return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
+        return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg, self.Fm, self.Fb, self.torque}"
     
     def __getattr__(self, name):
         """Return 0 for missing attributes instead of raising AttributeError."""
