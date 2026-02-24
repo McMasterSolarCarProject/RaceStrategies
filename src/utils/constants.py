@@ -1,3 +1,4 @@
+num_motors = 2
 CELL_AREA = 0.0153  # m^2
 air_density = 1.204  # kg/m^3
 coef_drag = 0.19

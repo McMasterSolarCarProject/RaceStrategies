@@ -1,8 +1,7 @@
 import sqlite3
 import time
 import os
-from ..engine.kinematics import Coordinate, Speed, Velocity, Displacement
-from ..engine.nodes import Segment, VelocityNode, NULL_VELOCITY_NODE
+from ..engine.nodes import VelocityNode
 from ..engine.velocity_simulator import simulate_speed_profile
 from .fetch_route_intervals import fetch_route_intervals
 

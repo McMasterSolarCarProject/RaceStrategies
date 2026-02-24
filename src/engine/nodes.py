@@ -53,7 +53,7 @@ class StateNode:
         #     self.Fm = 50
         # else:
         #     self.Fm = self.power / velocity.mag
-        self.Fm = self.torque / constants.wheel_radius
+        self.Fm = self.torque / constants.wheel_radius * constants.num_motors
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
@@ -76,7 +76,7 @@ class StateNode:
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
 
     def Power_calc(self):
-        self.P_mech = self.Fm * self.speed.mps
+        self.P_mech = self.torque * self.speed.angular_velocity() * constants.num_motors
         # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
         self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
         self.epm = 0
@@ -128,14 +128,14 @@ class TimeNode(StateNode):
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar
 
     def __str__(self):
-        return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg}"
+        return f"D: {self.dist} T:{self.time},P: {self.power}, A: {self.acc}, Ft: {self.Ft}, V: {self.speed.kmph}\n Forces {self.Fd, self.Frr, self.Fg, self.Fm, self.Fb, self.torque}"
     
     def __getattr__(self, name):
         """Return 0 for missing attributes instead of raising AttributeError."""
         # Don't intercept special methods - let them raise AttributeError normally
         if name.startswith('__') and name.endswith('__'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        default = -10
+        default = None
         print(f"Attribute '{name}' not found. Returning {default}.")
         return default
 
@@ -151,7 +151,7 @@ class VelocityNode(StateNode):
         self.Frr_calc()
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.torque = self.Fm * constants.wheel_radius
+        self.torque = self.Fm * constants.wheel_radius / constants.num_motors
         motor_speed = motor.speed_from_torque(self.torque)
         if motor_speed.mps < self.speed.mps:
             # print("dunno")
@@ -159,9 +159,6 @@ class VelocityNode(StateNode):
         
         self.Power_calc()
         return True
-
-NULL_TIME_NODE = TimeNode(NULL_SEGMENT)
-NULL_VELOCITY_NODE = VelocityNode(NULL_SEGMENT)
 
 # make test cases for this stuff
 if __name__ == "__main__":

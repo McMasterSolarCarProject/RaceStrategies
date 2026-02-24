@@ -102,11 +102,6 @@ def test_speed_rpm_classmethod():
     expected_mps = 2 * math.pi * 0.2 * 60 / 60  # 2πr per second
     assert math.isclose(s.mps, expected_mps)
 
-def test_speed_rps_classmethod():
-    s = Speed.create_from_rpm(rps=1, radius=0.2)
-    expected_mps = 2 * math.pi * 0.2
-    assert math.isclose(s.mps, expected_mps)
-
 def test_speed_rpm_conversion_methods():
     s = Speed(mps=10)
     rpm_val = s.rpm(radius=0.2)

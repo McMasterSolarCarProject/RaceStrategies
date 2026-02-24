@@ -10,7 +10,7 @@ class MotorModel:
     def __init__(self):
         self.ref_voltage = battery_voltage
         self._data = np.array(TORQUE_CURRENT_RPM_DATA)
-        self._data = self._data[self._data[:, 0].argsort()]  # sort by rpm
+        self._data = self._data[self._data[:, 0].argsort()]  # sort by torque
         self.torque_ref = self._data[:, 0]
         self.current_ref = self._data[:, 1]
         self.rpm_ref = self._data[:, 2]
@@ -30,7 +30,8 @@ class MotorModel:
     
     def torque_from_speed(self, speed: Speed) -> float:
         rpm = speed.rpm()
-        torque = self._interp(rpm, self.rpm_ref, self.torque_ref)
+        # rpm_ref is in decreasing order (sorted by torque), so reverse for np.interp
+        torque = self._interp(rpm, self.rpm_ref[::-1], self.torque_ref[::-1])
         return torque
     
     # def current_from_torque(self, torque: float) -> float:

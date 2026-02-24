@@ -33,21 +33,28 @@ def main():
     intervals = [intervals] if type(intervals) is SSInterval else intervals
     print(len(intervals))
     # intervals = intervals
-    for i in range(min(10000, len(intervals))):
+    for i in range(min(100000, len(intervals))):
         print(f"Simulating Interval {i+1} of {len(intervals)}")
         intervals[i].simulate_interval()
-        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"velocity_comparison_{i+1}")
+        # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        if i == 92 - 1:
+            # intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+            # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        
+            # print(f"Node {i+1}: {intervals[i].time_nodes[1]}")
+            pass
+        print("\n\n")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
     master = join_intervals(intervals)
     print(f"{time.perf_counter()-start}")
-    # master.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+    master.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], "velocity_comparison", brake=False)
     # master.plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"master_interval_velocity")
     # master.plot("dist", ["segment.elevation"], f"master_interval_velocity")
     print(f"Completed Display: {time.perf_counter()-start}")
     
     import matplotlib.pyplot as plt
     plt.show()
-    input()
 
 
 
