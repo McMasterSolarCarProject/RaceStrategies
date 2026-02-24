@@ -7,7 +7,7 @@ from .motor_calcs import motor
 from ..utils import constants
 
 P_STALL = 100
-MAX_TORQUE = 35
+MAX_TORQUE = 80
 BRAKE = 1000
 
 
@@ -24,7 +24,7 @@ class SSInterval:
         self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.TIME_STEP = 0.1
-        self.VELOCITY_STEP = Speed(mps = 0.1)
+        self.VELOCITY_STEP = Speed(kmph=0.1)
 
     
     def simulate_interval(self):
@@ -57,7 +57,7 @@ class SSInterval:
                     # current_TimeNode.torque = motor.torque_from_speed(initial_TimeNode.speed)*10
 
                 else:
-                    current_TimeNode.torque = segment.t_eff / 2 # change ts later fam
+                    current_TimeNode.torque = segment.t_eff # change ts later fam
 
                 self.adaptive_timestep(current_TimeNode, initial_TimeNode)
 
@@ -66,9 +66,9 @@ class SSInterval:
                     Fg = constants.car_mass * constants.accel_g * segment.gradient.sin()
                     Fm_max = MAX_TORQUE / constants.wheel_radius * constants.num_motors
                     if Fm_max < Fg:
-                        print(f"⚠️ Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
+                        print(f"Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
                         # Jump the car to the end of this segment so the while loop advances
-                        current_TimeNode.dist = segment.tdist + 0.001
+                        current_TimeNode.dist = segment.tdist
                         current_TimeNode.speed = Speed(0)
                         self.time_nodes.append(current_TimeNode)
                         initial_TimeNode = self.time_nodes[-1]
