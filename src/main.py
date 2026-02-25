@@ -38,12 +38,6 @@ def main():
         intervals[i].simulate_interval()
         intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"velocity_comparison_{i+1}")
         # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
-        if i == 92 - 1:
-            # intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
-            # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
-        
-            # print(f"Node {i+1}: {intervals[i].time_nodes[1]}")
-            pass
         print("\n\n")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
     master = join_intervals(intervals)

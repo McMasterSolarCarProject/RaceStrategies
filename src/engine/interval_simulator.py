@@ -23,15 +23,15 @@ class SSInterval:
 
         self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
         self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
-        self.TIME_STEP = 0.1
-        self.VELOCITY_STEP = Speed(kmph=0.1)
+        self.TIME_STEP = 1
+        self.VELOCITY_STEP = Speed(kmph=1)
 
     
     def simulate_interval(self):
         initial_TimeNode = TimeNode(self.segments[0], speed=self.startSpeed, soc= 100)
         self.time_nodes = [initial_TimeNode]
         self.simulate_braking()
-        print(f"# Braking Nodes: {len(self.brakingNodes)}")
+        # print(f"# Braking Nodes: {len(self.brakingNodes)}")
         brakingNode = 0
         stopped = False
         for segment in self.segments:
@@ -85,8 +85,8 @@ class SSInterval:
                     stopped = True
                     break
 
-        print(initial_TimeNode.time)
-        print(f"Overshoot: {initial_TimeNode.dist - self.total_dist}, Speed (kmph): {initial_TimeNode.speed.kmph}")
+        # print(initial_TimeNode.time)
+        # print(f"Overshoot: {initial_TimeNode.dist - self.total_dist}, Speed (kmph): {initial_TimeNode.speed.kmph}")
         for node in self.brakingNodes:
             node.time += initial_TimeNode.time
 
