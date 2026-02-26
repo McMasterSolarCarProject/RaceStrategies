@@ -88,11 +88,18 @@ class MainWindow(QMainWindow):
         ctrl.addWidget(self.split_at_stops_cb)
 
         ctrl.addWidget(QLabel("Time step (s):"))
-        self.timestep_spin = QDoubleSpinBox()  # Input for a floating point number
-        self.timestep_spin.setRange(0.1, 10.0)
-        self.timestep_spin.setSingleStep(0.1)
-        self.timestep_spin.setValue(0.5)
-        ctrl.addWidget(self.timestep_spin)
+        self.time_step_spin = QDoubleSpinBox()  # Input for a floating point number
+        self.time_step_spin.setRange(0.1, 10.0)
+        self.time_step_spin.setSingleStep(0.1)
+        self.time_step_spin.setValue(0.5)
+        ctrl.addWidget(self.time_step_spin)
+
+        ctrl.addWidget(QLabel("Velocity step (m/s):"))
+        self.velocity_step_spin = QDoubleSpinBox()  # Input for a floating point number
+        self.velocity_step_spin.setRange(0.1, 10.0)
+        self.velocity_step_spin.setSingleStep(0.1)
+        self.velocity_step_spin.setValue(0.5)
+        ctrl.addWidget(self.velocity_step_spin)
 
         v.addLayout(ctrl)
 
@@ -237,7 +244,8 @@ class MainWindow(QMainWindow):
             self.status.showMessage("Enter a placemark name first", 4000)
             return
 
-        timestep = float(self.timestep_spin.value())  # Gets numerical input
+        time_step = float(self.time_step_spin.value())  # Gets numerical input
+        velocity_step = float(self.velocity_step_spin.value())
         hover = bool(self.hover_cb.isChecked())  # Gets boolean input from a checkbox
         split_at_stops = self.split_at_stops_cb.isChecked()
 
@@ -245,7 +253,7 @@ class MainWindow(QMainWindow):
 
         self.map_controller._current_name = name  # Store for navigation
         self._worker = Worker(
-            self.map_controller.generate_simulation, name, timestep, hover, self.sqlite_path, split_at_stops
+            self.map_controller.generate_simulation, name, time_step, velocity_step, hover, self.sqlite_path, split_at_stops
         )  # Calls the first function with other parameters as arguments into the first parameter
         self._worker.progress.connect(self.status.showMessage)
         self._worker.finished.connect(self._on_map_finished)

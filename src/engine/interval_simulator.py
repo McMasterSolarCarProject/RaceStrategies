@@ -27,7 +27,9 @@ class SSInterval:
         self.VELOCITY_STEP = Speed(kmph=1)
 
     
-    def simulate_interval(self):
+    def simulate_interval(self, TIME_STEP: float = 1, VELOCITY_STEP: Speed = Speed(kmph=1)):
+        self.TIME_STEP = TIME_STEP
+        self.VELOCITY_STEP = VELOCITY_STEP
         initial_TimeNode = TimeNode(self.segments[0], speed=self.startSpeed, soc= 100)
         self.time_nodes = [initial_TimeNode]
         self.simulate_braking()
