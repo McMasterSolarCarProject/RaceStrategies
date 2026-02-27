@@ -5,6 +5,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.nodes import TimeNode, Segment
+from ..engine.kinematics import Speed
 from ..engine.interval_simulator import SSInterval, join_intervals
 import time
 
@@ -12,8 +13,8 @@ import time
 class RouteMap:
     def __init__(self):
         self.folium_map = folium.Map()
-        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 200))
-        self.speed_colors = [mcolors.to_hex(color) for color in colormap]
+        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 60))
+        self.speed_colors = [mcolors.to_hex(color) for color in colormap] # List of colors in a gradient of blue to red to green
         self.all_coordinates: list[tuple[float, float]] = []
 
     def generate_no_simulation_map(self, placemark_name: str, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False):
@@ -26,7 +27,7 @@ class RouteMap:
             route = [route]
         self._generate_layered_map(route, is_simulated=False)
 
-    def generate_simulation_map(self, placemark_name: str, timestep: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> SSInterval:
+    def generate_simulation_map(self, placemark_name: str, time_step: float, velocity_step: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> SSInterval:
         """
         Generate a layered simulation map from a placemark.
         Each segment is simulated and displayed as a separate layer.
@@ -37,7 +38,7 @@ class RouteMap:
 
         # Simulate all intervals
         for interval in route:
-            interval.simulate_interval(TIME_STEP=timestep)
+            interval.simulate_interval(TIME_STEP=time_step, VELOCITY_STEP=Speed(mps=velocity_step))
         self._generate_layered_map(route, is_simulated=True, hover_tooltips=hover)
         return join_intervals(route)
 
@@ -49,7 +50,8 @@ class RouteMap:
         self.all_coordinates = []
 
         for i, interval in enumerate(intervals):
-            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
+            # Show all segments by default so every interval is visible initially
+            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=True)
             polylines = self._get_polylines(interval, is_simulated, hover_tooltips)
 
             for polyline in polylines:
@@ -80,7 +82,7 @@ class RouteMap:
         Draws colored segments between consecutive time nodes.
         Returns list of polylines.
         """
-        DECIMATION_INTERVAL = 8
+        DECIMATION_INTERVAL = 1
         DECIMATED_NODES = ssinterval.time_nodes[::DECIMATION_INTERVAL]
 
         coordinates = self.get_time_node_coords(ssinterval.segments, DECIMATED_NODES)
@@ -124,9 +126,9 @@ class RouteMap:
         kmph = _safe_get(tn, "speed.kmph", None)
         if kmph is not None:
             parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
-        accel = _safe_get(tn, "accel", None)
-        if accel is not None:
-            parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
+        acc = _safe_get(tn, "acc", None)
+        if acc is not None:
+            parts.append(f"<b>Accel:</b> {acc:.3f} m/s²")
         Fb = _safe_get(tn, "Fb", None)
         if Fb not in (None, 0):
             parts.append(f"<b>Brake F:</b> {Fb:.0f} N")
@@ -134,8 +136,11 @@ class RouteMap:
         return "<br>".join(parts) if parts else "Node"
 
     def get_speed_color(self, time_node: TimeNode):
+        """
+        Gets the speed color for a particular time node, by indexing speed_colors with the time node's kmph
+        """
         try:
-            color = self.speed_colors[min(int(time_node.speed.kmph) + 100, len(self.speed_colors) - 1)]
+            color = self.speed_colors[min(int(time_node.speed.kmph), len(self.speed_colors) - 1)]
         except IndexError:
             color = self.speed_colors[0]
         return color

@@ -10,3 +10,10 @@ folium
 pytest
 PyQt5
 PyQtWebEngine
+
+# Streamlit dashboard
+streamlit>=1.32.0
+streamlit-folium>=0.18.0
+plotly>=5.18.0
+numpy>=1.24.0
+scipy>=1.11.0
