@@ -1,4 +1,4 @@
-from ..engine.kinematics import Vec, Coordinate, Speed, Velocity
+from ..engine.kinematics import Coordinate, Speed, Velocity
 from ..engine.nodes import Segment
 from ..engine.interval_simulator import SSInterval
 import sqlite3

@@ -3,7 +3,6 @@ from .nodes import Segment, TimeNode
 import copy
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
-from .motor_calcs import motor
 from ..utils import constants
 
 P_STALL = 100
@@ -212,7 +211,6 @@ def test_2():
     a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')
-    import matplotlib.pyplot as plt
     plt.show()    # finally block so they don’t vanish
 
 

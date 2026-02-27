@@ -9,13 +9,13 @@ def main(route_db_path: str = "ASC_2024.sqlite", kml_path: str = "data/ASC_2024.
     import time
     start = time.perf_counter()
     
-    print(f"Starting database initialization...")
+    print("Starting database initialization...")
     print(f"  Database path: {route_db_path}")
     print(f"  KML path: {kml_path}")
     init_route_db(db_path=route_db_path, kml_path=kml_path, remake= True)
     print(f"Database initialized in {time.perf_counter()-start:.2f}s\n")
     
-    print(f"Updating additional data for placemarks...")
+    print("Updating additional data for placemarks...")
     placemarks = parse_kml_file(kml_path)
     
     for i, placemark in enumerate(placemarks, 1):
