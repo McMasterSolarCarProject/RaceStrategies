@@ -50,7 +50,8 @@ class RouteMap:
         self.all_coordinates = []
 
         for i, interval in enumerate(intervals):
-            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
+            # Show all segments by default so every interval is visible initially
+            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=True)
             polylines = self._get_polylines(interval, is_simulated, hover_tooltips)
 
             for polyline in polylines:
