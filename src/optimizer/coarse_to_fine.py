@@ -227,7 +227,7 @@ def optimize_route(
             print_all_results(pass_results)
 
         if i == 5:
-            break 
+            break
 
     # Rebuild final simulation with optimal speeds
     optimized_intervals = []
