@@ -130,7 +130,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_p
 
 def update_speed_limits_from_csv(placemark_name, db_path: str = "ASC_2024.sqlite") -> None:
     """Update speed limits in existing database from CSV files."""
-    print(f"Updating speed limits from CSV files...")
+    print("Updating speed limits from CSV files...")
     
     placemark = fetch_route_intervals(placemark_name, db_path=db_path)
     with sqlite3.connect(db_path) as connection:
