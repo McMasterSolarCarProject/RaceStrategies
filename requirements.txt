@@ -1,12 +1,13 @@
 tzlocal
 matplotlib
+numpy
 pytz
 requests
 scikit-learn
+scipy
 astral
 pytest
 pandas
 folium
-pytest
 PyQt5
 PyQtWebEngine
