@@ -102,7 +102,7 @@ class MotorModel:
 
 
 motor = MotorModel()
-new_voltage = 85
+new_voltage = 96
 motor.set_voltage(new_voltage)
 if __name__ == "__main__":
     motor.plot_model(unit = "mph")

@@ -68,25 +68,34 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
 
     :param datasets: List of datasets, each containing points.
     :param x_field: Attribute name for x-axis values.
-    :param y_field: Attribute name for y-axis values.
+    :param y_field: Attribute name (or list of names) for y-axis values.
     :param name: Name for the output file.
     :param labels: List of labels for each dataset (optional).
     """
+    # Allow both single and multiple y fields
+    if isinstance(y_field, str):
+        y_fields = [y_field]
+    else:
+        y_fields = y_field
+
     colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']  # Color cycle for different datasets
 
     plt.figure(figsize=(8, 6))  # Set figure size
 
     for i, points in enumerate(datasets):
         x_coords = [getattr(point.speed, x_field) for point in points]
-        y_coords = [getattr(point, y_field) for point in points]
 
-        label = labels[i] if labels else f'Dataset {i + 1}'
-        plt.plot(x_coords, y_coords, marker='o', linestyle='-', color=colors[i % len(colors)], label=label)
+        for j, yf in enumerate(y_fields):
+            y_coords = [getattr(point, yf) for point in points]
+            base_label = labels[i] if labels else f'Dataset {i + 1}'
+            label = f'{base_label} - {yf}' if len(y_fields) > 1 else base_label
+            color = colors[(i * len(y_fields) + j) % len(colors)]
+            plt.plot(x_coords, y_coords, marker='o', linestyle='-', color=color, label=label)
 
     # Labels and titles
     plt.xlabel(x_field)
-    plt.ylabel(y_field)
-    plt.title(f'Graph of {x_field} vs {y_field}')
+    plt.ylabel(", ".join(y_fields))
+    plt.title(f'Graph of {x_field} vs {", ".join(y_fields)}')
     plt.legend()
     plt.grid()
 

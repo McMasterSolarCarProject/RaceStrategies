@@ -78,7 +78,7 @@ class StateNode:
     def Power_calc(self):
         self.P_mech = self.torque * self.speed.angular_velocity() * constants.num_motors
         # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
-        self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
+        self.P_bat = self.P_mech / 0.9 # assume 90% efficiency
         self.epm = 0
         if self.speed.mps > 0:
             self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps

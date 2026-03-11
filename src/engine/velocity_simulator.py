@@ -56,12 +56,14 @@ def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_
     """
     from ..utils import constants
     
+    original_mass = constants.car_mass
     nodes_list = []
     for mass in masses:
         constants.car_mass = mass
         nodes = simulate_speed_profile_with_mass(segment, min_speed_lim, max_speed_lim, RESOLUTION)
         nodes_list.append(nodes)
         print(f"Simulated for mass {mass} kg: {len(nodes)} nodes generated.")
+    constants.car_mass = original_mass  # restore original mass
     return nodes_list
 
 
@@ -80,12 +82,13 @@ if __name__ == "__main__":
     nodes = simulate_speed_profile(s1)
     print(f"nodes[0].Fg: {nodes[0].Fg}, s1.gradient: {s1.gradient}")
     # plot_points(nodes, x_field="mph", y_field="epm", name="speed_vs_current")
-    plot_multiple_datasets([nodes], "mph", "epm", 'v_eff')
+    plot_multiple_datasets([nodes], "mph", "P_bat", 'v_eff')
     
     # Test with multiple masses
-    masses = [i for i in range(600, 700, 5)]  # Different car masses in kg
+    masses = [i for i in range(650, 701, 25)]  # Different car masses in kg
     nodes_list = simulate_speed_profiles_multiple_masses(s1, masses)
     labels = [f"Mass {mass} kg" for mass in masses]
     
     print(f"Generated {len(nodes_list)} datasets for masses: {masses}")
-    plot_multiple_datasets(nodes_list, "mph", "epm", 'velocity_vs_epm_multiple_masses', labels=labels)
+    plot_multiple_datasets(nodes_list, "mph", ["Fd", "Frr"], 'velocity_vs_power_multiple_masses', labels=labels)
+    plot_multiple_datasets(nodes_list, "mph", ["P_bat"], 'velocity_vs_power_multiple_masses', labels=labels)
