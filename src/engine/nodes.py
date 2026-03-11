@@ -64,6 +64,7 @@ class StateNode:
             print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
             velocity = Velocity(unit_vec=velocity.unit_vector(), speed=Speed(mps=200))
         finally:
+            # We assume the wind is going against the vehicle. Check for wind verctor direction
             self.Fd = 0.5 * constants.air_density * constants.coef_drag * constants.cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
@@ -78,11 +79,12 @@ class StateNode:
     def Power_calc(self):
         self.P_mech = self.torque * self.speed.angular_velocity() * constants.num_motors
         # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
-        self.P_bat = self.P_mech * 0.9 # assume 90% efficiency
+        self.P_bat = self.P_mech / 0.9 # assume 90% efficiency
         self.epm = 0
         if self.speed.mps > 0:
             self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
 
+    # TODO: Integrate weather stuff, maybe ask battery team for energy equations
     def solar_energy_cal(self):
         self.solar = 0
 
