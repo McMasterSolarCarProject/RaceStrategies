@@ -1,8 +1,6 @@
 from .nodes import Segment, VelocityNode
-from .kinematics import Speed, UNIT_VEC, Vec, Velocity
-from ..utils.graph import plot_points, plot_multiple_datasets
-from .motor_calcs import motor
-from ..utils.constants import car_mass, wheel_radius
+from .kinematics import Speed
+from ..utils.graph import plot_multiple_datasets
 
 
 def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(kmph=20), max_speed_lim: Speed = Speed(kmph=60), RESOLUTION: float = 0.01):

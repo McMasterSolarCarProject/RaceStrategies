@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 from .config import save_plot
 
 
-import matplotlib.pyplot as plt
 
 def plot_SSInterval(datasets, x_field, y_fields, name, labels=None, ax=None, xlabel=None, ylabel=None, title=None):
     import matplotlib.pyplot as plt

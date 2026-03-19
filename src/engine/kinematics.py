@@ -1,7 +1,7 @@
 from __future__ import annotations
 import math
 from ..utils.constants import wheel_radius
-
+from dataclasses import dataclass
 
 class Vec:
     def __init__(self, x, y, z = 0):
@@ -65,22 +65,14 @@ class Vec:
 UNIT_VEC = Vec(1, 0)
 ZERO_VEC = Vec(0, 0)
 
-
+@dataclass
 class Coordinate:  # Should Be Calculated in Meters
     """Longitude, Latitude & Elevation taken from KML files"""
-    def __init__(self, lat: float, lon: float, elevation: float = 0):
-        self.lat = lat
-        self.lon = lon
-        self.elevation = elevation
+    lat: float
+    lon: float
+    elevation: float = 0
 
-    def __str__(self):
-        return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
-
-    def __repr__(self):
-        return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
-    
 NULL_COORDINATE = Coordinate(0,0,0)
-
 
 class Displacement(Vec):  # East-North-Up
     def __init__(self, p1: Coordinate, p2: Coordinate):

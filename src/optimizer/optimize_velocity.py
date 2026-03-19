@@ -1,8 +1,6 @@
 from __future__ import annotations
 import time
 from ..database.fetch_route_intervals import fetch_route_intervals
-from ..engine.interval_simulator import SSInterval, join_intervals
-from ..engine.kinematics import Speed
 import numpy as np
 from itertools import product
 

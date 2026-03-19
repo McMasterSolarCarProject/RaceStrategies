@@ -1,5 +1,4 @@
 from __future__ import annotations
-import pandas as pd
 import folium
 import matplotlib.colors as mcolors
 import numpy as np

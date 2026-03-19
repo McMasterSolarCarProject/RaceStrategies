@@ -3,7 +3,6 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import pytest
 import math
 from src.engine.kinematics import Vec, Coordinate, Velocity, Displacement, Speed, ZERO_VELOCITY, UNIT_VEC
 

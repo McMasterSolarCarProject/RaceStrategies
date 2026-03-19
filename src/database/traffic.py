@@ -4,7 +4,6 @@ import sqlite3
 import requests
 import json
 import time
-from math import cos, asin, sqrt, pi
 from ..engine.kinematics import Coordinate, Displacement
 from .fetch_route_intervals import fetch_route_intervals
 

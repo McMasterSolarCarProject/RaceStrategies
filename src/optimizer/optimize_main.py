@@ -7,7 +7,7 @@ from itertools import product
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.interval_simulator import SSInterval, join_intervals
 from ..engine.kinematics import Speed, Velocity
-from ..engine.nodes import Segment, VelocityNode
+from ..engine.nodes import VelocityNode
 
 
 def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:

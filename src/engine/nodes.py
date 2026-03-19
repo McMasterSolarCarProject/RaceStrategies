@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .kinematics import Vec, Velocity, Displacement, Speed, Coordinate, ZERO_VEC, UNIT_VEC, NULL_COORDINATE, ZERO_VELOCITY
+from .kinematics import Velocity, Displacement, Speed, Coordinate, ZERO_VEC, NULL_COORDINATE
 from ..utils import constants
 from .motor_calcs import motor
 

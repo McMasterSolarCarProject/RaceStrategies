@@ -3,8 +3,6 @@ import os
 from PyQt5.QtWidgets import QVBoxLayout, QWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from ..route_map import RouteMap
-from ...database.fetch_route_intervals import fetch_route_intervals
-from ...engine.interval_simulator import SSInterval
 
 
 # make this into a widget

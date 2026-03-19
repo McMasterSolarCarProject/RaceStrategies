@@ -1,12 +1,6 @@
-import sqlite3
-from pytz import timezone
 import time
-import datetime
 
-from src.database.traffic import update_traffic
-from .engine.kinematics import Coordinate, Speed
 from .engine.interval_simulator import SSInterval  # Adjust as needed
-from .engine.nodes import Segment
 from .database import  fetch_route_intervals
 from .engine.interval_simulator import join_intervals
 
