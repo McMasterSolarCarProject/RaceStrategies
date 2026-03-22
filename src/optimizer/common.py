@@ -10,6 +10,7 @@ Contains:
 from __future__ import annotations
 
 import time
+import copy
 import numpy as np
 from dataclasses import dataclass
 
@@ -187,3 +188,103 @@ def _snap_to_grid(value: float, grid: np.ndarray) -> int:
                      abs(grid[idx - 1] - value) <= abs(grid[idx] - value)):
         idx -= 1
     return idx
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Multi-lap strategy (start → middle×n → end)
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class LapStrategyResult:
+    """Result from simulate_lap_strategy."""
+    combined_interval: SSInterval
+    num_middle_laps: int
+    time_start: float
+    time_middle: float
+    time_end: float
+    total_time: float
+    energy_start: float
+    energy_middle_total: float
+    energy_end: float
+
+
+def simulate_lap_strategy(
+    start_interval: SSInterval,
+    middle_interval: SSInterval,
+    end_interval: SSInterval,
+    time_budget_seconds: float,
+    verbose: bool = True,
+) -> LapStrategyResult:
+    """
+    Simulate a 3-lap race strategy: START → MIDDLE×n → END.
+
+    The start and end laps are simulated once each. The middle lap is
+    simulated once, then repeated as many times as the time budget allows.
+
+    Parameters
+    ----------
+    start_interval : SSInterval
+        First lap (e.g., fresh battery tactics).
+    middle_interval : SSInterval
+        Repeatable middle lap (fills most of race time).
+    end_interval : SSInterval
+        Final lap (e.g., manage remaining energy).
+    time_budget_seconds : float
+        Total available time (seconds).
+    verbose : bool
+        Print diagnostic info.
+
+    Returns
+    -------
+    LapStrategyResult
+        Contains combined_interval (simulated full race), lap times,
+        energy per lap, and number of complete middle laps.
+    """
+    if verbose:
+        print(f"[Lap Strategy] Simulating with {time_budget_seconds:.1f}s budget...")
+
+    # Simulate each lap phase
+    start_interval.simulate_interval()
+    time_start = start_interval.time_nodes[-1].time
+    energy_start = 0  # Energy tracking not implemented on TimeNode
+
+    middle_interval.simulate_interval()
+    time_middle = middle_interval.time_nodes[-1].time
+    energy_middle = 0  # Energy tracking not implemented on TimeNode
+
+    end_interval.simulate_interval()
+    time_end = end_interval.time_nodes[-1].time
+    energy_end = 0  # Energy tracking not implemented on TimeNode
+
+    # Calculate how many complete middle laps fit
+    time_remaining = time_budget_seconds - time_start - time_end
+    num_middle_laps = max(0, int(time_remaining / time_middle))
+    total_time = time_start + (num_middle_laps * time_middle) + time_end
+
+    if verbose:
+        print(f"  Start: {time_start:.1f}s ({energy_start:.0f}J)")
+        print(f"  Middle: {time_middle:.1f}s ({energy_middle:.0f}J) × {num_middle_laps}")
+        print(f"  End: {time_end:.1f}s ({energy_end:.0f}J)")
+        print(f"  Total: {total_time:.1f}s / {time_budget_seconds:.1f}s")
+
+    # Combine into single interval
+    combined = copy.deepcopy(start_interval)
+
+    for _ in range(num_middle_laps):
+        middle_copy = copy.deepcopy(middle_interval)
+        combined += middle_copy
+
+    end_copy = copy.deepcopy(end_interval)
+    combined += end_copy
+
+    return LapStrategyResult(
+        combined_interval=combined,
+        num_middle_laps=num_middle_laps,
+        time_start=time_start,
+        time_middle=time_middle,
+        time_end=time_end,
+        total_time=total_time,
+        energy_start=energy_start,
+        energy_middle_total=energy_middle * num_middle_laps,
+        energy_end=energy_end,
+    )
