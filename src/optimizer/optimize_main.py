@@ -10,6 +10,23 @@ from ..engine.kinematics import Speed, Velocity
 from ..engine.nodes import VelocityNode
 
 
+def calculate_asc_score(distance_km: float, energy_used_kwh: float, pack_capacity_kwh: float = 15.5) -> float:
+    """
+    Calculates the ASC 2026 MOV Optimization Score.
+    Assumes an average occupancy of 2 and no unmetered charging events.
+    Formula: Score = D + (2D / (Q + M))^(1/3)
+    Where M is metered charging needed (in kWh) if energy_used > Q.
+    Pack Capacity is set at 15.5 default since it's the limit for the MOV in ASC Regulations.
+    """
+    m_metered = max(0.0, energy_used_kwh - pack_capacity_kwh)
+    eu_kwh = pack_capacity_kwh + m_metered
+    if eu_kwh <= 0:
+        return distance_km
+    
+    score = distance_km + ((2 * distance_km) / eu_kwh) ** (1 / 3)
+    return score
+
+
 def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
     """
     Override v_eff and t_eff on every segment of a single SSInterval **in-place**.
@@ -245,6 +262,19 @@ def optimize_route(
         print(f"\n{'='*60}")
         print(f"Optimization complete in {elapsed:.1f}s")
         print(f"Total route time: {total_time:.1f}s ({total_time / 3600:.2f}h)")
+        
+        # Calculate and print ASC Score
+        """
+        dist_m = master.time_nodes[-1].dist if hasattr(master.time_nodes[-1], 'dist') else 0.0
+        dist_km = dist_m / 1000.0
+        energy_kwh = master.time_nodes[-1].energy_used_kwh if hasattr(master.time_nodes[-1], 'energy_used_kwh') else 0.0
+        score = calculate_asc_score(dist_km, energy_kwh)
+        print(f"Total Distance: {dist_km:.2f} km")
+        print(f"Total Energy Used: {energy_kwh:.2f} kWh")
+        print(f"ASC Optimization Score: {score:.2f}")
+        """
+        
+        
         for i, (speeds, t) in enumerate(zip(all_best_speeds, all_best_times)):
             print(f"  Interval {i+1}: {t:.1f}s | speeds: {[round(s, 1) for s in speeds]}")
 

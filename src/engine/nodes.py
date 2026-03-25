@@ -47,6 +47,7 @@ class StateNode:
         self.P_bat = 0
         self.epm = 0
         self.solar = 0
+        self.energy_used_kwh = 0.0
 
     def Fm_calc(self):
         # if velocity.mag <= 0.2:
@@ -103,14 +104,16 @@ class TimeNode(StateNode):
         "dist": "Distance (m)",
         "acc": "Acceleration (m/s²)",
         "soc": "State of Charge (%)",
+        "energy_used_kwh": "Energy Used (kWh)",
     }
 
-    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0, energy_used_kwh: float = 0.0):
         super().__init__(segment, torque, Fb, speed)
         self.time = time
         self.dist = dist
         self.acc = acc
         self.soc = soc
+        self.energy_used_kwh = energy_used_kwh
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, time_step):
         self.Fm_calc()
