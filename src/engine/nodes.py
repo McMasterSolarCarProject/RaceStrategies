@@ -82,11 +82,20 @@ class StateNode:
         self.P_bat = self.P_mech / 0.9 # assume 90% efficiency
         self.epm = 0
         if self.speed.mps > 0:
-            self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
+            self.epm = self.P_bat / (self.speed.mps) - self.solar #/ self.velocity.mps
 
     # TODO: Integrate weather stuff, maybe ask battery team for energy equations
     def solar_energy_cal(self):
-        self.solar = 0
+        from .solar_cell_data import CarSolarCells, SolarCell
+        segment = self.segment
+        if segment_id not in StateNode._solar_cache:
+            
+            # not sure about the actual angles rn so using 0
+            tilts = constants.TILTS
+            car_solar = CarSolarCells(segment=self.segment, tilt_list=tilts)
+            StateNode._solar_cache[segment_id] = car_solar.total_power_output()
+        self.solar = StateNode._solar_cache[segment_id]
+            
 
     @classmethod
     def get_numerical_metrics(cls) -> list[str]:
