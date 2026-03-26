@@ -51,32 +51,29 @@ def run():
             if st.session_state.get("last_kml") != kml_file.name:
                 with st.spinner("Processing KML file..."):
                     try:
-                        upload_kml(kml_path.as_posix())
+                        upload_kml(kml_path.as_posix(), db_path=Path(kml_path).with_suffix(".sqlite").as_posix())
                         st.session_state.last_kml = kml_file.name
                         st.success("KML loaded")
                     except Exception as e:
                         st.error(f"KML upload failed: {e}")
-                        raise e
                         st.stop()
+                        raise e
 
-        # Database selection
         # SQLite upload
         sqlite_file = st.file_uploader("SQLite Database", type=["sqlite"], key="sqlite_upload")
+        Path("tmp").mkdir(exist_ok=True)
         if sqlite_file is not None:
-            Path("tmp").mkdir(exist_ok=True)
-            db_path = Path("tmp", sqlite_file.name)
-            with open(db_path, "wb") as f:
+            upload_db_path = Path("tmp", sqlite_file.name)
+            with open(upload_db_path, "wb") as f:
                 f.write(sqlite_file.getbuffer())
-        else:
+
+        # Database selection
+        db_files = [f"tmp/{f.name}" for f in Path("tmp").iterdir() if f.suffix == ".sqlite"]
+        if not db_files:
             st.warning("Please upload a SQLite database file")
             st.stop()
-
-        # db_files = [f for f in os.listdir(".") if f.endswith(".sqlite")]
-        # if not db_files:
-        #     st.error("No SQLite database files found in current directory")
-        #     st.stop()
-
-        # db_path = st.selectbox("Database", db_files, index=0 if "ASC_2024.sqlite" not in db_files else db_files.index("ASC_2024.sqlite"))
+        db_path = st.selectbox("Database", db_files, index=0 if "ASC_2024.sqlite" not in db_files else db_files.index("ASC_2024.sqlite"))
+        db_path = Path(db_path)
 
         # Get available placemarks
         try:
@@ -127,10 +124,9 @@ def run():
             try:
                 config = SimulationConfig(placemark=placemark, db_path=db_path, time_step=time_step, velocity_step=velocity_step, split_at_stops=split_at_stops, hover=True)
                 import sqlite3
+
                 conn = sqlite3.connect(db_path.as_posix())
-                count = conn.execute(
-                    "SELECT COUNT(*) FROM route_data WHERE placemark_name = ?", (placemark,)
-                ).fetchone()[0]
+                count = conn.execute("SELECT COUNT(*) FROM route_data WHERE placemark_name = ?", (placemark,)).fetchone()[0]
                 conn.close()
                 st.write(f"DB path: {db_path.as_posix()}")
                 st.write(f"Rows for '{placemark}': {count}")

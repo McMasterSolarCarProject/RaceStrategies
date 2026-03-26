@@ -5,11 +5,13 @@ from ...database.update_velocity import update_target_velocity
 from ...database.traffic import update_traffic
 
 
-def upload_kml(kml_path: str) -> str:
+def upload_kml(kml_path: str, db_path: str = "") -> str:
     """
     Backend function that uses the uploaded kml file to populate the sqlite file
     """
-    db_path = kml_path.replace(".kml", ".sqlite")
+    if db_path == "":
+        db_path = kml_path.replace(".kml", ".sqlite")
+
     init_route_db(db_path=db_path, remake=True, kml_path=kml_path)  # set this to true to remake database each time
 
     placemarks = parse_kml_file(kml_path)
