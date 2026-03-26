@@ -2,6 +2,7 @@ from ...database.init_route_table import init_route_db
 from ...database.parse_kml import parse_kml_file
 from ...database.speed_limits import update_speed_limits_from_csv, update_curvature_speed_limits
 from ...database.update_velocity import update_target_velocity
+from ...database.traffic import update_traffic
 
 
 def upload_kml(kml_path: str) -> str:
@@ -12,11 +13,15 @@ def upload_kml(kml_path: str) -> str:
     init_route_db(db_path=db_path, remake=True, kml_path=kml_path)  # set this to true to remake database each time
 
     placemarks = parse_kml_file(kml_path)
-
     for i, placemark in enumerate(placemarks, 1):
         print(f"Updating placemark {i}/{len(placemarks)}: {placemark}")
         update_speed_limits_from_csv(placemark, db_path=db_path)
         update_curvature_speed_limits(placemark, db_path=db_path)
         update_target_velocity(placemark, db_path=db_path)
+
+    # update_traffic(list(placemarks.keys())[0], db_path=db_path)
+
+    # for placemark in placemarks:
+    # update_traffic(placemark, db_path=db_path)
 
     return db_path

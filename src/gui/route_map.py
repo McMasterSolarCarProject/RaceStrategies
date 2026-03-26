@@ -81,7 +81,7 @@ class RouteMap:
         Draws colored segments between consecutive time nodes.
         Returns list of polylines.
         """
-        DECIMATION_INTERVAL = 1
+        DECIMATION_INTERVAL = 10
         DECIMATED_NODES = ssinterval.time_nodes[::DECIMATION_INTERVAL]
 
         coordinates = self.get_time_node_coords(ssinterval.segments, DECIMATED_NODES)
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
     start = time.time()
     route_map2 = RouteMap()
-    route_map2.generate_simulation_map("A. Independence to Topeka", timestep=0.5, hover=True)
+    route_map2.generate_simulation_map("A. Independence to Topeka", time_step=0.5, hover=True)
     route_map2.save_map("maps/route_map_simulated")
     end = time.time()
     print(f"Map generation took {end - start} seconds")

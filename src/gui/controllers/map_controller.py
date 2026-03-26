@@ -15,9 +15,9 @@ class MapController(QWidget):
         self.simulated_route = None
         # Web view for the folium HTML
         self.webview = QWebEngineView()
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.webview)
-        self.setLayout(self.layout)
+        self.box_layout = QVBoxLayout()
+        self.box_layout.addWidget(self.webview)
+        self.setLayout(self.box_layout)
 
     def generate_no_simulation(self, name: str, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
         """
