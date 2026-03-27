@@ -103,14 +103,16 @@ class TimeNode(StateNode):
         "dist": "Distance (m)",
         "acc": "Acceleration (m/s²)",
         "soc": "State of Charge (%)",
+        "energy": "Energy Used (J)",
     }
 
-    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0, energy: float = 0):
         super().__init__(segment, torque, Fb, speed)
         self.time = time
         self.dist = dist
         self.acc = acc
         self.soc = soc
+        self.energy = energy
 
     def solve_TimeNode(self, initial_TimeNode: TimeNode, time_step):
         self.Fm_calc()
@@ -123,6 +125,9 @@ class TimeNode(StateNode):
         self.speed = Speed(initial_TimeNode.speed.mps + self.acc * time_step)
         self.dist = initial_TimeNode.dist + initial_TimeNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
         self.Power_calc()
+        
+        # Accumulate energy (Joules = Watts * seconds)
+        self.energy = getattr(initial_TimeNode, 'energy', 0) + (self.P_bat * time_step)
 
         # Electrical Calcs
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar

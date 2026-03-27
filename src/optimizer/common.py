@@ -288,3 +288,20 @@ def simulate_lap_strategy(
         energy_middle_total=energy_middle * num_middle_laps,
         energy_end=energy_end,
     )
+
+def calculate_asc_score(distance_km: float, energy_used_kwh: float, pack_capacity_kwh: float = 15.5) -> float:
+    """
+    Calculates the ASC 2026 MOV Optimization Score.
+    Assumes an average occupancy of 2 and no unmetered charging events.
+    Formula: Score = D + (2D / (Q + M))^(1/3)
+    Where M is metered charging needed (in kWh) if energy_used > Q.
+    Pack Capacity is set at 15.5 default since it's the limit for the MOV in ASC Regulations.
+    """
+    m_metered = max(0.0, energy_used_kwh - pack_capacity_kwh)
+    eu_kwh = pack_capacity_kwh + m_metered
+    if eu_kwh <= 0:
+        return distance_km
+    
+    score = distance_km + ((2 * distance_km) / eu_kwh) ** (1 / 3)
+    return score
+

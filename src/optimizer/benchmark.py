@@ -201,6 +201,15 @@ def optimize_route(
         for i, (spd, t) in enumerate(zip(all_speeds, all_times)):
             print(f"  Interval {i+1}: {t:.1f}s | "
                   f"speeds={[round(s, 1) for s in spd]}")
+                  
+        from .common import calculate_asc_score
+        dist_m = master.time_nodes[-1].dist if hasattr(master.time_nodes[-1], 'dist') else 0.0
+        dist_km = dist_m / 1000.0
+        energy_kwh = master.time_nodes[-1].energy if hasattr(master.time_nodes[-1], 'energy') else 0.0
+        score = calculate_asc_score(dist_km, energy_kwh)
+        print(f"Total Distance: {dist_km:.2f} km")
+        print(f"Total Energy Used: {energy_kwh:.2f} kWh")
+        print(f"ASC Optimization Score: {score:.2f}")
 
     return {
         "best_profile": all_speeds,
