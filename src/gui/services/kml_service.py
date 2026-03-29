@@ -21,7 +21,7 @@ def upload_kml(kml_path: str, db_path: str = "") -> str:
         update_curvature_speed_limits(placemark, db_path=db_path)
         update_target_velocity(placemark, db_path=db_path)
 
-    # update_traffic(list(placemarks.keys())[0], db_path=db_path)
+    update_traffic(list(placemarks.keys())[0], db_path=db_path)
 
     # for placemark in placemarks:
     # update_traffic(placemark, db_path=db_path)
