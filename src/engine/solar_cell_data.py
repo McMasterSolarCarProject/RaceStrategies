@@ -101,7 +101,7 @@ class SolarCell:
 
         assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
         self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
-        self._incident_diffuse = self._segment.ghi  # W/m^2
+        self._incident_diffuse = self._segment.ghi if self._segment.ghi is not None else 0.0
 
         self._location = LocationInfo(f"Location at ({self._lat}, {self._lon})", "United States", self._time.tzinfo, self._lat, self._lon)
         self._sun_elevation_angle = max(0, elevation(self._location.observer, self._time))
