@@ -20,8 +20,8 @@ class GraphController(QWidget):
 
         self.simulated_route: SSInterval | None = None
         # Layout
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.box_layout = QVBoxLayout()
+        self.setLayout(self.box_layout)
 
         # Add dropdown for x field 1, y field 1, x field 2, y field 2
         dropdown_layout = QGridLayout()
@@ -39,21 +39,21 @@ class GraphController(QWidget):
         dropdown_layout.addWidget(self.x2_dropdown, 2, 1)
         dropdown_layout.addWidget(QLabel("Graph 2 Y Value"), 3, 0)
         dropdown_layout.addWidget(self.y2_dropdown, 3, 1)
-        self.layout.addLayout(dropdown_layout)
+        self.box_layout.addLayout(dropdown_layout)
         # Populate with TimeNode metrics
         self.populate_dropdowns()
 
         # Button to generate graphs
         self.generate_button = QPushButton("Generate Graphs")
         self.generate_button.clicked.connect(frontend_func)
-        self.layout.addWidget(self.generate_button)
+        self.box_layout.addWidget(self.generate_button)
 
         # Matplotlib figure and canvas
         self.figure, self.axes = plt.subplots(2, 1)
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
+        self.box_layout.addWidget(self.toolbar)
+        self.box_layout.addWidget(self.canvas)
 
     def populate_dropdowns(self):
         """
