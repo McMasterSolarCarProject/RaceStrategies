@@ -32,6 +32,7 @@ class StateNode:
         "speed.kmph": "Velocity (km/h)",
         "speed.mph": "Velocity (mph)",
         "Fm": "Motor Force (N)",
+        "solar": "Solar Power (W)",
     }
 
     def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
@@ -108,11 +109,6 @@ class TimeNode(StateNode):
         "dist": "Distance (m)",
         "acc": "Acceleration (m/s²)",
         "soc": "State of Charge (%)",
-        "solar": "Solar Power (W)",
-        "ghi": "Global Horizontal Irradiance (W/m²)",
-        "dni": "Direct Normal Irradiance (W/m²)",
-        "dhi": "Diffuse Horizontal Irradiance (W/m²)",
-        "v_eff.kmph": "Effective Velocity (km/h)",
     }
 
     def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
