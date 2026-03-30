@@ -12,6 +12,9 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
     cursor.execute(query, (placemark_name,))
     rows = cursor.fetchall()
 
+    if not rows:
+        raise ValueError(f"No data found for placemark '{placemark_name}' in database '{db_path}'")
+
     ssintervals = []
     segments = []
     # print(f"Total rows: {len(rows)}, split_at_stops: {split_at_stops}")

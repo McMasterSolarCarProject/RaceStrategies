@@ -14,7 +14,7 @@ python -m src
 ```
 run gui with:
 ```bash
-python -m src.gui.main_gui
+streamlit run src/streamlit_app.py
 ```
 
 modify database setup in database.__main__.py
@@ -41,3 +41,4 @@ modify sim setup in src.main.py
 
 ## Utils:
  - Create a config type python module which takes some json files with a bunch of sim configs
+
