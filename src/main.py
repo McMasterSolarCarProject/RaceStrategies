@@ -30,7 +30,6 @@ def main():
     for i in range(min(100000, len(intervals))):
         print(f"Simulating Interval {i+1} of {len(intervals)}")
         intervals[i].simulate_interval()
-        intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"velocity_comparison_{i+1}")
         # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
         print("\n\n")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")

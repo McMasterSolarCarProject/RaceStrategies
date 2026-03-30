@@ -2,16 +2,19 @@ from __future__ import annotations
 from .kinematics import Velocity, Displacement, Speed, Coordinate, ZERO_VEC, NULL_COORDINATE
 from ..utils import constants
 from .motor_calcs import motor
+from .solar_cell_data import CarSolarCells
 
 # Speed takes mps as the default parameter, so all calculations are in mps
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0, tdist: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, dni: float = 0, dhi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0, tdist: float = 0):
         self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
         self.t_eff = t_eff
         self.ghi = ghi
+        self.dni = dni
+        self.dhi = dhi
         self.wind = wind
         self.speed_limit = speed_limit
         self.tdist = tdist
@@ -83,20 +86,9 @@ class StateNode:
         self.epm = 0
         if self.speed.mps > 0:
             self.epm = self.P_bat / (self.speed.mps) - self.solar #/ self.velocity.mps
-
-    _solar_cache = {}
   
     def solar_energy_cal(self):
-        from .solar_cell_data import CarSolarCells
-        segment_id = self.segment.id
-        if segment_id not in StateNode._solar_cache:
-            flat_tilts = []
-            for region, panel_groups in constants.TILTS.items():
-                for group_name, angles in panel_groups.items():
-                    flat_tilts.extend(angles)
-            car_solar = CarSolarCells(segment=self.segment, tilt_list=flat_tilts)
-            StateNode._solar_cache[segment_id] = car_solar.total_power_output()
-        self.solar = StateNode._solar_cache[segment_id]
+        self.solar = CarSolarCells.get_power(self.segment)
             
 
     @classmethod
@@ -116,6 +108,11 @@ class TimeNode(StateNode):
         "dist": "Distance (m)",
         "acc": "Acceleration (m/s²)",
         "soc": "State of Charge (%)",
+        "solar": "Solar Power (W)",
+        "ghi": "Global Horizontal Irradiance (W/m²)",
+        "dni": "Direct Normal Irradiance (W/m²)",
+        "dhi": "Diffuse Horizontal Irradiance (W/m²)",
+        "v_eff.kmph": "Effective Velocity (km/h)",
     }
 
     def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):

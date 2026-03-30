@@ -41,7 +41,8 @@ def retrieve_data(lat, lon, time):
             "temperature_2m",
             "wind_speed_10m",
             "shortwave_radiation",
-            "shortwave_radiation_instant",
+            "direct_normal_irradiance",  # replaces shortwave_radiation_instant
+            "diffuse_radiation",
             "wind_direction_10m",
         ],
     }
@@ -62,8 +63,9 @@ def retrieve_data(lat, lon, time):
             "temperature_2m": minutely_15.Variables(0).ValuesAsNumpy(),
             "wind_speed_10m": minutely_15.Variables(1).ValuesAsNumpy(),
             "shortwave_radiation": minutely_15.Variables(2).ValuesAsNumpy(),
-            "shortwave_radiation_instant": minutely_15.Variables(3).ValuesAsNumpy(),
-            "wind_direction_10m": minutely_15.Variables(4).ValuesAsNumpy(),
+            "direct_normal_irradiance": minutely_15.Variables(3).ValuesAsNumpy(),
+            "diffuse_radiation": minutely_15.Variables(4).ValuesAsNumpy(),
+            "wind_direction_10m": minutely_15.Variables(5).ValuesAsNumpy(),
         }
     )
 
@@ -74,7 +76,8 @@ def retrieve_data(lat, lon, time):
 
 
 def weather_assess():
-    conn = sqlite3.connect("data/data.sqlite")
+    # TODO: Make ASC_2024.sqlite a parameter instead of hardcoding it here
+    conn = sqlite3.connect("ASC_2024.sqlite")
     
     df = pd.read_sql_query("SELECT * FROM route_data", conn)
 
@@ -109,6 +112,8 @@ def weather_assess():
 
         # Pin the exact API data to this specific row index
         df.at[idx, 'ghi'] = float(data["shortwave_radiation"].iloc[0])
+        df.at[idx, 'dni'] = float(data["direct_normal_irradiance"].iloc[0])
+        df.at[idx, 'dhi'] = float(data["diffuse_radiation"].iloc[0])
         df.at[idx, 'wind_speed'] = float(data["wind_speed_10m"].iloc[0])
 
         # Convert wind direction into safe vector components for circular interpolation
@@ -123,6 +128,8 @@ def weather_assess():
 
     # Perform the mathematical interpolation across all NaN rows
     df['ghi'] = df['ghi'].interpolate(method='index')
+    df['dni'] = df['dni'].interpolate(method='index')
+    df['dhi'] = df['dhi'].interpolate(method='index')
     df['wind_speed'] = df['wind_speed'].interpolate(method='index')
     df['wind_dir_sin'] = df['wind_dir_sin'].interpolate(method='index')
     df['wind_dir_cos'] = df['wind_dir_cos'].interpolate(method='index')

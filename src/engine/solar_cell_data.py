@@ -1,8 +1,11 @@
 from __future__ import annotations
-from .nodes import Segment
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .nodes import Segment
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
-from ..utils.constants import CELL_AREA
+from ..utils.constants import CELL_AREA, TILTS
 import math
 import datetime
 
@@ -12,8 +15,11 @@ class CarSolarCells:
     This class will contain all the solar cells for a car.
     """
 
+    _cache: dict = {}
+    _flat_tilts: list[float] | None = None
+
     def __init__(self, segment: Segment, tilt_list: list[float], time: datetime.datetime = None):
-        assert isinstance(segment, Segment), "segment must be an instance of Segment"
+        assert segment is not None, "segment must be an instance of Segment"
         assert isinstance(tilt_list, list), "tilt_list must be a list of tilt angles"
         if time:
             assert isinstance(time, datetime.datetime), "time must be a datetime object"
@@ -35,7 +41,7 @@ class CarSolarCells:
         Updates the solar cells with new segment and time.
         """
         if new_segment:
-            assert isinstance(new_segment, Segment), "new_segment must be an instance of Segment"
+            assert new_segment is not None, "new_segment must be an instance of Segment"
             self._segment = new_segment
         if new_time:
             assert isinstance(new_time, datetime.datetime), "new_time must be a datetime object"
@@ -60,6 +66,29 @@ class CarSolarCells:
         """
         return sum(cell.cell_power_out for cell in self._solar_cells)
 
+    @classmethod
+    def _get_flat_tilts(cls) -> list[float]:
+        if cls._flat_tilts is None:
+            flat_tilts = []
+            for region, panel_groups in TILTS.items():
+                for group_name, angles in panel_groups.items():
+                    flat_tilts.extend(angles)
+            cls._flat_tilts = flat_tilts
+        return cls._flat_tilts
+
+    @classmethod
+    def get_power(cls, segment: Segment) -> float:
+        cache_key = (segment.id, segment.ghi)
+        if cache_key not in cls._cache:
+            instance = cls(segment=segment, tilt_list=cls._get_flat_tilts())
+            cls._cache[cache_key] = instance.total_power_output()
+        return cls._cache[cache_key]
+
+    @classmethod
+    def clear_cache(cls):
+        cls._cache.clear()
+        cls._flat_tilts = None
+
     def __iter__(self):
         """
         Returns an iterator over the solar cells.
@@ -73,7 +102,7 @@ class SolarCell:
     """
 
     def __init__(self, segment: Segment, tilt: float, time: datetime.datetime):
-        assert isinstance(segment, Segment), "segment must be an instance of Segment"
+        assert segment is not None, "segment must be an instance of Segment"
         assert isinstance(tilt, (int, float)), "tilt must be a number"
         if time:
             assert isinstance(time, datetime.datetime), "time must be a datetime object"
@@ -99,22 +128,30 @@ class SolarCell:
 
         azimuth_angle = self._segment.azimuth  # to be implemented soon
 
-        assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
-        self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
-        self._incident_diffuse = self._segment.ghi if self._segment.ghi is not None else 0.0
-
         self._location = LocationInfo(f"Location at ({self._lat}, {self._lon})", "United States", self._time.tzinfo, self._lat, self._lon)
         self._sun_elevation_angle = max(0, elevation(self._location.observer, self._time))
         self._sun_azimuth_angle = azimuth(self._location.observer, self._time)
 
-        self._cell_irradiance = self._incident_diffuse * (
-            math.cos(math.radians(self._sun_elevation_angle)) * math.sin(math.radians(self._tilt)) * math.cos(math.radians(self._heading_azimuth_angle - self._sun_azimuth_angle))
-            + math.sin(math.radians(self._sun_elevation_angle)) * math.cos(math.radians(self._tilt))
-        )
+        assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
+        self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
+        ghi = self._segment.ghi if self._segment.ghi is not None else 0.0
+        dni = self._segment.dni if self._segment.dni is not None else 0.0
+        dhi = self._segment.dhi if self._segment.dhi is not None else 0.0
+        tilt_rad = math.radians(abs(self._tilt))
 
-        if isinstance(self._incident_diffuse, complex):
-            print("Complex incident diffuse value detected.")
-            print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
+        aoi = math.cos(math.radians(self._sun_elevation_angle)) * math.sin(tilt_rad) * math.cos(math.radians(self._heading_azimuth_angle - self._sun_azimuth_angle)) + math.sin(
+            math.radians(self._sun_elevation_angle)
+        ) * math.cos(tilt_rad)
+
+        beam = dni * max(0, aoi)
+        diffuse = dhi * (1 + math.cos(tilt_rad)) / 2
+        ground = ghi * 0.2 * (1 - math.cos(tilt_rad)) / 2  # 0.2 = typical albedo
+
+        self._cell_irradiance = beam + diffuse + ground
+
+        # if isinstance(self.diffuse, complex):
+        #     print("Complex incident diffuse value detected.")
+        #     print(self.diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
         self._cell_power_out = max(0, self._cell_irradiance * self._EFF * CELL_AREA)  # watts
@@ -124,7 +161,7 @@ class SolarCell:
         Updates the segment and time for the solar cell data, and recalculates the power output.
         """
         if new_segment:
-            assert isinstance(new_segment, Segment), "new_segment must be an instance of Segment"
+            assert new_segment is not None, "new_segment must be an instance of Segment"
             self._segment = new_segment
         if new_time:
             assert isinstance(new_time, datetime.datetime), "new_time must be a datetime object"
@@ -169,6 +206,5 @@ class SolarCell:
             f"CellSolarData(segment={self._segment}, lon={self._lon}, elevation={self._elevation}, "
             f"time={self._time}, tilt={self._tilt}, heading_azimuth_angle={self._heading_azimuth_angle}, "
             f"sun_elevation_angle={self._sun_elevation_angle}, sun_azimuth_angle={self._sun_azimuth_angle}, "
-            f"incident_diffuse={self._incident_diffuse}, cell_irradiance={self._cell_irradiance}, "
-            f"cell_power_out={self._cell_power_out})"
+            f"cell_irradiance={self._cell_irradiance}, cell_power_out={self._cell_power_out})"
         )

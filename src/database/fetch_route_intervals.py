@@ -56,7 +56,16 @@ def create_segment(checkpoint: sqlite3.Row, next_checkpoint: sqlite3.Row) -> Seg
     next_coord = Coordinate(next_checkpoint["lat"], next_checkpoint["lon"], next_checkpoint["elevation"])
     # wind = Velocity(Vec(checkpoint["wind_dir"]), Speed(kmph=checkpoint["wind_speed"]))
     wind = Velocity()
-    return Segment(current_coord, next_coord, checkpoint["id"],Speed(kmph=checkpoint["speed_limit"]), checkpoint["ghi"], wind, Speed(kmph= checkpoint["speed"]), checkpoint["torque"])
+    return Segment(current_coord,
+                   next_coord,
+                   checkpoint["id"],
+                   Speed(kmph=checkpoint["speed_limit"]),
+                   checkpoint["ghi"],
+                   checkpoint["dni"],
+                   checkpoint["dhi"],
+                   wind,
+                   Speed(kmph= checkpoint["speed"]),
+                   checkpoint["torque"],)
 
 
 if __name__ == "__main__":

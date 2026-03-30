@@ -10,3 +10,7 @@ folium
 pytest
 PyQt5
 PyQtWebEngine
+openmeteo_requests
+requests_cache
+retry_requests
+
