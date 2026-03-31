@@ -29,34 +29,39 @@ class StateNode:
         "speed.kmph": "Velocity (km/h)",
         "speed.mph": "Velocity (mph)",
         "Fm": "Motor Force (N)",
+        "acc": "Acceleration (m/s²)",
     }
 
-    def __init__(self, segment: Segment, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
+    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
         self.segment = segment
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
         
-        self.Fm = 0
-        self.Fd = 0
-        self.Frr = 0
-        self.Fg = 0
-        self.Ft = 0
+        self.Fm = 0 # motor force
+        self.Fd = 0 # drag force
+        self.Frr = 0 # rolling resistance force
+        self.Fg = 0 # gravitational force (x component)
+        self.Ft = 0 # total force
+        self.acc = 0 # acceleration
 
-        self.P_mech = 0
-        self.P_bat = 0
+        self.P_out = 0 # Power output from the motor
+        self.P_in = 0 # Power input to the motor (before efficiency losses)
+        self.P_sol = 0 # Power generated from solar panels
+        self.P_elec = 0 # Power draw from firmware
+        # !! replace with electrical firmware constant
+
+        # Various Scoring Metrics
         self.epm = 0
-        self.solar = 0
 
     def Fm_calc(self):
-        # if velocity.mag <= 0.2:
-        #     self.Fm = 50
-        # else:
-        #     self.Fm = self.power / velocity.mag
+        # Assume torque is calculated from the motor model
         self.Fm = self.torque / constants.wheel_radius * constants.num_motors
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
+
+        # The overflow should never be happening
         try:
             (velocity - self.segment.wind).mag ** 2
         except OverflowError:
@@ -74,17 +79,32 @@ class StateNode:
 
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
+        self.acc = self.Ft / constants.car_mass
 
     def Power_calc(self):
-        self.P_mech = self.torque * self.speed.angular_velocity() * constants.num_motors
-        # self.P_bat = self.P_mech*motor.efficiency_from_torque_speed(self.torque, motor_speed)
-        self.P_bat = self.P_mech / 0.9 # assume 90% efficiency
-        self.epm = 0
-        if self.speed.mps > 0:
-            self.epm = self.P_bat / (self.speed.mps) #- self.solar / self.velocity.mps
+        self.P_out = self.torque * self.speed.angular_velocity() * constants.num_motors
+        # self.P_in = self.P_out*motor.efficiency_from_torque_speed(self.torque, motor_speed)
+        self.P_in = self.P_out / 0.9 # assume 90% efficiency
 
     def solar_energy_cal(self):
-        self.solar = 0
+        self.P_sol = 0
+
+    def solve_cruise_state(self):
+        self.Fd_calc(self.speed)
+        self.Fg_calc()
+        self.Frr_calc()
+        self.solar_energy_cal()
+        self.Fm = self.Fg + self.Frr + self.Fd
+        self.torque = self.Fm * constants.wheel_radius / constants.num_motors
+        motor_speed = motor.speed_from_torque(self.torque)
+        if motor_speed.mps < self.speed.mps:
+            return False
+        self.Ft_calc()
+        if self.Ft != 0:
+            print(f"Warning: Cruise state has non-zero total force: {self.Ft} N. This may indicate an issue with the calculations.")
+            return False
+        self.Power_calc()
+        return True
 
     @classmethod
     def get_numerical_metrics(cls) -> list[str]:
@@ -96,34 +116,31 @@ class StateNode:
         return list(cls.NUMERICAL_METRICS.keys())
 
 
-class TimeNode(StateNode):
+class DynamicNode(StateNode):
     NUMERICAL_METRICS = {
         **StateNode.NUMERICAL_METRICS,
         "time": "Time (s)",
         "dist": "Distance (m)",
-        "acc": "Acceleration (m/s²)",
         "soc": "State of Charge (%)",
     }
 
-    def __init__(self, segment: Segment, time: float = 0, dist: float = 0, speed: Speed = Speed(0), acc: float = 0, torque: float = 0, Fb: float = 0, soc: float = 0):
+    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
         super().__init__(segment, torque, Fb, speed)
-        self.time = time
-        self.dist = dist
-        self.acc = acc
-        self.soc = soc
+        self.time = 0
+        self.dist = 0
+        self.soc = 0
 
-    def solve_TimeNode(self, initial_TimeNode: TimeNode, time_step):
+    def solve_DynamicNode(self, initial_DynamicNode: DynamicNode, time_step):
         self.Fm_calc()
-        self.Fd_calc(initial_TimeNode.speed)
+        self.Fd_calc(initial_DynamicNode.speed)
         self.Frr_calc()
         self.Fg_calc()
         self.Ft_calc()
         self.solar_energy_cal()
-        self.acc = self.Ft / constants.car_mass
-        self.speed = Speed(initial_TimeNode.speed.mps + self.acc * time_step)
-        self.dist = initial_TimeNode.dist + initial_TimeNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
+        self.speed = Speed(initial_DynamicNode.speed.mps + self.acc * time_step)
+        self.dist = initial_DynamicNode.dist + initial_DynamicNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
         self.Power_calc()
-
+        self.soc = initial_DynamicNode.soc + ((self.P_sol - self.P_in - self.P_elec) * time_step) / constants.battery_c_rated * 100 # use battery energy capcity instead
         # Electrical Calcs
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar
 
@@ -140,25 +157,8 @@ class TimeNode(StateNode):
         return default
 
 
-class VelocityNode(StateNode):
-    #constant vel --> motor force -->  power, torque --> energy per metre (epm)
-    def __init__(self, segment: Segment, speed: Speed = Speed(0)):
-        super().__init__(segment, 0, 0, speed)
-
-    def solve_velocity(self):
-        self.Fd_calc(self.speed)
-        self.Fg_calc()
-        self.Frr_calc()
-        self.solar_energy_cal()
-        self.Fm = self.Fg + self.Frr + self.Fd
-        self.torque = self.Fm * constants.wheel_radius / constants.num_motors
-        motor_speed = motor.speed_from_torque(self.torque)
-        if motor_speed.mps < self.speed.mps:
-            # print("dunno")
-            return False
-        
-        self.Power_calc()
-        return True
+INITIAL_DYNAMIC_NODE = DynamicNode()
+INITIAL_DYNAMIC_NODE.soc = 100
 
 # make test cases for this stuff
 if __name__ == "__main__":
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     def test_StateNode():
         pass
 
-    def test_TimeNode():
+    def test_DynamicNode():
         pass
 
     def test_VelocityNode():

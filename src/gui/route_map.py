@@ -3,7 +3,7 @@ import folium
 import matplotlib.colors as mcolors
 import numpy as np
 from ..database.fetch_route_intervals import fetch_route_intervals
-from ..engine.nodes import TimeNode, Segment
+from ..engine.nodes import DynamicNode, Segment
 from ..engine.interval_simulator import SSInterval, join_intervals
 import time
 
@@ -110,7 +110,7 @@ class RouteMap:
 
         return polylines
 
-    def _format_tooltip(self, tn: TimeNode) -> str:
+    def _format_tooltip(self, tn: DynamicNode) -> str:
         """Build tooltip HTML for a time node."""
         parts = []
 
@@ -132,14 +132,14 @@ class RouteMap:
 
         return "<br>".join(parts) if parts else "Node"
 
-    def get_speed_color(self, time_node: TimeNode):
+    def get_speed_color(self, time_node: DynamicNode):
         try:
             color = self.speed_colors[min(int(time_node.speed.kmph) + 100, len(self.speed_colors) - 1)]
         except IndexError:
             color = self.speed_colors[0]
         return color
 
-    def get_time_node_coords(self, segments: list[Segment], time_node_list: list[TimeNode]) -> list[tuple[tuple[float, float], TimeNode]]:
+    def get_time_node_coords(self, segments: list[Segment], time_node_list: list[DynamicNode]) -> list[tuple[tuple[float, float], DynamicNode]]:
         seg_ends = np.array([seg.tdist for seg in segments])
         seg_dists = np.array([seg.dist for seg in segments])
         seg_start_dists = seg_ends - seg_dists

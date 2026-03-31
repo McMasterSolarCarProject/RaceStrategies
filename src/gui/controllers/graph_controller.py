@@ -5,7 +5,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToo
 import matplotlib.pyplot as plt
 
 from ...engine.interval_simulator import SSInterval
-from ...engine.nodes import TimeNode
+from ...engine.nodes import DynamicNode
 from ...utils.graph import plot_SSInterval
 
 
@@ -40,7 +40,7 @@ class GraphController(QWidget):
         dropdown_layout.addWidget(QLabel("Graph 2 Y Value"), 3, 0)
         dropdown_layout.addWidget(self.y2_dropdown, 3, 1)
         self.layout.addLayout(dropdown_layout)
-        # Populate with TimeNode metrics
+        # Populate with DynamicNode metrics
         self.populate_dropdowns()
 
         # Button to generate graphs
@@ -59,7 +59,7 @@ class GraphController(QWidget):
         """
         Populates the x and y field drop downs with all graphable measurements such as dist, time, kmph, etc.
         """
-        metrics = TimeNode.get_numerical_metrics()
+        metrics = DynamicNode.get_numerical_metrics()
         dropdowns = [
             self.x1_dropdown,
             self.y1_dropdown,
@@ -106,9 +106,9 @@ class GraphController(QWidget):
             name=f"1_{x1}_vs_{y1}",
             labels=labels,
             ax=self.axes[0],
-            xlabel=f"{TimeNode.NUMERICAL_METRICS[x1]}",
-            ylabel=f"{TimeNode.NUMERICAL_METRICS[y1]}",
-            title=f"{TimeNode.NUMERICAL_METRICS[x1]} vs {TimeNode.NUMERICAL_METRICS[y1]}",
+            xlabel=f"{DynamicNode.NUMERICAL_METRICS[x1]}",
+            ylabel=f"{DynamicNode.NUMERICAL_METRICS[y1]}",
+            title=f"{DynamicNode.NUMERICAL_METRICS[x1]} vs {DynamicNode.NUMERICAL_METRICS[y1]}",
         )
         plot_SSInterval(
             datasets=datasets,
@@ -117,9 +117,9 @@ class GraphController(QWidget):
             name=f"2_{x2}_vs_{y2}",
             labels=labels,
             ax=self.axes[1],
-            xlabel=f"{TimeNode.NUMERICAL_METRICS[x2]}",
-            ylabel=f"{TimeNode.NUMERICAL_METRICS[y2]}",
-            title=f"{TimeNode.NUMERICAL_METRICS[x2]} vs {TimeNode.NUMERICAL_METRICS[y2]}",
+            xlabel=f"{DynamicNode.NUMERICAL_METRICS[x2]}",
+            ylabel=f"{DynamicNode.NUMERICAL_METRICS[y2]}",
+            title=f"{DynamicNode.NUMERICAL_METRICS[x2]} vs {DynamicNode.NUMERICAL_METRICS[y2]}",
         )
 
         # Adjust layout and redraw

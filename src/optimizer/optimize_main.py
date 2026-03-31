@@ -7,7 +7,7 @@ from itertools import product
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.interval_simulator import SSInterval, join_intervals
 from ..engine.kinematics import Speed, Velocity
-from ..engine.nodes import VelocityNode
+from ..engine.nodes import StateNode
 
 
 def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
@@ -24,8 +24,8 @@ def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
         target = min(v_kmph, seg.speed_limit.kmph) if seg.speed_limit.mps > 0 else v_kmph
         seg.v_eff = Velocity(seg.displacement.unit_vector(), Speed(kmph=target))
 
-        vnode = VelocityNode(seg, Speed(kmph=target))
-        if vnode.solve_velocity():
+        vnode = StateNode(seg, speed=Speed(kmph=target))
+        if vnode.solve_cruise_state():
             seg.t_eff = vnode.torque
         else:
             seg.t_eff = 0

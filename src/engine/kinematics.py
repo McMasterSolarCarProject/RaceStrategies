@@ -1,6 +1,6 @@
 from __future__ import annotations
 import math
-from ..utils.constants import wheel_radius
+from ..utils import constants
 from dataclasses import dataclass
 
 class Vec:
@@ -141,16 +141,16 @@ class Speed:
         return self._mps * 2.23694
     
     @classmethod
-    def create_from_rpm(cls, rpm: float = None, radius: float = wheel_radius):
+    def create_from_rpm(cls, rpm: float = None, radius: float = constants.wheel_radius):
         if rpm is not None:
             return cls(mps=2 * math.pi * radius * rpm / 60)
         else:
             return cls()
 
-    def rpm(self, radius: float = wheel_radius):
+    def rpm(self, radius: float = constants.wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def angular_velocity(self, radius: float = wheel_radius) -> float:
+    def angular_velocity(self, radius: float = constants.wheel_radius) -> float:
         # angular speed in radians per second
         return self.mps / radius
     

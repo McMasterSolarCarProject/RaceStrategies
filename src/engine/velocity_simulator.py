@@ -1,4 +1,4 @@
-from .nodes import Segment, VelocityNode
+from .nodes import Segment, StateNode
 from .kinematics import Speed
 from ..utils.graph import plot_multiple_datasets
 
@@ -9,8 +9,8 @@ def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(kmph=2
     velocityNodes = []
     speed = min_speed
     while speed.mps < max_speed.mps:
-        v = VelocityNode(segment, speed)
-        if v.solve_velocity():
+        v = StateNode(segment, speed=speed)
+        if v.solve_cruise_state():
             velocityNodes.append(v)
             speed = Speed(mps=speed.mps + RESOLUTION)
         else:
@@ -27,15 +27,15 @@ def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Sp
     :param min_speed_lim: Minimum speed limit
     :param max_speed_lim: Maximum speed limit
     :param RESOLUTION: Speed resolution step
-    :return: List of VelocityNode objects
+    :return: List of StateNode objects
     """
     min_speed = min_speed_lim
     max_speed = max_speed_lim
     velocityNodes = []
     speed = min_speed
     while speed.mps < max_speed.mps:
-        v = VelocityNode(segment, speed=speed)
-        if v.solve_velocity():
+        v = StateNode(segment, speed=speed)
+        if v.solve_cruise_state():
             velocityNodes.append(v)
             speed = Speed(mps=speed.mps + RESOLUTION)
         else:
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     nodes = simulate_speed_profile(s1)
     print(f"nodes[0].Fg: {nodes[0].Fg}, s1.gradient: {s1.gradient}")
     # plot_points(nodes, x_field="mph", y_field="epm", name="speed_vs_current")
-    plot_multiple_datasets([nodes], "mph", "P_bat", 'v_eff')
+    plot_multiple_datasets([nodes], "mph", "P_in", 'v_eff')
     
     # Test with multiple masses
     masses = [i for i in range(650, 701, 25)]  # Different car masses in kg
@@ -91,4 +91,4 @@ if __name__ == "__main__":
     
     print(f"Generated {len(nodes_list)} datasets for masses: {masses}")
     plot_multiple_datasets(nodes_list, "mph", ["Fd", "Frr"], 'velocity_vs_power_multiple_masses', labels=labels)
-    plot_multiple_datasets(nodes_list, "mph", ["P_bat"], 'velocity_vs_power_multiple_masses', labels=labels)
+    plot_multiple_datasets(nodes_list, "mph", ["P_in"], 'velocity_vs_power_multiple_masses', labels=labels)
