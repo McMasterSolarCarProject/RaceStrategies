@@ -15,9 +15,9 @@ class MapController(QWidget):
         self.simulated_route = None
         # Web view for the folium HTML
         self.webview = QWebEngineView()
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.webview)
-        self.setLayout(self.layout)
+        self.box_layout = QVBoxLayout()
+        self.box_layout.addWidget(self.webview)
+        self.setLayout(self.box_layout)
 
     def generate_no_simulation(self, name: str, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
         """
@@ -29,14 +29,14 @@ class MapController(QWidget):
         self.simulated_route = None
         return self._save(rm, "gui_map_placemark")
 
-    def generate_simulation(self, name: str, timestep: float, hover: bool, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
+    def generate_simulation(self, name: str, time_step: float, velocity_step: float, hover: bool, db_path: str = DEFAULT_DB_PATH, split_at_stops: bool = False) -> str:
         """
         Backend function to generate map with the node simulations.
         Saves the map to a html output file.
         """
         # parse route
         rm = RouteMap()
-        self.simulated_route = rm.generate_simulation_map(name, timestep=timestep, hover=hover, db_path=db_path, split_at_stops=split_at_stops)
+        self.simulated_route = rm.generate_simulation_map(name, time_step=time_step, velocity_step=velocity_step, hover=hover, db_path=db_path, split_at_stops=split_at_stops)
         return self._save(rm, "gui_map_time_nodes")
 
     def _save(self, rm: RouteMap, filename: str) -> str:
