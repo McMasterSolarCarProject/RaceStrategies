@@ -56,7 +56,7 @@ class SSInterval:
                     # current_DynamicNode.torque = motor.torque_from_speed(initial_DynamicNode.speed)*10
 
                 else:
-                    current_DynamicNode.torque = segment.t_eff # change ts later fam
+                    current_DynamicNode.torque = segment.t_eff
 
                 self.adaptive_timestep(current_DynamicNode, initial_DynamicNode)
 
