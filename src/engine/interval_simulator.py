@@ -6,7 +6,7 @@ from .kinematics import Speed, Velocity
 from ..utils import constants
 
 P_STALL = 100
-MAX_TORQUE = 80
+MAX_TORQUE = 10
 BRAKE = 1000
 
 
@@ -193,14 +193,14 @@ def test_1():
     # print(p1)
     p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
     # print(p2)
-    p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
+    # p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
     # print(p3)
     d1 = Displacement(p0, p1)
-    d2 = Displacement(p1, p2)
+    # d2 = Displacement(p1, p2)
     print(d1)
-    s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
-    s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
-    a = SSInterval([s1, s2])
+    # s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
+    # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
+    # a = SSInterval([s1, s2])
 
 def test_2():
     from ..database.fetch_route_intervals import fetch_route_intervals
@@ -210,7 +210,7 @@ def test_2():
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    a.plot("dist", ["speed.kmph", "torque", "segment.t_eff"], 'd_v')
+    a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
     # a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')

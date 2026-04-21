@@ -20,11 +20,11 @@ def main(route_db_path: str = "ASC_2024.sqlite", kml_path: str = "data/ASC_2024.
     
     for i, placemark in enumerate(placemarks, 1):
         print(f"Updating placemark {i}/{len(placemarks)}: {placemark}")
-        update_speed_limits_from_csv(placemark)
-        update_curvature_speed_limits(placemark)
-        update_target_velocity(placemark)
+        update_speed_limits_from_csv(placemark, db_path=route_db_path)
+        update_curvature_speed_limits(placemark, db_path=route_db_path)
+        update_target_velocity(placemark, db_path=route_db_path)
     
-    update_traffic("A. Independence to Topeka")
+    # update_traffic("A. Independence to Topeka")
     
     print(f"\nCompleted in {time.perf_counter()-start:.2f}s")
     

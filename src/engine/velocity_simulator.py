@@ -3,7 +3,7 @@ from .kinematics import Speed
 from ..utils.graph import plot_multiple_datasets
 
 
-def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(kmph=20), max_speed_lim: Speed = Speed(kmph=60), RESOLUTION: float = 0.01):
+def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(kmph=10), max_speed_lim: Speed = Speed(kmph=60), RESOLUTION: float = 0.01):
     min_speed = min_speed_lim
     max_speed = max_speed_lim
     velocityNodes = []

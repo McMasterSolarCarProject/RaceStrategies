@@ -22,6 +22,8 @@ class Segment(Displacement):  # Meters
 NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 
 class StateNode:
+    CRUISE_FORCE_TOLERANCE_N = 1e-6
+
     NUMERICAL_METRICS = {
         "torque": "Torque (Nm)",
         "Fb": "Braking Force (N)",
@@ -100,9 +102,10 @@ class StateNode:
         if motor_speed.mps < self.speed.mps:
             return False
         self.Ft_calc()
-        if self.Ft != 0:
+        if abs(self.Ft) > self.CRUISE_FORCE_TOLERANCE_N:
             print(f"Warning: Cruise state has non-zero total force: {self.Ft} N. This may indicate an issue with the calculations.")
             return False
+        self.Ft = 0
         self.Power_calc()
         return True
 
