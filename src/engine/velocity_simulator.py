@@ -3,19 +3,43 @@ from .kinematics import Speed
 from ..utils.graph import plot_multiple_datasets
 
 
-def simulate_speed_profile(segment: Segment, min_speed_lim: Speed = Speed(kmph=10), max_speed_lim: Speed = Speed(kmph=60), RESOLUTION: float = 0.01):
+def node_epm(node: StateNode) -> float:
+    """Compute energy-per-meter from power draw and speed."""
+    if node.speed.mps <= 0:
+        return float("inf")
+    return node.P_in / node.speed.mps
+
+
+def simulate_speed_profile(
+    segment: Segment,
+    min_speed_lim: Speed = Speed(kmph=10),
+    max_speed_lim: Speed = Speed(kmph=60),
+    RESOLUTION: float = 0.01,
+) -> list[StateNode]:
     min_speed = min_speed_lim
     max_speed = max_speed_lim
-    velocityNodes = []
+    velocity_nodes: list[StateNode] = []
     speed = min_speed
+
     while speed.mps < max_speed.mps:
-        v = StateNode(segment, speed=speed)
-        if v.solve_cruise_state():
-            velocityNodes.append(v)
-            speed = Speed(mps=speed.mps + RESOLUTION)
-        else:
-            break
-    return velocityNodes
+        node = StateNode(segment, speed=speed)
+        if node.solve_cruise_state():
+            velocity_nodes.append(node)
+        speed = Speed(mps=speed.mps + RESOLUTION)
+
+    return velocity_nodes
+
+
+def choose_closest_epm_node(nodes: list[StateNode], epm_target: float) -> StateNode | None:
+    """Return the node whose computed EPM is closest to the target."""
+    if not nodes:
+        return None
+
+    valid_nodes = [node for node in nodes if node.speed.mps > 0]
+    if not valid_nodes:
+        return None
+
+    return min(valid_nodes, key=lambda node: abs(node_epm(node) - epm_target))
 
 
 def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
@@ -37,9 +61,7 @@ def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Sp
         v = StateNode(segment, speed=speed)
         if v.solve_cruise_state():
             velocityNodes.append(v)
-            speed = Speed(mps=speed.mps + RESOLUTION)
-        else:
-            break
+        speed = Speed(mps=speed.mps + RESOLUTION)
     return velocityNodes
 
 

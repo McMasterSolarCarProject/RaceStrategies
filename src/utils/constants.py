@@ -1,12 +1,12 @@
 num_motors = 2
 CELL_AREA = 0.0153  # m^2
 air_density = 1.225  # kg/m^3
-coef_drag = 0.128
-coef_rr = 0.005
-car_mass = 330  # kg
+coef_drag = 0.15
+coef_rr = 0.0075
+car_mass = 750  # kg
 accel_g = 9.81  # m/s^2
 wheel_radius = 0.2  # m
-cross_section = 2  # m^2
+cross_section = 2.8  # m^2
 passive_consumption = 7.5  # Watts
 regen_eff = 0.05  # %
 battery_c_rated = 180

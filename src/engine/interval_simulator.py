@@ -6,7 +6,7 @@ from .kinematics import Speed, Velocity
 from ..utils import constants
 
 P_STALL = 100
-MAX_TORQUE = 10
+MAX_TORQUE = 25
 BRAKE = 1000
 
 
@@ -210,7 +210,8 @@ def test_2():
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
+    # a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
+    a.plot("dist", ["speed.kmph", "segment.t_eff", "torque"], 'd_v')
     # a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')

@@ -2,7 +2,7 @@ import sqlite3
 import time
 import os
 from ..engine.nodes import StateNode
-from ..engine.velocity_simulator import simulate_speed_profile
+from ..engine.velocity_simulator import simulate_speed_profile, choose_closest_epm_node
 from .fetch_route_intervals import fetch_route_intervals
 
 
@@ -17,19 +17,11 @@ def upload_best_velocity(nodes: list[StateNode], placemark_name: str, id: int, d
         print(f"No velocity nodes generated for segment {placemark_name} id {id}")
         return
 
-    # for now just pick one with epm of 100
     epm_target = 100
-    min_dist = 10000
-    best_node = nodes[0]
-    for node in nodes:
-        if node.epm <= 0:
-            # print("Skipping node with non-positive epm")
-            continue
-        if abs(epm_target - node.epm) < min_dist:
-            best_node = node
-            min_dist = abs(epm_target - node.epm)
-            if min_dist < 1: # correct this so it uses some units
-                 break
+    best_node = choose_closest_epm_node(nodes, epm_target)
+    if best_node is None:
+        print(f"No valid velocity candidate for segment {placemark_name} id {id}")
+        return
     
     if best_node:
         if not os.path.exists(db_path):
