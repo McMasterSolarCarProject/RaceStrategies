@@ -4,7 +4,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.nodes import DynamicNode, Segment
-from ..engine.interval_simulator import SSInterval, join_intervals
+from ..engine.interval_simulator import RouteInterval, join_intervals
 import time
 
 
@@ -18,37 +18,37 @@ class RouteMap:
     def generate_no_simulation_map(self, placemark_name: str, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False):
         """
         Generate a layered map from a placemark without simulation.
-        Each segment (or all segments if not layered) is shown as a single or multiple layers.
+        Each route interval (or all intervals if not split) is shown as a single or multiple layers.
         """
-        route = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
-        if route and not isinstance(route, list):
-            route = [route]
-        self._generate_layered_map(route, is_simulated=False)
+        route_intervals = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
+        if route_intervals and not isinstance(route_intervals, list):
+            route_intervals = [route_intervals]
+        self._generate_layered_map(route_intervals, is_simulated=False)
 
-    def generate_simulation_map(self, placemark_name: str, timestep: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> SSInterval:
+    def generate_simulation_map(self, placemark_name: str, timestep: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> RouteInterval:
         """
         Generate a layered simulation map from a placemark.
-        Each segment is simulated and displayed as a separate layer.
+        Each route interval is simulated and displayed as a separate layer.
         """
-        route = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
-        if route and not isinstance(route, list):
-            route = [route]
+        route_intervals = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
+        if route_intervals and not isinstance(route_intervals, list):
+            route_intervals = [route_intervals]
 
-        # Simulate all intervals
-        for interval in route:
+        # Simulate all route intervals
+        for interval in route_intervals:
             interval.simulate_interval(TIME_STEP=timestep)
-        self._generate_layered_map(route, is_simulated=True, hover_tooltips=hover)
-        return join_intervals(route)
+        self._generate_layered_map(route_intervals, is_simulated=True, hover_tooltips=hover)
+        return join_intervals(route_intervals)
 
-    def _generate_layered_map(self, intervals: list[SSInterval], is_simulated: bool, hover_tooltips: bool = True):
+    def _generate_layered_map(self, route_intervals: list[RouteInterval], is_simulated: bool, hover_tooltips: bool = True):
         """
         Generic layered map generator for both simulated and non-simulated routes.
         Creates a feature group for each interval, adds polylines/markers, and sets bounding box.
         """
         self.all_coordinates = []
 
-        for i, interval in enumerate(intervals):
-            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
+        for i, interval in enumerate(route_intervals):
+            layer = folium.FeatureGroup(name=f"Route interval {i + 1}", show=(i == 0))
             polylines = self._get_polylines(interval, is_simulated, hover_tooltips)
 
             for polyline in polylines:
@@ -59,30 +59,30 @@ class RouteMap:
         folium.LayerControl().add_to(self.folium_map)
         self.set_bounding_box()
 
-    def _get_polylines(self, interval: SSInterval, is_simulated: bool, hover_tooltips: bool = True) -> list[folium.PolyLine]:
+    def _get_polylines(self, route_interval: RouteInterval, is_simulated: bool, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
         Generate polylines for an interval.
         For simulated: interpolates through time nodes and colors by speed.
         For non-simulated: simple polyline from segment coordinates.
         """
         if is_simulated:
-            return self._get_simulated_path(interval, hover_tooltips)
+            return self._get_simulated_path(route_interval, hover_tooltips)
         else:
             # Non-simulated: simple polyline from segment start/end points
-            coordinates = interval.get_coordinate_pairs()
+            coordinates = route_interval.get_coordinate_pairs()
             self.all_coordinates.extend(coordinates)
             polyline = folium.PolyLine(coordinates, weight=5, opacity=1, color="#FF0000")
             return [polyline]
 
-    def _get_simulated_path(self, ssinterval: SSInterval, hover_tooltips: bool = True) -> list[folium.PolyLine]:
+    def _get_simulated_path(self, route_interval: RouteInterval, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
         Draws colored segments between consecutive time nodes.
         Returns list of polylines.
         """
         DECIMATION_INTERVAL = 8
-        DECIMATED_NODES = ssinterval.time_nodes[::DECIMATION_INTERVAL]
+        DECIMATED_NODES = route_interval.time_nodes[::DECIMATION_INTERVAL]
 
-        coordinates = self.get_time_node_coords(ssinterval.segments, DECIMATED_NODES)
+        coordinates = self.get_time_node_coords(route_interval.segments, DECIMATED_NODES)
         coordinate_points = [pt for (pt, _tn) in coordinates]
         self.all_coordinates.extend(coordinate_points)
         nodes = [tn for (_pt, tn) in coordinates]
@@ -243,9 +243,9 @@ if __name__ == "__main__":
     route_map.save_map("maps/route_map")
 
     start = time.time()
-    a = fetch_route_intervals("A. Independence to Topeka")
-    if a is SSInterval:
-        a.simulate_interval(TIME_STEP=0.5)
+    route_interval = fetch_route_intervals("A. Independence to Topeka")
+    if route_interval is RouteInterval:
+        route_interval.simulate_interval(TIME_STEP=0.5)
     end = time.time()
     print(f"simulation done! took {end - start} seconds")
 

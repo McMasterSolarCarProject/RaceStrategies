@@ -10,8 +10,8 @@ MAX_TORQUE = 25
 BRAKE = 1000
 
 
-class SSInterval:
-    """Represents a chain of road segments between two stop signs"""
+class RouteInterval:
+    """Represents a contiguous route interval made of road segments and dynamic nodes."""
     def __init__(self, segments: list[Segment]):
         self.segments = segments
         self.segments[0].tdist = self.segments[0].dist
@@ -20,14 +20,15 @@ class SSInterval:
         self.total_dist = self.segments[-1].tdist
         # print(self.total_dist)
 
-        self.startSpeed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
-        self.stopSpeed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
+        self.start_speed = Velocity(self.segments[0].unit_vector(), Speed(kmph=0))
+        self.stop_speed = Velocity(self.segments[-1].unit_vector(), Speed(kmph=0))
         self.TIME_STEP = 1
         self.VELOCITY_STEP = Speed(kmph=1)
 
     
     def simulate_interval(self):
         initial_DynamicNode = copy.deepcopy(INITIAL_DYNAMIC_NODE)
+        initial_DynamicNode.speed = self.start_speed
         self.time_nodes = [initial_DynamicNode]
         self.simulate_braking()
         # print(f"# Braking Nodes: {len(self.brakingNodes)}")
@@ -79,7 +80,7 @@ class SSInterval:
                 # print(brakingNode)
                 # print(initial_DynamicNode.dist)
 
-                if initial_DynamicNode.speed.mps <= self.stopSpeed.mps and initial_DynamicNode.speed.mps <= Speed(0).mps:
+                if initial_DynamicNode.speed.mps <= self.stop_speed.mps and initial_DynamicNode.speed.mps <= Speed(0).mps:
                     # break out of both while and for loops
                     stopped = True
                     break
@@ -92,7 +93,7 @@ class SSInterval:
     def simulate_braking(self):
         initial_DynamicNode = copy.deepcopy(INITIAL_DYNAMIC_NODE)
         initial_DynamicNode.dist = self.total_dist
-        initial_DynamicNode.speed = self.stopSpeed
+        initial_DynamicNode.speed = self.stop_speed
 
         self.brakingNodes = [initial_DynamicNode]
         for segment in self.segments[::-1]:
@@ -128,12 +129,12 @@ class SSInterval:
         return pair_list
 
     def plot(self, x: str, y: str, name: str, brake: bool = True):
-        from ..utils.graph import plot_SSInterval
+        from ..utils.graph import plot_RouteInterval
         if not brake:
-            return plot_SSInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
-        return plot_SSInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+            return plot_RouteInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+        return plot_RouteInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
 
-    def __iadd__(self, other: SSInterval):
+    def __iadd__(self, other: RouteInterval):
         if not (hasattr(self, 'time_nodes') and hasattr(other, 'time_nodes')):
             print("sim interval first you goof")
             return self
@@ -169,13 +170,13 @@ class SSInterval:
         return self
 
 
-def join_intervals(intervals: list[SSInterval]) -> SSInterval:
+def join_intervals(intervals: list[RouteInterval]) -> RouteInterval:
     """Combines a list of intervals into a single master interval using proxies to save memory."""
     if not intervals:
         return None
     
     # Start with a copy of the first one to avoid modifying it
-    result = SSInterval(intervals[0].segments[:])
+    result = RouteInterval(intervals[0].segments[:])
     if hasattr(intervals[0], 'time_nodes'):
         result.time_nodes = intervals[0].time_nodes[:]
     if hasattr(intervals[0], 'brakingNodes'):
@@ -200,7 +201,7 @@ def test_1():
     print(d1)
     # s1 = Segment(p0, p1, v_eff= Speed(kmph=40), p_eff= 275)
     # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
-    # a = SSInterval([s1, s2])
+    # a = RouteInterval([s1, s2])
 
 def test_2():
     from ..database.fetch_route_intervals import fetch_route_intervals
@@ -210,7 +211,7 @@ def test_2():
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    # a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
+    a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
     a.plot("dist", ["speed.kmph", "segment.t_eff", "torque"], 'd_v')
     # a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')

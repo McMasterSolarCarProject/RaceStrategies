@@ -3,7 +3,7 @@ from .config import save_plot
 
 
 
-def plot_SSInterval(datasets, x_field, y_fields, name, labels=None, ax=None, xlabel=None, ylabel=None, title=None):
+def plot_RouteInterval(datasets, x_field, y_fields, name, labels=None, ax=None, xlabel=None, ylabel=None, title=None):
     import matplotlib.pyplot as plt
 
     def resolve_attr(obj, attr_path):

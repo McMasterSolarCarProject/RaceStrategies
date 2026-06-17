@@ -4,21 +4,21 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 
-from ...engine.interval_simulator import SSInterval
+from ...engine.interval_simulator import RouteInterval
 from ...engine.nodes import DynamicNode
-from ...utils.graph import plot_SSInterval
+from ...utils.graph import plot_RouteInterval
 
 
 class GraphController(QWidget):
     """
-    Widget to handle graph generation for an SSInterval.
+    Widget to handle graph generation for an RouteInterval.
     Contains a button to generate plots and a canvas to display them.
     """
 
     def __init__(self, frontend_func: Callable, parent=None):
         super().__init__(parent)
 
-        self.simulated_route: SSInterval | None = None
+        self.simulated_route: RouteInterval | None = None
         # Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -99,7 +99,7 @@ class GraphController(QWidget):
         y1 = self.y1_dropdown.currentText()
         y2 = self.y2_dropdown.currentText()
 
-        plot_SSInterval(
+        plot_RouteInterval(
             datasets=datasets,
             x_field=x1,
             y_fields=y1,
@@ -110,7 +110,7 @@ class GraphController(QWidget):
             ylabel=f"{DynamicNode.NUMERICAL_METRICS[y1]}",
             title=f"{DynamicNode.NUMERICAL_METRICS[x1]} vs {DynamicNode.NUMERICAL_METRICS[y1]}",
         )
-        plot_SSInterval(
+        plot_RouteInterval(
             datasets=datasets,
             x_field=x2,
             y_fields=y2,

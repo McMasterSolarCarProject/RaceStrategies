@@ -5,14 +5,14 @@ import numpy as np
 from itertools import product
 
 from ..database.fetch_route_intervals import fetch_route_intervals
-from ..engine.interval_simulator import SSInterval, join_intervals
+from ..engine.interval_simulator import RouteInterval, join_intervals
 from ..engine.kinematics import Speed, Velocity
 from ..engine.nodes import StateNode
 
 
-def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
+def set_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> RouteInterval:
     """
-    Override v_eff and t_eff on every segment of a single SSInterval **in-place**.
+    Override v_eff and t_eff on every segment of a single RouteInterval **in-place**.
     v_eff_kmph must have one entry per segment in the interval.
     """
     if len(v_eff_kmph) != len(interval.segments):
@@ -33,7 +33,7 @@ def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
     return interval
 
 
-def simulate_interval_with_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> float:
+def simulate_interval_with_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> float:
     """
     Deep-copy an interval, apply v_eff profile, simulate, return total time (seconds).
     """
@@ -44,16 +44,16 @@ def simulate_interval_with_v_eff(interval: SSInterval, v_eff_kmph: list[float]) 
 
 
 def brute_force_interval(
-    interval: SSInterval,
+    interval: RouteInterval,
     bounds: list[tuple[float, float]],
     step: float,
 ) -> tuple[list[float], float]:
     """
-    Brute-force search over all speed combos for a single SSInterval.
+    Brute-force search over all speed combos for a single RouteInterval.
 
     Parameters
     ----------
-    interval : SSInterval
+    interval : RouteInterval
         The interval to optimize.
     bounds : list[tuple[float, float]]
         Per-segment (min_kmph, max_kmph) bounds.
@@ -105,20 +105,20 @@ def brute_force_interval(
 
 
 def coarse_to_fine_interval(
-    interval: SSInterval,
+    interval: RouteInterval,
     v_min_kmph: float = 20,
     v_max_kmph: float = 100,
     passes: list[float] | None = None,
 ) -> tuple[list[float], float]:
     """
-    Coarse-to-fine brute force on a single SSInterval.
+    Coarse-to-fine brute force on a single RouteInterval.
 
     Each pass does a full brute-force sweep at the given step size,
     then narrows bounds around the best result for the next pass.
 
     Parameters
     ----------
-    interval : SSInterval
+    interval : RouteInterval
         The interval to optimize.
     v_min_kmph : float
         Global lower speed bound (km/h).
@@ -184,7 +184,7 @@ def optimize_route(
 ) -> dict:
     """
     Coarse-to-fine brute-force optimizer for a full route.
-    Optimizes each SSInterval independently, then joins results.
+    Optimizes each RouteInterval independently, then joins results.
 
     Returns
     -------
@@ -198,7 +198,7 @@ def optimize_route(
     intervals = fetch_route_intervals(
         placemark_name, split_at_stops=True, max_nodes=max_nodes, db_path=db_path
     )
-    if isinstance(intervals, SSInterval):
+    if isinstance(intervals, RouteInterval):
         intervals = [intervals]
 
     print(f"Route '{placemark_name}': {len(intervals)} intervals")

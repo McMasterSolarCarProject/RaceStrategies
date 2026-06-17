@@ -1,10 +1,10 @@
 from ..engine.kinematics import Coordinate, Speed, Velocity
 from ..engine.nodes import Segment
-from ..engine.interval_simulator import SSInterval
+from ..engine.interval_simulator import RouteInterval
 import sqlite3
 
 
-def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "ASC_2024.sqlite") -> list[SSInterval] | SSInterval:
+def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "ASC_2024.sqlite") -> list[RouteInterval] | RouteInterval:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -12,7 +12,7 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
     cursor.execute(query, (placemark_name,))
     rows = cursor.fetchall()
 
-    ssintervals = []
+    route_intervals = []
     segments = []
     # print(f"Total rows: {len(rows)}, split_at_stops: {split_at_stops}")
     max_nodes = min(max_nodes, len(rows)) if max_nodes is not None else len(rows)
@@ -22,15 +22,15 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
 
         if rows[i+1]["stop_type"] and split_at_stops:
             print(f"  -> Splitting at row {i+2}, id {i+1}, stop_type={rows[i+1]['stop_type']}")
-            ssintervals.append(SSInterval(segments))
+            route_intervals.append(RouteInterval(segments))
             segments = []
 
     if segments:
-        ssintervals.append(SSInterval(segments))
+        route_intervals.append(RouteInterval(segments))
         
     cursor.close()
     conn.close()
-    return ssintervals if split_at_stops else ssintervals[0]
+    return route_intervals if split_at_stops else route_intervals[0]
 
 
 def fetch_segment(placemark_name: str, checkpoint, db_path: str = "ASC_2024.sqlite") -> Segment:
@@ -65,5 +65,5 @@ if __name__ == "__main__":
     #     print(segment)
     seg = fetch_segment("A. Independence to Topeka", 1)
     print(seg)
-    # for segment in ssInterval.segments:
+    # for segment in RouteInterval.segments:
     #     print(segment)
