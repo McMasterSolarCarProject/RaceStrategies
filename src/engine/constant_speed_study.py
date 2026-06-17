@@ -64,14 +64,7 @@ def print_constant_speed_mass_study(results: list[dict]) -> None:
     for row in results:
         total_power = "NA" if row["total_power_w"] is None else f"{row['total_power_w']:.2f}"
         energy = "NA" if row["energy_wh"] is None else f"{row['energy_wh']:.2f}"
-        print(
-            f"{row['mass_kg']:>7.1f} | "
-            f"{row['speed_kmph']:>10.2f} | "
-            f"{str(row['feasible']):>8} | "
-            f"{row['distance_km']:>11.2f} | "
-            f"{total_power:>13} | "
-            f"{energy:>9}"
-        )
+        print(f"{row['mass_kg']:>7.1f} | {row['speed_kmph']:>10.2f} | {str(row['feasible']):>8} | {row['distance_km']:>11.2f} | {total_power:>13} | {energy:>9}")
 
 
 def find_flattest_segment(segments: list[Segment]) -> Segment:
@@ -220,11 +213,7 @@ if __name__ == "__main__":
     flat_segment = build_zero_gradient_segment(speed_limit_kmph=120.0)
     masses_to_test = [685, 690]  # Edit this list for specific masses
 
-    print(
-        f"Using synthetic flat segment: "
-        f"id={flat_segment.id}, gradient_sin={flat_segment.gradient.sin():.6f}, "
-        f"speed_limit={flat_segment.speed_limit.kmph:.2f} km/h"
-    )
+    print(f"Using synthetic flat segment: id={flat_segment.id}, gradient_sin={flat_segment.gradient.sin():.6f}, speed_limit={flat_segment.speed_limit.kmph:.2f} km/h")
 
     mass_results = run_mass_variation_speed_sweep(
         segment=flat_segment,

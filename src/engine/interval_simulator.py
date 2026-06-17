@@ -12,6 +12,7 @@ BRAKE = 1000
 
 class RouteInterval:
     """Represents a contiguous route interval made of road segments and dynamic nodes."""
+
     def __init__(self, segments: list[Segment]):
         self.segments = segments
         self.segments[0].tdist = self.segments[0].dist
@@ -25,7 +26,6 @@ class RouteInterval:
         self.TIME_STEP = 1
         self.VELOCITY_STEP = Speed(kmph=1)
 
-    
     def simulate_interval(self):
         initial_dynamic_node = copy.deepcopy(INITIAL_DYNAMIC_NODE)
         initial_dynamic_node.speed = self.start_speed
@@ -37,15 +37,15 @@ class RouteInterval:
         for segment in self.segments:
             if stopped:
                 break
-            
+
             while initial_dynamic_node.dist <= segment.tdist:
                 current_dynamic_node = DynamicNode(segment)
 
                 while initial_dynamic_node.speed.mps > self.braking_nodes[braking_node_index].speed.mps and braking_node_index + 1 < len(self.braking_nodes):
                     # index to the braking node with the same velocity
                     braking_node_index += 1
-                
-                while initial_dynamic_node.speed.mps < self.braking_nodes[braking_node_index-1].speed.mps and braking_node_index > 0:
+
+                while initial_dynamic_node.speed.mps < self.braking_nodes[braking_node_index - 1].speed.mps and braking_node_index > 0:
                     # index to the braking node with the same velocity
                     braking_node_index -= 1
 
@@ -103,70 +103,71 @@ class RouteInterval:
                     self.adaptive_timestep(current_dynamic_node, initial_dynamic_node, backward=True)
 
                     self.braking_nodes.append(current_dynamic_node)
-                    
+
                     initial_dynamic_node = self.braking_nodes[-1]
 
                     # print(initial_DynamicNode)
                 else:
                     return
         return
-    
+
     def adaptive_timestep(self, current_dynamic_node: DynamicNode, initial_dynamic_node: DynamicNode, backward: bool = False):
         direction = -1 if backward else 1
-        current_dynamic_node.solve_DynamicNode(initial_dynamic_node, direction*self.TIME_STEP)
-        
+        current_dynamic_node.solve_DynamicNode(initial_dynamic_node, direction * self.TIME_STEP)
+
         if abs(current_dynamic_node.acc * self.TIME_STEP) > self.VELOCITY_STEP.mps:
-            dt = direction*abs(self.VELOCITY_STEP.mps / current_dynamic_node.acc)
+            dt = direction * abs(self.VELOCITY_STEP.mps / current_dynamic_node.acc)
             current_dynamic_node.solve_DynamicNode(initial_dynamic_node, dt)
             # current_dynamic_node.time = initial_dynamic_node.time + dt
 
     def get_coordinate_pairs(self) -> list[tuple]:
         pair_list = []
         pair_list.append((self.segments[0].p1.lat, self.segments[0].p1.lon))
-    
+
         for segment in self.segments:
             pair_list.append((segment.p2.lat, segment.p2.lon))
         return pair_list
 
     def plot(self, x: str, y: str, name: str, brake: bool = True):
         from ..utils.graph import plot_RouteInterval
+
         if not brake:
-            return plot_RouteInterval([self.time_nodes if hasattr(self, 'braking_nodes') else []], x, y, name)
-        return plot_RouteInterval([self.time_nodes, self.braking_nodes if hasattr(self, 'braking_nodes') else []], x, y, name)
+            return plot_RouteInterval([self.time_nodes if hasattr(self, "braking_nodes") else []], x, y, name)
+        return plot_RouteInterval([self.time_nodes, self.braking_nodes if hasattr(self, "braking_nodes") else []], x, y, name)
 
     def __iadd__(self, other: RouteInterval):
-        if not (hasattr(self, 'time_nodes') and hasattr(other, 'time_nodes')):
+        if not (hasattr(self, "time_nodes") and hasattr(other, "time_nodes")):
             print("sim interval first you goof")
             return self
-        
+
         # Calculate offsets from current end
         time_offset = self.time_nodes[-1].time
         dist_offset = self.time_nodes[-1].dist
-        
+
         # Add copies of other's nodes with shifted values
         for node in other.time_nodes:
             new_node = copy.copy(node)
             new_node.time += time_offset
             new_node.dist += dist_offset
             self.time_nodes.append(new_node)
-            
-        if hasattr(other, 'braking_nodes'):
-            if not hasattr(self, 'braking_nodes'):
+
+        if hasattr(other, "braking_nodes"):
+            if not hasattr(self, "braking_nodes"):
                 self.braking_nodes = []
             for node in other.braking_nodes:
                 new_node = copy.copy(node)
                 new_node.time += time_offset
                 new_node.dist += dist_offset
                 self.braking_nodes.append(new_node)
-            
+
         # Add segments and recalculate in-place tdists
         self.segments += other.segments
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
-            
+
         self.total_dist = self.segments[-1].tdist
-        
+
         return self
 
 
@@ -174,25 +175,26 @@ def join_intervals(intervals: list[RouteInterval]) -> RouteInterval:
     """Combines a list of intervals into a single master interval using proxies to save memory."""
     if not intervals:
         return None
-    
+
     # Start with a copy of the first one to avoid modifying it
     result = RouteInterval(intervals[0].segments[:])
-    if hasattr(intervals[0], 'time_nodes'):
+    if hasattr(intervals[0], "time_nodes"):
         result.time_nodes = intervals[0].time_nodes[:]
-    if hasattr(intervals[0], 'braking_nodes'):
+    if hasattr(intervals[0], "braking_nodes"):
         result.braking_nodes = intervals[0].braking_nodes[:]
-    
+
     for i in range(1, len(intervals)):
         result += intervals[i]
-        
+
     return result
 
 
 def test_1():
     from .kinematics import Coordinate, Displacement
-    p0 = Coordinate( 39.092185,-94.417077, 98.4698903750406)
+
+    p0 = Coordinate(39.092185, -94.417077, 98.4698903750406)
     # print(p1)
-    p1 = Coordinate( 39.092344,-94.423673, 96.25006372299582)
+    p1 = Coordinate(39.092344, -94.423673, 96.25006372299582)
     # print(p2)
     # p2 = Coordinate( 39.091094, -94.42873, 95.14149119999635)
     # print(p3)
@@ -203,23 +205,24 @@ def test_1():
     # s2 = Segment(p1, p2, v_eff= Speed(kmph=40), p_eff= 275)
     # a = RouteInterval([s1, s2])
 
+
 def test_2():
     from ..database.fetch_route_intervals import fetch_route_intervals
+
     a = fetch_route_intervals("A. Independence to Topeka", max_nodes=100)
     a.simulate_interval()
     print(len(a.time_nodes))
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
-    a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], 'd_v')
-    a.plot("dist", ["speed.kmph", "segment.t_eff", "torque"], 'd_v')
+    a.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], "d_v")
+    a.plot("dist", ["speed.kmph", "segment.t_eff", "torque"], "d_v")
     # a.plot("time", "soc", 't_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "dist", "velocity.kmph", 'd_v')
     # plot_multiple_datasets([a.time_nodes, a.brakingNodes], "time", "soc", 't_v')
-    plt.show()    # finally block so they don’t vanish
+    plt.show()  # finally block so they don’t vanish
 
 
 if __name__ == "__main__":
     # test_1()
     test_2()
-
