@@ -1,4 +1,4 @@
-CREATE TABLE route_data (
+CREATE TABLE route_row (
         placemark_name TEXT not null,
         id integer not null,
         lat float not null,

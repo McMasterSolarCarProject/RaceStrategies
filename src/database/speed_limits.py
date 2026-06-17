@@ -108,7 +108,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_p
     with sqlite3.connect(db_path) as db:
         cursor = db.cursor()
         cursor.executemany(
-            "UPDATE route_data SET speed_limit = MIN(speed_limit, ?) WHERE placemark_name = ? AND id = ?",
+            "UPDATE route_row SET speed_limit = MIN(speed_limit, ?) WHERE placemark_name = ? AND id = ?",
             update_data
         )
         db.commit()
@@ -145,7 +145,7 @@ def update_speed_limits_from_csv(placemark_name, db_path: str = "ASC_2024.sqlite
             # update_data = [(float(speeds[i]), placemark_name, segments[i].id) for i in range(len(placemark.segments))]
     
         cursor.executemany(
-            "UPDATE route_data SET speed_limit = ? WHERE placemark_name = ? AND id = ?",
+            "UPDATE route_row SET speed_limit = ? WHERE placemark_name = ? AND id = ?",
             update_data
         )
 

@@ -322,7 +322,7 @@ def update_traffic(placemark_name: str, db_path: str = "ASC_2024.sqlite") -> Non
                     continue
                 print(f"{ref}:\t{stop_type}")
                 cursor.execute(
-                    'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
+                    'UPDATE route_row SET stop_type = ? WHERE lat = ? AND lon = ?',
                     (stop_type, ref.lat, ref.lon)
                 )
             db.commit()  

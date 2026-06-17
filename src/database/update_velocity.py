@@ -31,7 +31,7 @@ def upload_best_velocity(nodes: list[StateNode], placemark_name: str, id: int, d
         db = sqlite3.connect(db_path)
         cursor = db.cursor()
         # add power here
-        cursor.execute('UPDATE route_data SET speed = ?, torque = ? WHERE placemark_name = ? AND id = ?', (best_node.speed.kmph, best_node.torque, placemark_name, id))
+        cursor.execute('UPDATE route_row SET speed = ?, torque = ? WHERE placemark_name = ? AND id = ?', (best_node.speed.kmph, best_node.torque, placemark_name, id))
 
         db.commit()
         db.close()
