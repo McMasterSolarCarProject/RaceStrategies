@@ -78,14 +78,14 @@ def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_
     """
     from ..utils import constants
     
-    original_mass = constants.car_mass
+    original_profile = constants.get_active_profile()
     nodes_list = []
     for mass in masses:
-        constants.car_mass = mass
+        constants.set_active_profile(original_profile.override("vehicle.car_mass", mass))
         nodes = simulate_speed_profile_with_mass(segment, min_speed_lim, max_speed_lim, resolution_step_mps)
         nodes_list.append(nodes)
         print(f"Simulated for mass {mass} kg: {len(nodes)} nodes generated.")
-    constants.car_mass = original_mass  # restore original mass
+    constants.set_active_profile(original_profile)  # restore original profile
     return nodes_list
 
 

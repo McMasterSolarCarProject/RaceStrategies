@@ -20,11 +20,11 @@ def constant_speed_mass_study(
     - distance_km: distance traveled in duration_hours at the requested speed
     - energy_wh: total energy used over duration_hours
     """
-    original_mass = constants.car_mass
+    original_profile = constants.get_active_profile()
     results: list[dict] = []
 
     for mass in masses:
-        constants.car_mass = mass
+        constants.set_active_profile(original_profile.override("vehicle.car_mass", mass))
         node = StateNode(segment=segment, speed=speed)
         feasible = node.solve_cruise_state()
 
@@ -50,7 +50,7 @@ def constant_speed_mass_study(
 
         results.append(row)
 
-    constants.car_mass = original_mass
+    constants.set_active_profile(original_profile)
     return results
 
 
@@ -100,8 +100,8 @@ def constant_speed_power_sweep(
     if max_speed_kmph is None:
         max_speed_kmph = max(5.0, segment.speed_limit.kmph)
 
-    original_mass = constants.car_mass
-    constants.car_mass = mass_kg
+    original_profile = constants.get_active_profile()
+    constants.set_active_profile(original_profile.override("vehicle.car_mass", mass_kg))
 
     rows: list[dict] = []
     speed_kmph = min_speed_kmph
@@ -131,7 +131,7 @@ def constant_speed_power_sweep(
         rows.append(row)
         speed_kmph += speed_step_kmph
 
-    constants.car_mass = original_mass
+    constants.set_active_profile(original_profile)
     return rows
 
 

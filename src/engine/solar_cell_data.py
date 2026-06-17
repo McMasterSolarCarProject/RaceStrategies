@@ -2,7 +2,7 @@ from __future__ import annotations
 from .nodes import Segment
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
-from ..utils.constants import CELL_AREA
+from ..utils import constants
 import math
 import datetime
 
@@ -117,7 +117,7 @@ class SolarCell:
             print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
-        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * CELL_AREA)  # watts
+        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * constants.CELL_AREA)  # watts
 
     def update_power(self, new_segment: Segment = None, new_time: datetime.datetime = None) -> float:
         """

@@ -2,13 +2,13 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ..utils.constants import TORQUE_CURRENT_RPM_DATA, wheel_radius, battery_voltage
+from ..utils import constants
 from ..engine.kinematics import Speed
 
 class MotorModel:
     def __init__(self):
-        self.ref_voltage = battery_voltage
-        self._data = np.array(TORQUE_CURRENT_RPM_DATA)
+        self.ref_voltage = constants.battery_voltage
+        self._data = np.array(constants.TORQUE_CURRENT_RPM_DATA)
         self._data = self._data[self._data[:, 0].argsort()]  # sort by torque
         self.torque_ref = self._data[:, 0]
         self.current_ref = self._data[:, 1]
@@ -25,7 +25,7 @@ class MotorModel:
     
     def speed_from_torque(self, torque: float) -> Speed:
         rpm = self._interp(torque, self.torque_ref, self.rpm_ref)
-        return Speed.create_from_rpm(rpm)
+        return Speed.create_from_rpm(rpm, radius=constants.wheel_radius)
     
     def torque_from_speed(self, speed: Speed) -> float:
         rpm = speed.rpm()
@@ -67,7 +67,7 @@ class MotorModel:
         rpms = np.array(rpms)
         
         # Convert RPM to desired unit
-        y2_vals = [Speed.create_from_rpm(rpm=r, radius=wheel_radius) for r in rpms]
+        y2_vals = [Speed.create_from_rpm(rpm=r, radius=constants.wheel_radius) for r in rpms]
         if unit.lower() == 'mps':
             y2 = [s.mps for s in y2_vals]
             y2_label = "Speed (m/s)"

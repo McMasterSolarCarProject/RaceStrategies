@@ -1,17 +1,62 @@
-num_motors = 2
-CELL_AREA = 0.0153  # m^2
-air_density = 1.225  # kg/m^3
-coef_drag = 0.15
-coef_rr = 0.0075
-car_mass = 750  # kg
-accel_g = 9.81  # m/s^2
-wheel_radius = 0.2  # m
-cross_section = 2.8  # m^2
-passive_consumption = 7.5  # Watts
-regen_eff = 0.05  # %
-battery_c_rated = 180
-battery_voltage = 101.64
+from pathlib import Path
+import os
+
+from ..config import CarProfile, DEFAULT_PROFILE_NAME, load_builtin_profile, load_profile
+
+
+GRAPH_OUTPUT_DIR = "graphs/"
+DATA_DIR = "data/"
+
+
+def _apply_profile(profile: CarProfile) -> None:
+    global ACTIVE_PROFILE
+    global num_motors, CELL_AREA, air_density, coef_drag, coef_rr, car_mass, accel_g, wheel_radius
+    global cross_section, passive_consumption, regen_eff, battery_c_rated, battery_voltage
+
+    ACTIVE_PROFILE = profile
+    num_motors = profile.motor.num_motors
+    CELL_AREA = profile.solar.cell_area
+    air_density = profile.physics.air_density
+    coef_drag = profile.vehicle.coef_drag
+    coef_rr = profile.vehicle.coef_rr
+    car_mass = profile.vehicle.car_mass
+    accel_g = profile.physics.accel_g
+    wheel_radius = profile.motor.wheel_radius
+    cross_section = profile.vehicle.cross_section
+    passive_consumption = profile.battery.passive_consumption
+    regen_eff = profile.battery.regen_eff
+    battery_c_rated = profile.battery.battery_c_rated
+    battery_voltage = profile.battery.battery_voltage
+
+
+def get_active_profile() -> CarProfile:
+    return ACTIVE_PROFILE
+
+
+def set_active_profile(profile: CarProfile) -> CarProfile:
+    _apply_profile(profile)
+    return profile
+
+
+def use_builtin_profile(name: str = DEFAULT_PROFILE_NAME) -> CarProfile:
+    return set_active_profile(load_builtin_profile(name))
+
+
+def load_profile_from_file(path: str | Path, name: str = DEFAULT_PROFILE_NAME) -> CarProfile:
+    return set_active_profile(load_profile(path, name=name))
+
+
+ACTIVE_PROFILE = load_builtin_profile()
+_apply_profile(ACTIVE_PROFILE)
+
 eff_factor = 0.5  # a lower value will produce higher speeds
+
+
+def save_plot(plot, filename):
+    os.makedirs(GRAPH_OUTPUT_DIR, exist_ok=True)
+    filepath = os.path.join(GRAPH_OUTPUT_DIR, filename)
+    plot.savefig(filepath)
+    print(f"Graph saved to {filepath}")
 
 TILTS = {
     "hood_front": {

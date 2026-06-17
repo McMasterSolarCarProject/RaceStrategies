@@ -14,6 +14,9 @@ battery_voltage = 101.64
 passive_consumption = 7.5
 regen_eff = 0.05
 
+[profiles.default.solar]
+cell_area = 0.0153
+
 [profiles.default.motor]
 num_motors = 2
 wheel_radius = 0.2

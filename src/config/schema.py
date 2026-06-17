@@ -32,6 +32,11 @@ class BatteryConfig:
 
 
 @dataclass(frozen=True)
+class SolarConfig:
+    cell_area: float = 0.0153  # m^2
+
+
+@dataclass(frozen=True)
 class MotorConfig:
     num_motors: int = 2
     wheel_radius: float = 0.2  # m
@@ -43,6 +48,7 @@ class CarProfile:
     physics: PhysicsConstants = field(default_factory=PhysicsConstants)
     vehicle: VehicleConfig = field(default_factory=VehicleConfig)
     battery: BatteryConfig = field(default_factory=BatteryConfig)
+    solar: SolarConfig = field(default_factory=SolarConfig)
     motor: MotorConfig = field(default_factory=MotorConfig)
 
     def override(self, dotted_path: str, value: Any) -> CarProfile:
@@ -65,6 +71,7 @@ class ProfileDefinition:
     physics: dict[str, Any] = field(default_factory=dict)
     vehicle: dict[str, Any] = field(default_factory=dict)
     battery: dict[str, Any] = field(default_factory=dict)
+    solar: dict[str, Any] = field(default_factory=dict)
     motor: dict[str, Any] = field(default_factory=dict)
 
 
@@ -115,6 +122,7 @@ def _parse_profile_definitions(raw_data: dict[str, Any]) -> dict[str, ProfileDef
             physics=dict(profile_data.get("physics", {})),
             vehicle=dict(profile_data.get("vehicle", {})),
             battery=dict(profile_data.get("battery", {})),
+            solar=dict(profile_data.get("solar", {})),
             motor=dict(profile_data.get("motor", {})),
         )
 
@@ -151,6 +159,7 @@ def _resolve_profile(
         physics=_merge_section(base_profile.physics, definition.physics),
         vehicle=_merge_section(base_profile.vehicle, definition.vehicle),
         battery=_merge_section(base_profile.battery, definition.battery),
+        solar=_merge_section(base_profile.solar, definition.solar),
         motor=_merge_section(base_profile.motor, definition.motor),
     )
     stack.pop()
@@ -183,9 +192,7 @@ def _set_dotted_value(profile: CarProfile, dotted_path: str, value: Any) -> CarP
 def _split_dotted_path(dotted_path: str) -> tuple[str, str]:
     parts = dotted_path.split(".")
     if len(parts) != 2:
-        raise ValueError(
-            f"Config override paths must look like 'section.field'; got '{dotted_path}'."
-        )
+        raise ValueError(f"Config override paths must look like 'section.field'; got '{dotted_path}'.")
 
     section_name, field_name = parts
     valid_sections = {field.name for field in fields(CarProfile) if field.name != "name"}
@@ -193,6 +200,3 @@ def _split_dotted_path(dotted_path: str) -> tuple[str, str]:
         raise KeyError(f"Unknown config section '{section_name}'.")
 
     return section_name, field_name
-
-
-
