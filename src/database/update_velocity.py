@@ -12,15 +12,14 @@ def update_target_velocity(placemark_name: str, db_path: str = "ASC_2024.sqlite"
         velocity_nodes = simulate_speed_profile(segment, max_speed_lim=segment.speed_limit)
         upload_best_velocity(velocity_nodes, placemark_name, segment.id, db_path)
 
-def upload_best_velocity(nodes: list[StateNode], placemark_name: str, id: int, db_path: str = "ASC_2024.sqlite"):
+def upload_best_velocity(nodes: list[StateNode], placemark_name: str, segment_id: int, db_path: str = "ASC_2024.sqlite"):
     if len(nodes) == 0:
-        print(f"No velocity nodes generated for segment {placemark_name} id {id}")
+        print(f"No velocity nodes generated for segment {placemark_name} id {segment_id}")
         return
-
-    epm_target = 100
-    best_node = choose_closest_epm_node(nodes, epm_target)
+    target_energy_per_meter = 100
+    best_node = choose_closest_epm_node(nodes, target_energy_per_meter)
     if best_node is None:
-        print(f"No valid velocity candidate for segment {placemark_name} id {id}")
+        print(f"No valid velocity candidate for segment {placemark_name} id {segment_id}")
         return
     
     if best_node:
@@ -31,12 +30,12 @@ def upload_best_velocity(nodes: list[StateNode], placemark_name: str, id: int, d
         db = sqlite3.connect(db_path)
         cursor = db.cursor()
         # add power here
-        cursor.execute('UPDATE route_row SET speed = ?, torque = ? WHERE placemark_name = ? AND id = ?', (best_node.speed.kmph, best_node.torque, placemark_name, id))
+        cursor.execute('UPDATE route_row SET speed = ?, torque = ? WHERE placemark_name = ? AND id = ?', (best_node.speed.kmph, best_node.torque, placemark_name, segment_id))
 
         db.commit()
         db.close()
     else:
-        raise ValueError(f"could not find Velocity Node with epm of {epm_target}, speed {best_node.speed.kmph}, torque {best_node.torque}")
+        raise ValueError(f"could not find Velocity Node with epm of {target_energy_per_meter}, speed {best_node.speed.kmph}, torque {best_node.torque}")
 
 
 if __name__ == "__main__":

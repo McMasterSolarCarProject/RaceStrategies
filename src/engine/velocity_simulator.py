@@ -14,7 +14,7 @@ def simulate_speed_profile(
     segment: Segment,
     min_speed_lim: Speed = Speed(kmph=10),
     max_speed_lim: Speed = Speed(kmph=60),
-    RESOLUTION: float = 0.01,
+    resolution_step_mps: float = 0.01,
 ) -> list[StateNode]:
     min_speed = min_speed_lim
     max_speed = max_speed_lim
@@ -22,10 +22,10 @@ def simulate_speed_profile(
     speed = min_speed
 
     while speed.mps < max_speed.mps:
-        node = StateNode(segment, speed=speed)
-        if node.solve_cruise_state():
-            velocity_nodes.append(node)
-        speed = Speed(mps=speed.mps + RESOLUTION)
+        state_node = StateNode(segment, speed=speed)
+        if state_node.solve_cruise_state():
+            velocity_nodes.append(state_node)
+        speed = Speed(mps=speed.mps + resolution_step_mps)
 
     return velocity_nodes
 
@@ -42,7 +42,7 @@ def choose_closest_epm_node(nodes: list[StateNode], epm_target: float) -> StateN
     return min(valid_nodes, key=lambda node: abs(node_epm(node) - epm_target))
 
 
-def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
+def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), resolution_step_mps: float = 0.01):
     """
     Simulate speed profile for a given segment with specified mass override.
     
@@ -55,17 +55,17 @@ def simulate_speed_profile_with_mass(segment: Segment, min_speed_lim: Speed = Sp
     """
     min_speed = min_speed_lim
     max_speed = max_speed_lim
-    velocityNodes = []
+    velocity_nodes = []
     speed = min_speed
     while speed.mps < max_speed.mps:
-        v = StateNode(segment, speed=speed)
-        if v.solve_cruise_state():
-            velocityNodes.append(v)
-        speed = Speed(mps=speed.mps + RESOLUTION)
-    return velocityNodes
+        state_node = StateNode(segment, speed=speed)
+        if state_node.solve_cruise_state():
+            velocity_nodes.append(state_node)
+        speed = Speed(mps=speed.mps + resolution_step_mps)
+    return velocity_nodes
 
 
-def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), RESOLUTION: float = 0.01):
+def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_speed_lim: Speed = Speed(mph=0), max_speed_lim: Speed = Speed(mph=40), resolution_step_mps: float = 0.01):
     """
     Simulate speed profiles for multiple car masses.
     
@@ -82,7 +82,7 @@ def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_
     nodes_list = []
     for mass in masses:
         constants.car_mass = mass
-        nodes = simulate_speed_profile_with_mass(segment, min_speed_lim, max_speed_lim, RESOLUTION)
+        nodes = simulate_speed_profile_with_mass(segment, min_speed_lim, max_speed_lim, resolution_step_mps)
         nodes_list.append(nodes)
         print(f"Simulated for mass {mass} kg: {len(nodes)} nodes generated.")
     constants.car_mass = original_mass  # restore original mass

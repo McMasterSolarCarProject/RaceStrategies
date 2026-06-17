@@ -5,19 +5,35 @@ from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, v_eff: Speed = Speed(0), t_eff: float = 0, tdist: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0),  ghi: float = 0, wind: Velocity = ZERO_VEC, target_speed: Speed = Speed(0), target_torque: float = 0, tdist: float = 0):
         self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
-        self.v_eff = Velocity(self.displacement.unit_vector(), v_eff)
-        self.t_eff = t_eff
+        self.target_speed = Velocity(self.displacement.unit_vector(), target_speed)
+        self.target_torque = target_torque
         self.ghi = ghi
         self.wind = wind
         self.speed_limit = speed_limit
         self.tdist = tdist
 
+    @property
+    def v_eff(self):
+        return self.target_speed
+
+    @v_eff.setter
+    def v_eff(self, value):
+        self.target_speed = value
+
+    @property
+    def t_eff(self):
+        return self.target_torque
+
+    @t_eff.setter
+    def t_eff(self, value):
+        self.target_torque = value
+
     def __str__(self):
-        return f"Total Distance: {self.tdist} | V eff: {self.v_eff.kmph} | T eff: {self.t_eff}"
+        return f"Total Distance: {self.tdist} | Target speed: {self.target_speed.kmph} | Target torque: {self.target_torque}"
 
 NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 
@@ -54,7 +70,7 @@ class StateNode:
         # !! replace with electrical firmware constant
 
         # Various Scoring Metrics
-        self.epm = 0
+        self.energy_per_meter = 0
 
     def Fm_calc(self):
         # Assume torque is calculated from the motor model

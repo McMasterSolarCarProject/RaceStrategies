@@ -60,14 +60,14 @@ def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make th
 def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list[RouteRow]:
     rows: list[RouteRow] = []
     limit_index = 0
-    tdist = 0
-    for coord_index, c in enumerate(coords[:-1]):
-        s = Segment(c, coords[coord_index + 1])
-        tdist += s.dist
+    total_distance = 0
+    for coord_index, coord in enumerate(coords[:-1]):
+        segment = Segment(coord, coords[coord_index + 1])
+        total_distance += segment.dist
 
-        speed_limit, limit_index = lookup_speed_limit(speed_limits, tdist, limit_index)
-        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=c.lat, lon=c.lon, elevation=c.elevation, distance=tdist, speed_limit=speed_limit, stop_type=None, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
-    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=tdist, speed_limit=0, stop_type=True, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
+        speed_limit, limit_index = lookup_speed_limit(speed_limits, total_distance, limit_index)
+        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=coord.lat, lon=coord.lon, elevation=coord.elevation, distance=total_distance, speed_limit=speed_limit, stop_type=None, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
+    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=total_distance, speed_limit=0, stop_type=True, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
     return rows
 
 if __name__ == "__main__":

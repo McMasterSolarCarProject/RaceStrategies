@@ -10,37 +10,45 @@ from ..engine.kinematics import Speed, Velocity
 from ..engine.nodes import StateNode
 
 
-def set_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> RouteInterval:
+def set_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[float]) -> RouteInterval:
     """
-    Override v_eff and t_eff on every segment of a single RouteInterval **in-place**.
-    v_eff_kmph must have one entry per segment in the interval.
+    Override target_speed and target_torque on every segment of a single RouteInterval **in-place**.
+    target_speed_kmph must have one entry per segment in the interval.
     """
-    if len(v_eff_kmph) != len(interval.segments):
+    if len(target_speed_kmph) != len(interval.segments):
         raise ValueError(
-            f"v_eff list length ({len(v_eff_kmph)}) != segments ({len(interval.segments)})"
+            f"target_speed list length ({len(target_speed_kmph)}) != segments ({len(interval.segments)})"
         )
 
-    for seg, v_kmph in zip(interval.segments, v_eff_kmph):
+    for seg, v_kmph in zip(interval.segments, target_speed_kmph):
         target = min(v_kmph, seg.speed_limit.kmph) if seg.speed_limit.mps > 0 else v_kmph
-        seg.v_eff = Velocity(seg.displacement.unit_vector(), Speed(kmph=target))
+        seg.target_speed = Velocity(seg.displacement.unit_vector(), Speed(kmph=target))
 
         vnode = StateNode(seg, speed=Speed(kmph=target))
         if vnode.solve_cruise_state():
-            seg.t_eff = vnode.torque
+            seg.target_torque = vnode.torque
         else:
-            seg.t_eff = 0
+            seg.target_torque = 0
 
     return interval
 
 
-def simulate_interval_with_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> float:
+def simulate_interval_with_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[float]) -> float:
     """
-    Deep-copy an interval, apply v_eff profile, simulate, return total time (seconds).
+    Deep-copy an interval, apply target_speed profile, simulate, return total time (seconds).
     """
     trial = copy.deepcopy(interval)
-    set_v_eff(trial, v_eff_kmph)
+    set_target_speed_profile(trial, target_speed_kmph)
     trial.simulate_interval()
     return trial.time_nodes[-1].time
+
+
+def set_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> RouteInterval:
+    return set_target_speed_profile(interval, v_eff_kmph)
+
+
+def simulate_interval_with_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> float:
+    return simulate_interval_with_target_speed_profile(interval, v_eff_kmph)
 
 
 def brute_force_interval(
@@ -91,7 +99,7 @@ def brute_force_interval(
 
     for combo in product(*per_segment_candidates):
         combo_list = list(combo)
-        t = simulate_interval_with_v_eff(interval, combo_list)
+        t = simulate_interval_with_target_speed_profile(interval, combo_list)
         all_results.append((combo_list, t))
         if t < best_time:
             best_time = t
@@ -233,7 +241,7 @@ def optimize_route(
     optimized_intervals = []
     for interval, speeds in zip(intervals, all_best_speeds):
         trial = copy.deepcopy(interval)
-        set_v_eff(trial, speeds)
+        set_target_speed_profile(trial, speeds)
         trial.simulate_interval()
         optimized_intervals.append(trial)
 
@@ -270,7 +278,7 @@ if __name__ == "__main__":
 
     if result["master"]:
         result["master"].plot(
-            "dist", ["speed.kmph", "segment.v_eff.kmph"],
+            "dist", ["speed.kmph", "segment.target_speed.kmph"],
             f"optimized_{result['total_time']:.0f}s",
             brake=False,
         )

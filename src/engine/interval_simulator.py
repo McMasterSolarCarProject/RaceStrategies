@@ -27,98 +27,98 @@ class RouteInterval:
 
     
     def simulate_interval(self):
-        initial_DynamicNode = copy.deepcopy(INITIAL_DYNAMIC_NODE)
-        initial_DynamicNode.speed = self.start_speed
-        self.time_nodes = [initial_DynamicNode]
+        initial_dynamic_node = copy.deepcopy(INITIAL_DYNAMIC_NODE)
+        initial_dynamic_node.speed = self.start_speed
+        self.time_nodes = [initial_dynamic_node]
         self.simulate_braking()
-        # print(f"# Braking Nodes: {len(self.brakingNodes)}")
-        brakingNode = 0
+        # print(f"# Braking Nodes: {len(self.braking_nodes)}")
+        braking_node_index = 0
         stopped = False
         for segment in self.segments:
             if stopped:
                 break
             
-            while initial_DynamicNode.dist <= segment.tdist:
-                current_DynamicNode = DynamicNode(segment)
+            while initial_dynamic_node.dist <= segment.tdist:
+                current_dynamic_node = DynamicNode(segment)
 
-                while initial_DynamicNode.speed.mps > self.brakingNodes[brakingNode].speed.mps and brakingNode + 1 < len(self.brakingNodes):
+                while initial_dynamic_node.speed.mps > self.braking_nodes[braking_node_index].speed.mps and braking_node_index + 1 < len(self.braking_nodes):
                     # index to the braking node with the same velocity
-                    brakingNode += 1
+                    braking_node_index += 1
                 
-                while initial_DynamicNode.speed.mps < self.brakingNodes[brakingNode-1].speed.mps and brakingNode > 0:
+                while initial_dynamic_node.speed.mps < self.braking_nodes[braking_node_index-1].speed.mps and braking_node_index > 0:
                     # index to the braking node with the same velocity
-                    brakingNode -= 1
+                    braking_node_index -= 1
 
-                if initial_DynamicNode.dist >= self.brakingNodes[brakingNode].dist:
-                    current_DynamicNode.Fb = BRAKE
+                if initial_dynamic_node.dist >= self.braking_nodes[braking_node_index].dist:
+                    current_dynamic_node.Fb = BRAKE
 
-                elif initial_DynamicNode.speed.mps < segment.v_eff.mps:
-                    current_DynamicNode.torque = MAX_TORQUE
+                elif initial_dynamic_node.speed.mps < segment.v_eff.mps:
+                    current_dynamic_node.torque = MAX_TORQUE
                     # current_DynamicNode.torque = motor.torque_from_speed(initial_DynamicNode.speed)*10
 
                 else:
-                    current_DynamicNode.torque = segment.t_eff
+                    current_dynamic_node.torque = segment.t_eff
 
-                self.adaptive_timestep(current_DynamicNode, initial_DynamicNode)
+                self.adaptive_timestep(current_dynamic_node, initial_dynamic_node)
 
                 # Stall detection: motor can't overcome hill, skip to next segment
-                if current_DynamicNode.speed.mps <= 0 and initial_DynamicNode.speed.mps <= 0:
+                if current_dynamic_node.speed.mps <= 0 and initial_dynamic_node.speed.mps <= 0:
                     Fg = constants.car_mass * constants.accel_g * segment.gradient.sin()
                     Fm_max = MAX_TORQUE / constants.wheel_radius * constants.num_motors
                     if Fm_max < Fg:
                         print(f"Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
                         # Jump the car to the end of this segment so the while loop advances
-                        current_DynamicNode.dist = segment.tdist
-                        current_DynamicNode.speed = Speed(0)
-                        self.time_nodes.append(current_DynamicNode)
-                        initial_DynamicNode = self.time_nodes[-1]
+                        current_dynamic_node.dist = segment.tdist
+                        current_dynamic_node.speed = Speed(0)
+                        self.time_nodes.append(current_dynamic_node)
+                        initial_dynamic_node = self.time_nodes[-1]
                         break
 
-                self.time_nodes.append(current_DynamicNode)
+                self.time_nodes.append(current_dynamic_node)
 
-                initial_DynamicNode = self.time_nodes[-1]
+                initial_dynamic_node = self.time_nodes[-1]
                 # print(brakingNode)
                 # print(initial_DynamicNode.dist)
 
-                if initial_DynamicNode.speed.mps <= self.stop_speed.mps and initial_DynamicNode.speed.mps <= Speed(0).mps:
+                if initial_dynamic_node.speed.mps <= self.stop_speed.mps and initial_dynamic_node.speed.mps <= Speed(0).mps:
                     # break out of both while and for loops
                     stopped = True
                     break
 
         # print(initial_DynamicNode.time)
         # print(f"Overshoot: {initial_DynamicNode.dist - self.total_dist}, Speed (kmph): {initial_DynamicNode.speed.kmph}")
-        for node in self.brakingNodes:
-            node.time += initial_DynamicNode.time
+        for node in self.braking_nodes:
+            node.time += initial_dynamic_node.time
 
     def simulate_braking(self):
-        initial_DynamicNode = copy.deepcopy(INITIAL_DYNAMIC_NODE)
-        initial_DynamicNode.dist = self.total_dist
-        initial_DynamicNode.speed = self.stop_speed
+        initial_dynamic_node = copy.deepcopy(INITIAL_DYNAMIC_NODE)
+        initial_dynamic_node.dist = self.total_dist
+        initial_dynamic_node.speed = self.stop_speed
 
-        self.brakingNodes = [initial_DynamicNode]
+        self.braking_nodes = [initial_dynamic_node]
         for segment in self.segments[::-1]:
-            while initial_DynamicNode.dist >= segment.tdist - segment.dist:
-                if initial_DynamicNode.speed.mps <= segment.speed_limit.mps:  # if the velocity is under
-                    current_DynamicNode = DynamicNode(segment, initial_DynamicNode.time - self.TIME_STEP, Fb=BRAKE)
-                    self.adaptive_timestep(current_DynamicNode, initial_DynamicNode, backward=True)
+            while initial_dynamic_node.dist >= segment.tdist - segment.dist:
+                if initial_dynamic_node.speed.mps <= segment.speed_limit.mps:  # if the velocity is under
+                    current_dynamic_node = DynamicNode(segment, initial_dynamic_node.time - self.TIME_STEP, Fb=BRAKE)
+                    self.adaptive_timestep(current_dynamic_node, initial_dynamic_node, backward=True)
 
-                    self.brakingNodes.append(current_DynamicNode)
+                    self.braking_nodes.append(current_dynamic_node)
                     
-                    initial_DynamicNode = self.brakingNodes[-1]
+                    initial_dynamic_node = self.braking_nodes[-1]
 
                     # print(initial_DynamicNode)
                 else:
                     return
         return
     
-    def adaptive_timestep(self, current_DynamicNode: DynamicNode, initial_DynamicNode: DynamicNode, backward: bool = False):
+    def adaptive_timestep(self, current_dynamic_node: DynamicNode, initial_dynamic_node: DynamicNode, backward: bool = False):
         direction = -1 if backward else 1
-        current_DynamicNode.solve_DynamicNode(initial_DynamicNode, direction*self.TIME_STEP)
+        current_dynamic_node.solve_DynamicNode(initial_dynamic_node, direction*self.TIME_STEP)
         
-        if abs(current_DynamicNode.acc * self.TIME_STEP) > self.VELOCITY_STEP.mps:
-            dt = direction*abs(self.VELOCITY_STEP.mps / current_DynamicNode.acc)
-            current_DynamicNode.solve_DynamicNode(initial_DynamicNode, dt)
-            # current_DynamicNode.time = initial_DynamicNode.time + dt
+        if abs(current_dynamic_node.acc * self.TIME_STEP) > self.VELOCITY_STEP.mps:
+            dt = direction*abs(self.VELOCITY_STEP.mps / current_dynamic_node.acc)
+            current_dynamic_node.solve_DynamicNode(initial_dynamic_node, dt)
+            # current_dynamic_node.time = initial_dynamic_node.time + dt
 
     def get_coordinate_pairs(self) -> list[tuple]:
         pair_list = []
@@ -131,8 +131,8 @@ class RouteInterval:
     def plot(self, x: str, y: str, name: str, brake: bool = True):
         from ..utils.graph import plot_RouteInterval
         if not brake:
-            return plot_RouteInterval([self.time_nodes if hasattr(self, 'brakingNodes') else []], x, y, name)
-        return plot_RouteInterval([self.time_nodes, self.brakingNodes if hasattr(self, 'brakingNodes') else []], x, y, name)
+            return plot_RouteInterval([self.time_nodes if hasattr(self, 'braking_nodes') else []], x, y, name)
+        return plot_RouteInterval([self.time_nodes, self.braking_nodes if hasattr(self, 'braking_nodes') else []], x, y, name)
 
     def __iadd__(self, other: RouteInterval):
         if not (hasattr(self, 'time_nodes') and hasattr(other, 'time_nodes')):
@@ -150,14 +150,14 @@ class RouteInterval:
             new_node.dist += dist_offset
             self.time_nodes.append(new_node)
             
-        if hasattr(other, 'brakingNodes'):
-            if not hasattr(self, 'brakingNodes'):
-                self.brakingNodes = []
-            for node in other.brakingNodes:
+        if hasattr(other, 'braking_nodes'):
+            if not hasattr(self, 'braking_nodes'):
+                self.braking_nodes = []
+            for node in other.braking_nodes:
                 new_node = copy.copy(node)
                 new_node.time += time_offset
                 new_node.dist += dist_offset
-                self.brakingNodes.append(new_node)
+                self.braking_nodes.append(new_node)
             
         # Add segments and recalculate in-place tdists
         self.segments += other.segments
@@ -179,8 +179,8 @@ def join_intervals(intervals: list[RouteInterval]) -> RouteInterval:
     result = RouteInterval(intervals[0].segments[:])
     if hasattr(intervals[0], 'time_nodes'):
         result.time_nodes = intervals[0].time_nodes[:]
-    if hasattr(intervals[0], 'brakingNodes'):
-        result.brakingNodes = intervals[0].brakingNodes[:]
+    if hasattr(intervals[0], 'braking_nodes'):
+        result.braking_nodes = intervals[0].braking_nodes[:]
     
     for i in range(1, len(intervals)):
         result += intervals[i]
