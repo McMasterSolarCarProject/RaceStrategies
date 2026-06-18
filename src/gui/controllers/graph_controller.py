@@ -73,7 +73,7 @@ class GraphController(QWidget):
 
         # Set defaults:
         self.x1_dropdown.setCurrentText("dist")
-        self.y1_dropdown.setCurrentText("speed.kmph")
+        self.y1_dropdown.setCurrentText("speed_kmph")
         self.x2_dropdown.setCurrentText("time")
         self.y2_dropdown.setCurrentText("soc")
 
@@ -90,7 +90,7 @@ class GraphController(QWidget):
         if not hasattr(self.simulated_route, "time_nodes"):
             self.simulated_route.simulate_interval()
         time_nodes = self.simulated_route.time_nodes
-        braking_nodes = self.simulated_route.brakingNodes
+        braking_nodes = self.simulated_route.braking_nodes
         datasets = [time_nodes, braking_nodes]
         labels = ["Time Nodes", "Braking Nodes"]
 

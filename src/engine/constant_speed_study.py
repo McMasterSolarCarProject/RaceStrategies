@@ -26,8 +26,8 @@ def constant_speed_mass_study(
 
     for mass in masses:
         mass_profile = base_profile.override("vehicle.car_mass", mass)
-        node = StateNode(segment=segment, speed=speed, profile=mass_profile)
-        feasible = node.solve_cruise_state()
+        node = StateNode(segment=segment, profile=mass_profile)
+        feasible = node.solve_cruise_state(speed.mps)
 
         distance_km = speed.kmph * duration_hours
         row = {
@@ -108,8 +108,8 @@ def constant_speed_power_sweep(
     speed_kmph = min_speed_kmph
     while speed_kmph <= max_speed_kmph:
         speed = Speed(kmph=speed_kmph)
-        node = StateNode(segment=segment, speed=speed, profile=mass_profile)
-        feasible = node.solve_cruise_state()
+        node = StateNode(segment=segment, profile=mass_profile)
+        feasible = node.solve_cruise_state(speed.mps)
 
         row = {
             "speed_kmph": speed_kmph,

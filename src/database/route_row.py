@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 import sqlite3
+import numpy as np
 from ..engine.kinematics import Coordinate, Speed, Velocity
 from ..engine.nodes import Segment
 
@@ -90,4 +91,14 @@ class RouteRow:
         current_coord = Coordinate(self.lat, self.lon, self.elevation)
         next_coord = Coordinate(next_row.lat, next_row.lon, next_row.elevation)
         wind = Velocity()
-        return Segment(current_coord, next_coord, self.id, Speed(kmph=self.speed_limit), self.ghi, wind, Speed(kmph=self.speed), self.torque)
+        return Segment(
+            current_coord,
+            next_coord,
+            self.id,
+            Speed(kmph=self.speed_limit),
+            self.ghi,
+            wind,
+        )
+
+    def to_target_profile_row(self) -> np.ndarray:
+        return np.array([self.id, Speed(kmph=self.speed).mps, self.torque], dtype=float)

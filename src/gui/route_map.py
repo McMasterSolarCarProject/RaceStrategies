@@ -120,9 +120,9 @@ class RouteMap:
         t = _safe_get(tn, "time", None)
         if t is not None:
             parts.append(f"<b>Time:</b> {t:.1f} s")
-        kmph = _safe_get(tn, "speed.kmph", None)
-        if kmph is not None:
-            parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
+        speed_mps = _safe_get(tn, "speed_mps", None)
+        if speed_mps is not None:
+            parts.append(f"<b>Speed:</b> {speed_mps * 3.6:.2f} km/h")
         accel = _safe_get(tn, "accel", None)
         if accel is not None:
             parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
@@ -134,7 +134,7 @@ class RouteMap:
 
     def get_speed_color(self, time_node: DynamicNode):
         try:
-            color = self.speed_colors[min(int(time_node.speed.kmph) + 100, len(self.speed_colors) - 1)]
+            color = self.speed_colors[min(int(time_node.speed_mps * 3.6) + 100, len(self.speed_colors) - 1)]
         except IndexError:
             color = self.speed_colors[0]
         return color
@@ -187,8 +187,7 @@ def format_time_node_tooltip(time_node, segment=None):
     # Basics
     dist_m = _safe_get(time_node, "dist", None)
     t_s = _safe_get(time_node, "time", None)
-    kmph = _safe_get(time_node, "speed.kmph", None)
-    mps = _safe_get(time_node, "speed.mps", None)
+    mps = _safe_get(time_node, "speed_mps", None)
     accel = _safe_get(time_node, "accel", None)  # if you store it
     # torque   = _safe_get(time_node, "torque", None)
     Fb = _safe_get(time_node, "Fb", None)  # braking force (N)
@@ -198,8 +197,6 @@ def format_time_node_tooltip(time_node, segment=None):
     e_kwh = (e_wh / 1000.0) if e_wh is not None else (e_j / 3.6e6 if e_j is not None else None)
 
     # Segment constraints / context
-    v_eff_k = _safe_get(segment, "v_eff.kmph", None) if segment is not None else None
-
     # Grade (%) if coordinates have altitude
     grade_pct = None
     if segment is not None:
@@ -217,17 +214,13 @@ def format_time_node_tooltip(time_node, segment=None):
         lines.append(f"<b>Dist:</b> {dist_m/1000:.3f} km")
     if t_s is not None:
         lines.append(f"<b>Time:</b> {t_s:.1f} s")
-    if kmph is not None:
-        lines.append(f"<b>Speed:</b> {kmph:.2f} km/h")
-    elif mps is not None:
-        lines.append(f"<b>Speed:</b> {mps:.2f} m/s")
+    if mps is not None:
+        lines.append(f"<b>Speed:</b> {mps * 3.6:.2f} km/h")
     if accel is not None:
         lines.append(f"<b>Accel:</b> {accel:.3f} m/s²")
     # if torque is not None: lines.append(f"<b>Torque:</b> {torque:.0f} Nm")
     if Fb is not None and Fb != 0:
         lines.append(f"<b>Brake F:</b> {Fb:.0f} N")
-    if v_eff_k is not None:
-        lines.append(f"<b>Target v:</b> {v_eff_k:.1f} km/h")
     if grade_pct is not None:
         lines.append(f"<b>Grade:</b> {grade_pct:+.1f}%")
     if e_kwh is not None:

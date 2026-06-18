@@ -1,7 +1,10 @@
-from ..engine.nodes import Segment
-from ..engine.interval_simulator import RouteInterval
-from .route_row import RouteRow
 import sqlite3
+
+import numpy as np
+
+from ..engine.interval_simulator import RouteInterval
+from ..engine.nodes import Segment
+from .route_row import RouteRow
 
 
 def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max_nodes: int = None, db_path: str = "ASC_2024.sqlite") -> list[RouteInterval] | RouteInterval:
@@ -15,18 +18,21 @@ def fetch_route_intervals(placemark_name: str, split_at_stops: bool = False, max
 
     route_intervals = []
     segments = []
+    target_profile_rows = []
     # print(f"Total rows: {len(route_rows)}, split_at_stops: {split_at_stops}")
     max_nodes = min(max_nodes, len(route_rows)) if max_nodes is not None else len(route_rows)
     for i, checkpoint in enumerate(route_rows[:max_nodes-1]):
         segments.append(checkpoint.to_segment(route_rows[i+1]))
+        target_profile_rows.append(checkpoint.to_target_profile_row())
 
         if route_rows[i+1].stop_type and split_at_stops:
             print(f"  -> Splitting at row {i+2}, id {i+1}, stop_type={route_rows[i+1].stop_type}")
-            route_intervals.append(RouteInterval(segments))
+            route_intervals.append(RouteInterval(segments, target_profile=np.array(target_profile_rows, dtype=float)))
             segments = []
+            target_profile_rows = []
 
     if segments:
-        route_intervals.append(RouteInterval(segments))
+        route_intervals.append(RouteInterval(segments, target_profile=np.array(target_profile_rows, dtype=float)))
         
     cursor.close()
     conn.close()

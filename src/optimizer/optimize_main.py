@@ -6,13 +6,13 @@ from itertools import product
 
 from ..database.fetch_route_intervals import fetch_route_intervals
 from ..engine.interval_simulator import RouteInterval, join_intervals
-from ..engine.kinematics import Speed, Velocity
+from ..engine.kinematics import Speed
 from ..engine.nodes import StateNode
 
 
 def set_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[float]) -> RouteInterval:
     """
-    Override target_speed and target_torque on every segment of a single RouteInterval **in-place**.
+    Store target speed and torque on the RouteInterval target profile **in-place**.
     target_speed_kmph must have one entry per segment in the interval.
     """
     if len(target_speed_kmph) != len(interval.segments):
@@ -20,15 +20,19 @@ def set_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[fl
             f"target_speed list length ({len(target_speed_kmph)}) != segments ({len(interval.segments)})"
         )
 
-    for seg, v_kmph in zip(interval.segments, target_speed_kmph):
+    for index, (seg, v_kmph) in enumerate(zip(interval.segments, target_speed_kmph)):
         target = min(v_kmph, seg.speed_limit.kmph) if seg.speed_limit.mps > 0 else v_kmph
-        seg.target_speed = Velocity(seg.displacement.unit_vector(), Speed(kmph=target))
+        target_speed_mps = Speed(kmph=target).mps
 
-        vnode = StateNode(seg, speed=Speed(kmph=target))
-        if vnode.solve_cruise_state():
-            seg.target_torque = vnode.torque
+        vnode = StateNode(seg)
+        if vnode.solve_cruise_state(target_speed_mps):
+            target_torque = vnode.torque
         else:
-            seg.target_torque = 0
+            target_torque = 0
+
+        interval.target_profile[index, 0] = seg.id
+        interval.target_profile[index, 1] = target_speed_mps
+        interval.target_profile[index, 2] = target_torque
 
     return interval
 
@@ -43,12 +47,12 @@ def simulate_interval_with_target_speed_profile(interval: RouteInterval, target_
     return trial.time_nodes[-1].time
 
 
-def set_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> RouteInterval:
-    return set_target_speed_profile(interval, v_eff_kmph)
+def set_target_speed(interval: RouteInterval, target_speed_kmph: list[float]) -> RouteInterval:
+    return set_target_speed_profile(interval, target_speed_kmph)
 
 
-def simulate_interval_with_v_eff(interval: RouteInterval, v_eff_kmph: list[float]) -> float:
-    return simulate_interval_with_target_speed_profile(interval, v_eff_kmph)
+def simulate_interval_with_target_speed(interval: RouteInterval, target_speed_kmph: list[float]) -> float:
+    return simulate_interval_with_target_speed_profile(interval, target_speed_kmph)
 
 
 def brute_force_interval(
@@ -278,8 +282,9 @@ if __name__ == "__main__":
 
     if result["master"]:
         result["master"].plot(
-            "dist", ["speed.kmph", "segment.target_speed.kmph"],
+            "dist", ["speed_kmph", "segment.speed_limit.kmph"],
             f"optimized_{result['total_time']:.0f}s",
             brake=False,
+            ylabel="Speed (km/h)",
         )
         plt.show()

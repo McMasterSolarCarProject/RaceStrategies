@@ -30,14 +30,14 @@ def main():
     for i in range(min(100000, len(route_intervals))):
         print(f"Simulating Route interval {i+1} of {len(route_intervals)}")
         route_intervals[i].simulate_interval()
-        route_intervals[i].plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"velocity_comparison_{i+1}")
-        # intervals[i].plot("time", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], "velocity_comparison")
+        route_intervals[i].plot("dist", ["speed_kmph", "segment.speed_limit.kmph", "target_speed_kmph"], f"velocity_comparison_{i+1}", ylabel="Speed (km/h)")
+        # intervals[i].plot("time", ["speed_kmph", "segment.speed_limit.kmph"], "velocity_comparison")
         print("\n\n")
         # intervals[i].plot("dist", ["speed.kmph"], f"interval_{i+1}_velocity")
     master = join_intervals(route_intervals)
     print(f"{time.perf_counter()-start}")
-    master.plot("dist", ["speed.kmph", "segment.v_eff.kmph"], "velocity_comparison", brake=False)
-    # master.plot("dist", ["speed.kmph", "segment.speed_limit.kmph", "segment.v_eff.kmph"], f"master_interval_velocity")
+    master.plot("dist", ["speed_kmph", "segment.speed_limit.kmph", "target_speed_kmph"], "velocity_comparison", brake=False, ylabel="Speed (km/h)")
+    # master.plot("dist", ["speed_kmph", "segment.speed_limit.kmph"], f"master_interval_velocity")
     # master.plot("dist", ["segment.elevation"], f"master_interval_velocity")
     print(f"Completed Display: {time.perf_counter()-start}")
     

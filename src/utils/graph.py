@@ -1,15 +1,72 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from .config import save_plot
+from ..engine.kinematics import Speed
+
+
+def _resolve_value(obj, attr_path):
+    if attr_path in {
+        "target_velocity_kmph",
+        "target_velocity_mps",
+        "target_velocity_mph",
+        "target_velocity.kmph",
+        "target_velocity.mps",
+        "target_velocity.mph",
+        "segment.target_velocity.kmph",
+        "segment.target_velocity.mps",
+        "segment.target_velocity.mph",
+    }:
+        attr_path = attr_path.replace("target_velocity", "target_speed").replace("segment.", "")
+
+    if attr_path in {
+        "target_speed_mps",
+        "target_speed.kmph",
+        "target_speed.mps",
+        "target_speed.mph",
+        "target_speed_kmph",
+        "target_speed_mph",
+    }:
+        speed_mps = getattr(obj, "target_speed_mps", None)
+        if speed_mps is None:
+            return getattr(obj, attr_path)
+        speed = Speed(mps=speed_mps)
+        if attr_path in {"target_speed_mps", "target_speed.mps"}:
+            return speed.mps
+        if attr_path in {"target_speed_kmph", "target_speed.kmph"}:
+            return speed.kmph
+        if attr_path in {"target_speed_mph", "target_speed.mph"}:
+            return speed.mph
+
+    if attr_path in {
+        "speed_mps",
+        "speed.kmph",
+        "speed.mps",
+        "speed.mph",
+        "speed_kmph",
+        "speed_mph",
+        "mps",
+        "kmph",
+        "mph",
+    }:
+        speed_mps = getattr(obj, "speed_mps", None)
+        if speed_mps is None:
+            return getattr(obj, attr_path)
+        speed = Speed(mps=speed_mps)
+        if attr_path in {"speed_mps", "mps", "speed.mps"}:
+            return speed.mps
+        if attr_path in {"speed_kmph", "kmph", "speed.kmph"}:
+            return speed.kmph
+        if attr_path in {"speed_mph", "mph", "speed.mph"}:
+            return speed.mph
+    current = obj
+    for attr in attr_path.split('.'):
+        current = getattr(current, attr)
+    return current
 
 
 
 def plot_RouteInterval(datasets, x_field, y_fields, name, labels=None, ax=None, xlabel=None, ylabel=None, title=None):
     import matplotlib.pyplot as plt
-
-    def resolve_attr(obj, attr_path):
-        for attr in attr_path.split('.'):
-            obj = getattr(obj, attr)
-        return obj
 
     # Allow both single and multiple y fields
     if isinstance(y_fields, str):
@@ -22,10 +79,10 @@ def plot_RouteInterval(datasets, x_field, y_fields, name, labels=None, ax=None, 
         fig = ax.get_figure()
 
     for i, points in enumerate(datasets):
-        x_coords = [resolve_attr(point, x_field) for point in points]
+        x_coords = [_resolve_value(point, x_field) for point in points]
 
         for j, y_field in enumerate(y_fields):
-            y_coords = [resolve_attr(point, y_field) for point in points]
+            y_coords = [_resolve_value(point, y_field) for point in points]
             label = (
                 f"{labels[i]} - {y_field}"
                 if labels
@@ -46,7 +103,7 @@ def plot_RouteInterval(datasets, x_field, y_fields, name, labels=None, ax=None, 
 
 
 def plot_points(points, x_field, y_field, name):
-    x_coords = [getattr(point.speed, x_field) for point in points]
+    x_coords = [_resolve_value(point, x_field) for point in points]
     y_coords = [getattr(point, y_field) for point in points]
 
     plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='b', label=f'{x_field} vs {y_field}')
@@ -83,10 +140,10 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
     plt.figure(figsize=(8, 6))  # Set figure size
 
     for i, points in enumerate(datasets):
-        x_coords = [getattr(point.speed, x_field) for point in points]
+        x_coords = [_resolve_value(point, x_field) for point in points]
 
         for j, yf in enumerate(y_fields):
-            y_coords = [getattr(point, yf) for point in points]
+            y_coords = [_resolve_value(point, yf) for point in points]
             base_label = labels[i] if labels else f'Dataset {i + 1}'
             label = f'{base_label} - {yf}' if len(y_fields) > 1 else base_label
             color = colors[(i * len(y_fields) + j) % len(colors)]
@@ -103,9 +160,6 @@ def plot_multiple_datasets(datasets, x_field, y_field, name, labels=None):
     # save_plot(plt.gcf(), f"{name}.png")
     plt.show()
     # plt.clf()
-
-
-import numpy as np
 
 
 def plot_dual_axis_fit(
