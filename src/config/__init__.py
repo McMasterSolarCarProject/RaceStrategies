@@ -14,10 +14,13 @@ from .schema import (
     load_profiles,
 )
 
+DEFAULT_PROFILE = load_builtin_profile()
+
 __all__ = [
     "BUILTIN_PROFILES_PATH",
     "BatteryConfig",
     "CarProfile",
+    "DEFAULT_PROFILE",
     "DEFAULT_PROFILE_NAME",
     "MotorConfig",
     "PhysicsConstants",

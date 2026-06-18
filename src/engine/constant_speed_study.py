@@ -1,6 +1,6 @@
 from .nodes import Segment, StateNode
 from .kinematics import Speed, Coordinate
-from ..utils import constants
+from ..config import CarProfile, DEFAULT_PROFILE
 import matplotlib.pyplot as plt
 
 
@@ -9,6 +9,7 @@ def constant_speed_mass_study(
     speed: Speed,
     masses: list[float],
     duration_hours: float = 8.0,
+    profile: CarProfile = DEFAULT_PROFILE,
 ) -> list[dict]:
     """
     Evaluate constant-speed cruise feasibility and power for each candidate mass.
@@ -20,12 +21,12 @@ def constant_speed_mass_study(
     - distance_km: distance traveled in duration_hours at the requested speed
     - energy_wh: total energy used over duration_hours
     """
-    original_profile = constants.get_active_profile()
+    base_profile = profile
     results: list[dict] = []
 
     for mass in masses:
-        constants.set_active_profile(original_profile.override("vehicle.car_mass", mass))
-        node = StateNode(segment=segment, speed=speed)
+        mass_profile = base_profile.override("vehicle.car_mass", mass)
+        node = StateNode(segment=segment, speed=speed, profile=mass_profile)
         feasible = node.solve_cruise_state()
 
         distance_km = speed.kmph * duration_hours
@@ -42,7 +43,7 @@ def constant_speed_mass_study(
         }
 
         if feasible:
-            total_power_w = node.P_in + constants.passive_consumption
+            total_power_w = node.P_in + mass_profile.battery.passive_consumption
             row["power_w"] = node.P_in
             row["total_power_w"] = total_power_w
             row["energy_wh"] = total_power_w * duration_hours
@@ -50,7 +51,6 @@ def constant_speed_mass_study(
 
         results.append(row)
 
-    constants.set_active_profile(original_profile)
     return results
 
 
@@ -95,19 +95,20 @@ def constant_speed_power_sweep(
     min_speed_kmph: float = 5.0,
     max_speed_kmph: float | None = None,
     speed_step_kmph: float = 1.0,
+    profile: CarProfile = DEFAULT_PROFILE,
 ) -> list[dict]:
     """Sweep speeds for a fixed mass and return 8-hour power/energy results."""
     if max_speed_kmph is None:
         max_speed_kmph = max(5.0, segment.speed_limit.kmph)
 
-    original_profile = constants.get_active_profile()
-    constants.set_active_profile(original_profile.override("vehicle.car_mass", mass_kg))
+    base_profile = profile
+    mass_profile = base_profile.override("vehicle.car_mass", mass_kg)
 
     rows: list[dict] = []
     speed_kmph = min_speed_kmph
     while speed_kmph <= max_speed_kmph:
         speed = Speed(kmph=speed_kmph)
-        node = StateNode(segment=segment, speed=speed)
+        node = StateNode(segment=segment, speed=speed, profile=mass_profile)
         feasible = node.solve_cruise_state()
 
         row = {
@@ -122,7 +123,7 @@ def constant_speed_power_sweep(
         }
 
         if feasible:
-            total_power_w = node.P_in + constants.passive_consumption
+            total_power_w = node.P_in + mass_profile.battery.passive_consumption
             row["motor_power_w"] = node.P_in
             row["total_power_w"] = total_power_w
             row["energy_wh"] = total_power_w * duration_hours
@@ -131,7 +132,6 @@ def constant_speed_power_sweep(
         rows.append(row)
         speed_kmph += speed_step_kmph
 
-    constants.set_active_profile(original_profile)
     return rows
 
 
@@ -142,6 +142,7 @@ def run_mass_variation_speed_sweep(
     min_speed_kmph: float = 5.0,
     max_speed_kmph: float | None = None,
     speed_step_kmph: float = 1.0,
+    profile: CarProfile = DEFAULT_PROFILE,
 ) -> dict[float, list[dict]]:
     """Run speed sweep for each mass and return rows keyed by mass."""
     results: dict[float, list[dict]] = {}
@@ -153,6 +154,7 @@ def run_mass_variation_speed_sweep(
             min_speed_kmph=min_speed_kmph,
             max_speed_kmph=max_speed_kmph,
             speed_step_kmph=speed_step_kmph,
+            profile=profile,
         )
     return results
 

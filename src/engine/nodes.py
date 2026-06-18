@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .kinematics import Velocity, Displacement, Speed, Coordinate, ZERO_VEC, NULL_COORDINATE
-from ..utils import constants
+from ..config import CarProfile, DEFAULT_PROFILE
 from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
@@ -50,11 +50,12 @@ class StateNode:
         "acc": "Acceleration (m/s²)",
     }
 
-    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
+    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0), profile: CarProfile = DEFAULT_PROFILE):
         self.segment = segment
         self.torque = torque
         self.Fb = Fb
         self.speed = speed
+        self.profile = profile
         
         self.Fm = 0 # motor force
         self.Fd = 0 # drag force
@@ -74,7 +75,7 @@ class StateNode:
 
     def Fm_calc(self):
         # Assume torque is calculated from the motor model
-        self.Fm = self.torque / constants.wheel_radius * constants.num_motors
+        self.Fm = self.torque / self.profile.motor.wheel_radius * self.profile.motor.num_motors
 
     def Fd_calc(self, initial_speed: Speed):
         velocity = Velocity(self.segment.displacement.unit_vector(), initial_speed)
@@ -87,20 +88,20 @@ class StateNode:
             print(f"velocity: {velocity.mps} mps clamped to velocity: 200 mps")
             velocity = Velocity(unit_vec=velocity.unit_vector(), speed=Speed(mps=200))
         finally:
-            self.Fd = 0.5 * constants.air_density * constants.coef_drag * constants.cross_section * ((velocity - self.segment.wind).mag ** 2)
+            self.Fd = 0.5 * self.profile.physics.air_density * self.profile.vehicle.coef_drag * self.profile.vehicle.cross_section * ((velocity - self.segment.wind).mag ** 2)
 
     def Frr_calc(self):
-        self.Frr = constants.coef_rr * constants.car_mass * constants.accel_g * self.segment.gradient.cos()
+        self.Frr = self.profile.vehicle.coef_rr * self.profile.vehicle.car_mass * self.profile.physics.accel_g * self.segment.gradient.cos()
 
     def Fg_calc(self):
-        self.Fg = constants.car_mass * constants.accel_g * self.segment.gradient.sin()
+        self.Fg = self.profile.vehicle.car_mass * self.profile.physics.accel_g * self.segment.gradient.sin()
 
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
-        self.acc = self.Ft / constants.car_mass
+        self.acc = self.Ft / self.profile.vehicle.car_mass
 
     def Power_calc(self):
-        self.P_out = self.torque * self.speed.angular_velocity() * constants.num_motors
+        self.P_out = self.torque * self.speed.angular_velocity(self.profile.motor.wheel_radius) * self.profile.motor.num_motors
         # self.P_in = self.P_out*motor.efficiency_from_torque_speed(self.torque, motor_speed)
         self.P_in = self.P_out / 0.9 # assume 90% efficiency
 
@@ -113,7 +114,7 @@ class StateNode:
         self.Frr_calc()
         self.solar_energy_cal()
         self.Fm = self.Fg + self.Frr + self.Fd
-        self.torque = self.Fm * constants.wheel_radius / constants.num_motors
+        self.torque = self.Fm * self.profile.motor.wheel_radius / self.profile.motor.num_motors
         motor_speed = motor.speed_from_torque(self.torque)
         if motor_speed.mps < self.speed.mps:
             return False
@@ -143,8 +144,8 @@ class DynamicNode(StateNode):
         "soc": "State of Charge (%)",
     }
 
-    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0)):
-        super().__init__(segment, torque, Fb, speed)
+    def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed: Speed = Speed(0), profile: CarProfile = DEFAULT_PROFILE):
+        super().__init__(segment, torque, Fb, speed, profile=profile)
         self.time = 0
         self.dist = 0
         self.soc = 0
@@ -159,7 +160,7 @@ class DynamicNode(StateNode):
         self.speed = Speed(initial_DynamicNode.speed.mps + self.acc * time_step)
         self.dist = initial_DynamicNode.dist + initial_DynamicNode.speed.mps * time_step + 0.5 * self.acc * time_step ** 2
         self.Power_calc()
-        self.soc = initial_DynamicNode.soc + ((self.P_sol - self.P_in - self.P_elec) * time_step) / constants.battery_c_rated * 100 # use battery energy capcity instead
+        self.soc = initial_DynamicNode.soc + ((self.P_sol - self.P_in - self.P_elec) * time_step) / self.profile.battery.battery_c_rated * 100 # use battery energy capcity instead
         # Electrical Calcs
         # self.soc = self.soc - self.current_calc(self.torque) * time_step / battery_c_rated + self.solar
 

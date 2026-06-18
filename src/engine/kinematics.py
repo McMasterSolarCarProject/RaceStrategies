@@ -1,6 +1,5 @@
 from __future__ import annotations
 import math
-from ..utils import constants
 from dataclasses import dataclass
 
 
@@ -153,22 +152,13 @@ class Speed:
         return self._mps * 2.23694
 
     @classmethod
-    def create_from_rpm(cls, rpm: float = None, radius: float | None = None):
-        if radius is None:
-            radius = constants.wheel_radius
-        if rpm is not None:
-            return cls(mps=2 * math.pi * radius * rpm / 60)
-        else:
-            return cls()
+    def create_from_rpm(cls, rpm: float, radius: float):
+        return cls(mps=2 * math.pi * radius * rpm / 60)
 
-    def rpm(self, radius: float | None = None):
-        if radius is None:
-            radius = constants.wheel_radius
+    def rpm(self, radius: float):
         return self.mps * 60 / (2 * math.pi * radius)
 
-    def angular_velocity(self, radius: float | None = None) -> float:
-        if radius is None:
-            radius = constants.wheel_radius
+    def angular_velocity(self, radius: float) -> float:
         # angular speed in radians per second
         return self.mps / radius
 

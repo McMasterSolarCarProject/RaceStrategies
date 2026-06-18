@@ -3,7 +3,7 @@ from .nodes import INITIAL_DYNAMIC_NODE, Segment, DynamicNode
 import copy
 import matplotlib.pyplot as plt
 from .kinematics import Speed, Velocity
-from ..utils import constants
+from ..config import CarProfile, DEFAULT_PROFILE
 
 P_STALL = 100
 MAX_TORQUE = 25
@@ -13,8 +13,9 @@ BRAKE = 1000
 class RouteInterval:
     """Represents a contiguous route interval made of road segments and dynamic nodes."""
 
-    def __init__(self, segments: list[Segment]):
+    def __init__(self, segments: list[Segment], profile: CarProfile = DEFAULT_PROFILE):
         self.segments = segments
+        self.profile = profile
         self.segments[0].tdist = self.segments[0].dist
         for seg_id in range(1, len(self.segments)):
             self.segments[seg_id].tdist = self.segments[seg_id - 1].tdist + self.segments[seg_id].dist
@@ -28,6 +29,7 @@ class RouteInterval:
 
     def simulate_interval(self):
         initial_dynamic_node = copy.deepcopy(INITIAL_DYNAMIC_NODE)
+        initial_dynamic_node.profile = self.profile
         initial_dynamic_node.speed = self.start_speed
         self.time_nodes = [initial_dynamic_node]
         self.simulate_braking()
@@ -39,7 +41,7 @@ class RouteInterval:
                 break
 
             while initial_dynamic_node.dist <= segment.tdist:
-                current_dynamic_node = DynamicNode(segment)
+                current_dynamic_node = DynamicNode(segment, profile=self.profile)
 
                 while initial_dynamic_node.speed.mps > self.braking_nodes[braking_node_index].speed.mps and braking_node_index + 1 < len(self.braking_nodes):
                     # index to the braking node with the same velocity
@@ -63,8 +65,8 @@ class RouteInterval:
 
                 # Stall detection: motor can't overcome hill, skip to next segment
                 if current_dynamic_node.speed.mps <= 0 and initial_dynamic_node.speed.mps <= 0:
-                    Fg = constants.car_mass * constants.accel_g * segment.gradient.sin()
-                    Fm_max = MAX_TORQUE / constants.wheel_radius * constants.num_motors
+                    Fg = self.profile.vehicle.car_mass * self.profile.physics.accel_g * segment.gradient.sin()
+                    Fm_max = MAX_TORQUE / self.profile.motor.wheel_radius * self.profile.motor.num_motors
                     if Fm_max < Fg:
                         print(f"Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
                         # Jump the car to the end of this segment so the while loop advances
@@ -92,6 +94,7 @@ class RouteInterval:
 
     def simulate_braking(self):
         initial_dynamic_node = copy.deepcopy(INITIAL_DYNAMIC_NODE)
+        initial_dynamic_node.profile = self.profile
         initial_dynamic_node.dist = self.total_dist
         initial_dynamic_node.speed = self.stop_speed
 
@@ -99,7 +102,7 @@ class RouteInterval:
         for segment in self.segments[::-1]:
             while initial_dynamic_node.dist >= segment.tdist - segment.dist:
                 if initial_dynamic_node.speed.mps <= segment.speed_limit.mps:  # if the velocity is under
-                    current_dynamic_node = DynamicNode(segment, initial_dynamic_node.time - self.TIME_STEP, Fb=BRAKE)
+                    current_dynamic_node = DynamicNode(segment, initial_dynamic_node.time - self.TIME_STEP, Fb=BRAKE, profile=self.profile)
                     self.adaptive_timestep(current_dynamic_node, initial_dynamic_node, backward=True)
 
                     self.braking_nodes.append(current_dynamic_node)
@@ -177,7 +180,7 @@ def join_intervals(intervals: list[RouteInterval]) -> RouteInterval:
         return None
 
     # Start with a copy of the first one to avoid modifying it
-    result = RouteInterval(intervals[0].segments[:])
+    result = RouteInterval(intervals[0].segments[:], profile=intervals[0].profile)
     if hasattr(intervals[0], "time_nodes"):
         result.time_nodes = intervals[0].time_nodes[:]
     if hasattr(intervals[0], "braking_nodes"):

@@ -2,7 +2,7 @@ from __future__ import annotations
 from .nodes import Segment
 from astral import LocationInfo
 from astral.sun import azimuth, elevation
-from ..utils import constants
+from ..config import CarProfile, DEFAULT_PROFILE
 import math
 import datetime
 
@@ -12,9 +12,10 @@ class CarSolarCells:
     This class will contain all the solar cells for a car.
     """
 
-    def __init__(self, segment: Segment, tilt_list: list[float], time: datetime.datetime = None):
+    def __init__(self, segment: Segment, tilt_list: list[float], time: datetime.datetime = None, profile: CarProfile = DEFAULT_PROFILE):
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
         assert isinstance(tilt_list, list), "tilt_list must be a list of tilt angles"
+        self._profile = profile
         if time:
             assert isinstance(time, datetime.datetime), "time must be a datetime object"
             if time.tzinfo is None:
@@ -117,7 +118,7 @@ class SolarCell:
             print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
-        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * constants.CELL_AREA)  # watts
+        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * self._profile.solar.cell_area)  # watts
 
     def update_power(self, new_segment: Segment = None, new_time: datetime.datetime = None) -> float:
         """
