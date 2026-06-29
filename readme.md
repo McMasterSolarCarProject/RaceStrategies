@@ -17,6 +17,14 @@ run gui with:
 streamlit run src/streamlit_app.py
 ```
 
+run navigation backend with:
+```bash
+python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+The native Android phone client lives in the sibling repo `solarcar_phone_app`.
+Point it at this backend URL (e.g. `http://10.0.2.2:8000` from the emulator).
+
 modify database setup in database.__main__.py
 modify sim setup in src.main.py
 
