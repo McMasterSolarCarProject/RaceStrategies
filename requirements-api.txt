@@ -1,0 +1,4 @@
+# Minimal dependencies for the FastAPI navigation API (Render / production).
+# Desktop, GUI, and dashboard deps stay in requirements.txt.
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
