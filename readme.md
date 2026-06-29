@@ -1,6 +1,12 @@
 # How to Run:
 
-set up the python venv with requirments.txt
+Create a venv and install dependencies:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+```
 
 setup database by running:
 ```bash
@@ -16,6 +22,16 @@ run gui with:
 ```bash
 streamlit run src/streamlit_app.py
 ```
+
+run navigation backend with:
+```bash
+python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+For a physical phone on the same Wi‑Fi, allow inbound TCP **8000** in Windows Firewall and rebuild the phone app with `-PraceStrategiesBaseUrl=http://<LAN-IP>:8000/`.
+
+The native Android phone client lives in the sibling repo [`solarcar_phone_app`](https://github.com/McMasterSolarCarProject/solarcar_phone_app).
+Point it at this backend URL (e.g. `http://10.0.2.2:8000/` from the emulator, or the host LAN IP on a physical device).
 
 modify database setup in database.__main__.py
 modify sim setup in src.main.py

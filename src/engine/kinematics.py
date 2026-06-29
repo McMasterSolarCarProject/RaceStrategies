@@ -72,6 +72,12 @@ class Coordinate:  # Should Be Calculated in Meters
     lon: float
     elevation: float = 0
 
+    def __str__(self):
+        return f"Lat: {self.lat}, Lon: {self.lon}, Elevation: {self.elevation}"
+
+    def __repr__(self):
+        return f"Lat: {self.lat}, Lon: {self.lon}, Elevation: {self.elevation}"
+
 NULL_COORDINATE = Coordinate(0,0,0)
 
 class Displacement(Vec):  # East-North-Up
@@ -149,6 +155,9 @@ class Speed:
 
     def rpm(self, radius: float = wheel_radius):
         return self.mps * 60 / (2 * math.pi * radius)
+
+    def rps(self, radius: float = wheel_radius):
+        return self.mps / (2 * math.pi * radius)
 
     def angular_velocity(self, radius: float = wheel_radius) -> float:
         # angular speed in radians per second

@@ -1,0 +1,16 @@
+# Render Blueprint — RaceStrategies navigation API
+# Docs: https://render.com/docs/blueprint-spec
+#
+# After merge, change `branch` to main (or your default deploy branch).
+services:
+  - type: web
+    name: racestrategies-api
+    runtime: python
+    plan: free
+    branch: feature/navigation-mvp-api
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
