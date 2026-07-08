@@ -11,8 +11,8 @@ import time
 class RouteMap:
     def __init__(self):
         self.folium_map = folium.Map()
-        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 200))
-        self.speed_colors = [mcolors.to_hex(color) for color in colormap]
+        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 60))
+        self.speed_colors = [mcolors.to_hex(color) for color in colormap] # List of colors in a gradient of blue to red to green
         self.all_coordinates: list[tuple[float, float]] = []
 
     def generate_no_simulation_map(self, placemark_name: str, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False):
@@ -244,7 +244,7 @@ if __name__ == "__main__":
 
     start = time.time()
     route_map2 = RouteMap()
-    route_map2.generate_simulation_map("A. Independence to Topeka", timestep=0.5, hover=True)
+    route_map2.generate_simulation_map("A. Independence to Topeka", time_step=0.5, hover=True)
     route_map2.save_map("maps/route_map_simulated")
     end = time.time()
     print(f"Map generation took {end - start} seconds")
