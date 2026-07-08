@@ -1,17 +1,29 @@
 import streamlit as st
 import plotly.graph_objects as go
 
-from src.engine.interval_simulator import SSInterval
-from src.engine.nodes import TimeNode
+from src.engine.interval_simulator import RouteInterval
+from src.engine.nodes import DynamicNode
 
 
 def get_available_metrics():
     """Get list of plottable metrics from TimeNode."""
-    return list(TimeNode.NUMERICAL_METRICS.keys())
+    return list(DynamicNode.NUMERICAL_METRICS.keys())
 
 
 def resolve_attr(obj, attr_path):
     """Resolve dot-notation attribute path (e.g., 'speed.kmph')."""
+    if attr_path in {"speed_kmph", "speed.kmph"}:
+        return obj.speed.mps * 3.6
+    if attr_path in {"speed_mph", "speed.mph"}:
+        return obj.speed.mph
+    if attr_path in {"speed_mps", "speed.mps"}:
+        return obj.speed.mps
+    if attr_path in {"target_speed_kmph", "target_speed.kmph"}:
+        return obj.target_speed_mps * 3.6
+    if attr_path in {"target_speed_mph", "target_speed.mph"}:
+        return obj.target_speed_mps * 2.23694
+    if attr_path in {"target_speed_mps", "target_speed.mps"}:
+        return obj.target_speed_mps
     for attr in attr_path.split("."):
         obj = getattr(obj, attr)
     return obj
@@ -19,7 +31,7 @@ def resolve_attr(obj, attr_path):
 
 def get_metric_name(metric: str):
     """Get the name of a metric from a TimeNode, supporting nested attributes."""
-    return TimeNode.NUMERICAL_METRICS.get(metric, metric)
+    return DynamicNode.NUMERICAL_METRICS.get(metric, metric)
 
 
 def extract_data_from_nodes(nodes: list, x_field: str, y_field: str):
@@ -38,7 +50,7 @@ def extract_data_from_nodes(nodes: list, x_field: str, y_field: str):
     return x_data, y_data
 
 
-def create_plotly_chart(intervals: list[SSInterval], x_field: str, y_field: str, title: str, show_braking: bool = True):
+def create_plotly_chart(intervals: list[RouteInterval], x_field: str, y_field: str, title: str, show_braking: bool = True):
     """Create an interactive Plotly chart from simulation data."""
     fig = go.Figure()
 
@@ -63,8 +75,8 @@ def create_plotly_chart(intervals: list[SSInterval], x_field: str, y_field: str,
                 )
             )
 
-        if show_braking and hasattr(interval, "brakingNodes"):
-            x_brake, y_brake = extract_data_from_nodes(interval.brakingNodes, x_field, y_field)
+        if show_braking and hasattr(interval, "braking_nodes"):
+            x_brake, y_brake = extract_data_from_nodes(interval.braking_nodes, x_field, y_field)
             if x_brake and y_brake:
                 fig.add_trace(
                     go.Scatter(
@@ -77,8 +89,8 @@ def create_plotly_chart(intervals: list[SSInterval], x_field: str, y_field: str,
                     )
                 )
 
-    x_label = TimeNode.NUMERICAL_METRICS.get(x_field, x_field)
-    y_label = TimeNode.NUMERICAL_METRICS.get(y_field, y_field)
+    x_label = DynamicNode.NUMERICAL_METRICS.get(x_field, x_field)
+    y_label = DynamicNode.NUMERICAL_METRICS.get(y_field, y_field)
 
     fig.update_layout(
         title=title, xaxis_title=x_label, yaxis_title=y_label, hovermode="closest", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), margin=dict(l=60, r=20, t=60, b=60)
@@ -87,7 +99,7 @@ def create_plotly_chart(intervals: list[SSInterval], x_field: str, y_field: str,
     return fig
 
 
-def create_master_chart(master_interval: SSInterval, x_field: str, y_fields: list[str], title: str, show_braking: bool = False):
+def create_master_chart(master_interval: RouteInterval, x_field: str, y_fields: list[str], title: str, show_braking: bool = False):
     """Create a chart for the master (joined) interval with multiple y-fields."""
     fig = go.Figure()
 
@@ -97,7 +109,7 @@ def create_master_chart(master_interval: SSInterval, x_field: str, y_fields: lis
         for j, y_field in enumerate(y_fields):
             x_data, y_data = extract_data_from_nodes(master_interval.time_nodes, x_field, y_field)
             if x_data and y_data:
-                y_label = TimeNode.NUMERICAL_METRICS.get(y_field, y_field)
+                y_label = DynamicNode.NUMERICAL_METRICS.get(y_field, y_field)
                 fig.add_trace(
                     go.Scatter(
                         x=x_data,
@@ -109,9 +121,9 @@ def create_master_chart(master_interval: SSInterval, x_field: str, y_fields: lis
                     )
                 )
 
-        if show_braking and hasattr(master_interval, "brakingNodes"):
+        if show_braking and hasattr(master_interval, "braking_nodes"):
             for j, y_field in enumerate(y_fields):
-                x_brake, y_brake = extract_data_from_nodes(master_interval.brakingNodes, x_field, y_field)
+                x_brake, y_brake = extract_data_from_nodes(master_interval.braking_nodes, x_field, y_field)
                 if x_brake and y_brake:
                     fig.add_trace(
                         go.Scatter(
@@ -123,7 +135,7 @@ def create_master_chart(master_interval: SSInterval, x_field: str, y_fields: lis
                         )
                     )
 
-    x_label = TimeNode.NUMERICAL_METRICS.get(x_field, x_field)
+    x_label = DynamicNode.NUMERICAL_METRICS.get(x_field, x_field)
 
     fig.update_layout(
         title=title, xaxis_title=x_label, yaxis_title="Value", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), margin=dict(l=60, r=20, t=60, b=60)

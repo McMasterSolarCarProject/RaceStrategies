@@ -25,7 +25,7 @@ class RouteMap:
             route_intervals = [route_intervals]
         self._generate_layered_map(route_intervals, is_simulated=False)
 
-    def generate_simulation_map(self, placemark_name: str, timestep: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> RouteInterval:
+    def generate_simulation_map(self, placemark_name: str, time_step: float, velocity_step: float = 1.0, hover: bool = True, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> RouteInterval:
         """
         Generate a layered simulation map from a placemark.
         Each route interval is simulated and displayed as a separate layer.
@@ -36,7 +36,9 @@ class RouteMap:
 
         # Simulate all route intervals
         for interval in route_intervals:
-            interval.simulate_interval(TIME_STEP=timestep)
+            interval.TIME_STEP = time_step
+            interval.VELOCITY_STEP_MPS = velocity_step
+            interval.simulate_interval()
         self._generate_layered_map(route_intervals, is_simulated=True, hover_tooltips=hover)
         return join_intervals(route_intervals)
 
@@ -87,7 +89,10 @@ class RouteMap:
         self.all_coordinates.extend(coordinate_points)
         nodes = [tn for (_pt, tn) in coordinates]
 
-        coordinate_colors = [self.get_speed_color(tn) for tn in nodes[:-1]]
+        speeds = [max(0.0, tn.speed_mps * 3.6) for tn in nodes]
+        min_speed = min(speeds, default=0.0)
+        max_speed = max(speeds, default=1.0)
+        coordinate_colors = [self.get_speed_color(tn, min_speed, max_speed) for tn in nodes[:-1]]
 
         polylines = []
 
@@ -123,21 +128,19 @@ class RouteMap:
         speed_mps = _safe_get(tn, "speed_mps", None)
         if speed_mps is not None:
             parts.append(f"<b>Speed:</b> {speed_mps * 3.6:.2f} km/h")
-        accel = _safe_get(tn, "accel", None)
-        if accel is not None:
-            parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
+        acc = _safe_get(tn, "acc", None)
+        if acc is not None:
+            parts.append(f"<b>Accel:</b> {acc:.3f} m/s²")
         Fb = _safe_get(tn, "Fb", None)
         if Fb not in (None, 0):
             parts.append(f"<b>Brake F:</b> {Fb:.0f} N")
 
         return "<br>".join(parts) if parts else "Node"
 
-    def get_speed_color(self, time_node: DynamicNode):
-        try:
-            color = self.speed_colors[min(int(time_node.speed_mps * 3.6) + 100, len(self.speed_colors) - 1)]
-        except IndexError:
-            color = self.speed_colors[0]
-        return color
+    def get_speed_color(self, time_node: DynamicNode, min_speed: float = 0.0, max_speed: float = 120.0):
+        span = max(max_speed - min_speed, 1.0)
+        ratio = max(0.0, min((time_node.speed_mps * 3.6 - min_speed) / span, 1.0))
+        return self.speed_colors[round(ratio * (len(self.speed_colors) - 1))]
 
     def get_time_node_coords(self, segments: list[Segment], time_node_list: list[DynamicNode]) -> list[tuple[tuple[float, float], DynamicNode]]:
         seg_ends = np.array([seg.tdist for seg in segments])
@@ -177,9 +180,11 @@ def _safe_get(obj, path, default=None):
     """Dot-path getattr with a default."""
     cur = obj
     for part in path.split("."):
-        if cur is None or not hasattr(cur, part):
+        if cur is None:
             return default
-        cur = getattr(cur, part)
+        cur = getattr(cur, part, None)
+        if cur is None:
+            return default
     return cur
 
 
@@ -188,7 +193,7 @@ def format_time_node_tooltip(time_node, segment=None):
     dist_m = _safe_get(time_node, "dist", None)
     t_s = _safe_get(time_node, "time", None)
     mps = _safe_get(time_node, "speed_mps", None)
-    accel = _safe_get(time_node, "accel", None)  # if you store it
+    acc = _safe_get(time_node, "acc", None)
     # torque   = _safe_get(time_node, "torque", None)
     Fb = _safe_get(time_node, "Fb", None)  # braking force (N)
     # soc      = _safe_get(time_node, "soc", None)
@@ -216,8 +221,8 @@ def format_time_node_tooltip(time_node, segment=None):
         lines.append(f"<b>Time:</b> {t_s:.1f} s")
     if mps is not None:
         lines.append(f"<b>Speed:</b> {mps * 3.6:.2f} km/h")
-    if accel is not None:
-        lines.append(f"<b>Accel:</b> {accel:.3f} m/s²")
+    if acc is not None:
+        lines.append(f"<b>Accel:</b> {acc:.3f} m/s²")
     # if torque is not None: lines.append(f"<b>Torque:</b> {torque:.0f} Nm")
     if Fb is not None and Fb != 0:
         lines.append(f"<b>Brake F:</b> {Fb:.0f} N")
@@ -238,7 +243,8 @@ if __name__ == "__main__":
     start = time.time()
     route_interval = fetch_route_intervals("A. Independence to Topeka")
     if route_interval is RouteInterval:
-        route_interval.simulate_interval(TIME_STEP=0.5)
+        route_interval.TIME_STEP = 0.5
+        route_interval.simulate_interval()
     end = time.time()
     print(f"simulation done! took {end - start} seconds")
 

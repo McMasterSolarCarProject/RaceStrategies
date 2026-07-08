@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from src.database.fetch_route_intervals import fetch_route_intervals
-from src.engine.interval_simulator import SSInterval, join_intervals
+from src.engine.interval_simulator import RouteInterval
 from src.engine.kinematics import Speed
 from src.gui.route_map import RouteMap
 
@@ -18,8 +18,8 @@ class SimulationConfig:
 
 @dataclass
 class SimulationResult:
-    intervals: list[SSInterval]
-    master_interval: SSInterval
+    intervals: list[RouteInterval]
+    master_interval: RouteInterval
     route_map: RouteMap
 
 
@@ -36,7 +36,7 @@ def simulate(config: SimulationConfig) -> SimulationResult:
     # generate_simulation_map returns join_intervals(route) — we need the individual intervals too
     # so fetch them back out
     intervals = fetch_route_intervals(config.placemark, split_at_stops=config.split_at_stops, db_path=config.db_path)
-    if isinstance(intervals, SSInterval):
+    if isinstance(intervals, RouteInterval):
         intervals = [intervals]
 
     return SimulationResult(intervals, master_interval, route_map)
