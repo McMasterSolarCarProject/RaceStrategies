@@ -69,10 +69,12 @@ def run():
 
         # Database selection
         db_files = [f"tmp/{f.name}" for f in Path("tmp").iterdir() if f.suffix == ".sqlite"]
+        if Path("ASC_2024.sqlite").exists():
+            db_files.insert(0, "ASC_2024.sqlite")
         if not db_files:
             st.warning("Please upload a SQLite database file")
             st.stop()
-        db_path = st.selectbox("Database", db_files, index=0 if "ASC_2024.sqlite" not in db_files else db_files.index("ASC_2024.sqlite"))
+        db_path = st.selectbox("Database", db_files, index=db_files.index("ASC_2024.sqlite") if "ASC_2024.sqlite" in db_files else 0)
         db_path = Path(db_path)
 
         # Get available placemarks
@@ -106,7 +108,7 @@ def run():
         with col1:
             x_field = st.selectbox("X-axis", metrics, index=metrics.index("dist") if "dist" in metrics else 0)
         with col2:
-            y_field = st.selectbox("Y-axis", metrics, index=metrics.index("speed.kmph") if "speed.kmph" in metrics else 0)
+            y_field = st.selectbox("Y-axis", metrics, index=metrics.index("speed_kmph") if "speed_kmph" in metrics else 0)
 
         show_braking = st.checkbox("Show braking curves", value=True)
 
@@ -126,7 +128,7 @@ def run():
                 import sqlite3
 
                 conn = sqlite3.connect(db_path.as_posix())
-                count = conn.execute("SELECT COUNT(*) FROM route_data WHERE placemark_name = ?", (placemark,)).fetchone()[0]
+                count = conn.execute("SELECT COUNT(*) FROM route_row WHERE placemark_name = ?", (placemark,)).fetchone()[0]
                 conn.close()
                 st.write(f"DB path: {db_path.as_posix()}")
                 st.write(f"Rows for '{placemark}': {count}")
@@ -182,7 +184,7 @@ def run():
                 fig = create_master_chart(
                     master_interval,
                     x_field,
-                    [y_field, "segment.v_eff.kmph"] if y_field == "speed.kmph" else [y_field],
+                    [y_field] if y_field == "speed_kmph" else [y_field],
                     f"Master Route: {get_metric_name(y_field)} vs {get_metric_name(x_field)}",
                     show_braking=show_braking,
                 )
