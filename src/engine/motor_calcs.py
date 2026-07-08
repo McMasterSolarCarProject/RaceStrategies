@@ -2,12 +2,14 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ..utils.constants import TORQUE_CURRENT_RPM_DATA, wheel_radius, battery_voltage
+from ..config import CarProfile, DEFAULT_PROFILE
 from ..engine.kinematics import Speed
+from .motor_data import TORQUE_CURRENT_RPM_DATA
 
 class MotorModel:
-    def __init__(self):
-        self.ref_voltage = battery_voltage
+    def __init__(self, profile: CarProfile = DEFAULT_PROFILE):
+        self.profile = profile
+        self.ref_voltage = profile.battery.battery_voltage
         self._data = np.array(TORQUE_CURRENT_RPM_DATA)
         self._data = self._data[self._data[:, 0].argsort()]  # sort by torque
         self.torque_ref = self._data[:, 0]
@@ -25,10 +27,10 @@ class MotorModel:
     
     def speed_from_torque(self, torque: float) -> Speed:
         rpm = self._interp(torque, self.torque_ref, self.rpm_ref)
-        return Speed.create_from_rpm(rpm)
+        return Speed.create_from_rpm(rpm, radius=self.profile.motor.wheel_radius)
     
     def torque_from_speed(self, speed: Speed) -> float:
-        rpm = speed.rpm()
+        rpm = speed.rpm(radius=self.profile.motor.wheel_radius)
         # rpm_ref is in decreasing order (sorted by torque), so reverse for np.interp
         torque = self._interp(rpm, self.rpm_ref[::-1], self.torque_ref[::-1])
         return torque
@@ -38,7 +40,7 @@ class MotorModel:
     #     return ref_current * (self.voltage / self.ref_voltage)
     
     def efficiency_from_torque_speed(self, torque: float, speed: Speed) -> float:
-        rpm = speed.rpm()
+        rpm = speed.rpm(radius=self.profile.motor.wheel_radius)
         power_out = (torque * rpm * 2 * np.pi) / 60  # Mechanical power in Watts
         current = self.current_from_torque(torque)
         power_in = self.voltage * current  # Electrical power in Watts
@@ -61,13 +63,13 @@ class MotorModel:
             # Interpolate torque from current
             t = self._interp(i, self.current_ref, self.torque_ref)
             torques.append(t)
-            rpms.append(self.speed_from_torque(t).rpm())
+            rpms.append(self.speed_from_torque(t).rpm(radius=self.profile.motor.wheel_radius))
             
         torques = np.array(torques)
         rpms = np.array(rpms)
         
         # Convert RPM to desired unit
-        y2_vals = [Speed.create_from_rpm(rpm=r, radius=wheel_radius) for r in rpms]
+        y2_vals = [Speed.create_from_rpm(rpm=r, radius=self.profile.motor.wheel_radius) for r in rpms]
         if unit.lower() == 'mps':
             y2 = [s.mps for s in y2_vals]
             y2_label = "Speed (m/s)"
@@ -102,7 +104,7 @@ class MotorModel:
 
 
 motor = MotorModel()
-new_voltage = 85
+new_voltage = 96
 motor.set_voltage(new_voltage)
 if __name__ == "__main__":
     motor.plot_model(unit = "mph")

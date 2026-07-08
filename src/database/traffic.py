@@ -255,9 +255,9 @@ def priority_stops(clusters):
             if stop_type is None:
                 continue
 
-            p = stop_priority.get(stop_type, float('inf'))
-            if p < best_priority:
-                best_priority = p
+            priority_value = stop_priority.get(stop_type, float('inf'))
+            if priority_value < best_priority:
+                best_priority = priority_value
                 best_type = stop_type
 
         priority_types[ref] = best_type
@@ -322,7 +322,7 @@ def update_traffic(placemark_name: str, db_path: str = "ASC_2024.sqlite") -> Non
                     continue
                 print(f"{ref}:\t{stop_type}")
                 cursor.execute(
-                    'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
+                    'UPDATE route_row SET stop_type = ? WHERE lat = ? AND lon = ?',
                     (stop_type, ref.lat, ref.lon)
                 )
             db.commit()  
