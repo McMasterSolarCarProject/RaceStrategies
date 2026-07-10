@@ -6,7 +6,7 @@ from src.engine.nodes import DynamicNode
 
 
 def get_available_metrics():
-    """Get list of plottable metrics from TimeNode."""
+    """Get list of plottable metrics from DynamicNode."""
     return list(DynamicNode.NUMERICAL_METRICS.keys())
 
 
@@ -26,16 +26,18 @@ def resolve_attr(obj, attr_path):
         return obj.target_speed_mps
     for attr in attr_path.split("."):
         obj = getattr(obj, attr)
+        if callable(obj):
+            obj = obj()
     return obj
 
 
 def get_metric_name(metric: str):
-    """Get the name of a metric from a TimeNode, supporting nested attributes."""
+    """Get the name of a metric from a DynamicNode, supporting nested attributes."""
     return DynamicNode.NUMERICAL_METRICS.get(metric, metric)
 
 
 def extract_data_from_nodes(nodes: list, x_field: str, y_field: str):
-    """Extract x and y data from a list of TimeNodes."""
+    """Extract x and y data from a list of DynamicNodes."""
     x_data = []
     y_data = []
     for node in nodes:

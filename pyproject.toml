@@ -34,3 +34,6 @@ dev = [
 
 [tool.ruff]
 line-length = 200
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

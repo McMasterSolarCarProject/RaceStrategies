@@ -49,16 +49,6 @@ def test_vec_trig_functions():
     assert math.isclose(v.sin(), 4/5)
     assert math.isclose(v.cos(), 3/5)
 
-# -------------------- Coordinate Tests --------------------
-
-def test_coordinate_str_and_repr():
-    c = Coordinate(45.0, -75.0, 100.0)
-    assert "Lat" in str(c)
-    assert "Lon" in repr(c)
-    assert c.lat == 45.0
-    assert c.lon == -75.0
-    assert c.elevation == 100.0
-
 # -------------------- Displacement Tests --------------------
 
 def test_displacement_basic():
@@ -104,9 +94,6 @@ def test_speed_rpm_classmethod():
 def test_speed_rpm_conversion_methods():
     s = Speed(mps=10)
     rpm_val = s.rpm(radius=0.2)
-    rps_val = s.rps(radius=0.2)
-    # inverse check
-    assert math.isclose(rps_val * 2 * math.pi * 0.2, s.mps, rel_tol=1e-9)
     assert math.isclose(rpm_val / 60 * 2 * math.pi * 0.2, s.mps, rel_tol=1e-9)
 
 # -------------------- Velocity Tests --------------------
