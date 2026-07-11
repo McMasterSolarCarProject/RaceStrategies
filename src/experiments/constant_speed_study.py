@@ -1,5 +1,5 @@
-from .nodes import Segment, StateNode
-from .kinematics import Speed, Coordinate
+from ..engine.nodes import Segment, StateNode
+from ..engine.kinematics import Speed, Coordinate
 from ..config import CarProfile, DEFAULT_PROFILE
 import matplotlib.pyplot as plt
 
