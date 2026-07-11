@@ -127,6 +127,21 @@ class DynamicNode(StateNode):
         "time": "Time (s)",
         "dist": "Distance (m)",
         "soc": "State of Charge (%)",
+        "target_speed_mps": "Target Speed (m/s)",
+        "target_speed_kmph": "Target Speed (km/h)",
+        "target_speed_mph": "Target Speed (mph)",
+        "target_torque": "Target Torque (Nm)",
+        "segment.speed_limit.mps": "Speed Limit (m/s)",
+        "segment.speed_limit.kmph": "Speed Limit (km/h)",
+        "segment.speed_limit.mph": "Speed Limit (mph)",
+        "segment.tdist": "Segment Total Distance (m)",
+        "segment.dist": "Segment Distance (m)",
+        "segment.elevation": "Segment Elevation Change (m)",
+        "segment.azimuth": "Segment Azimuth (deg)",
+        "segment.ghi": "Segment GHI",
+        "segment.gradient.sin": "Road Grade",
+        "segment.gradient.cos": "Road Grade Cosine",
+        "segment.wind.mag": "Wind Speed",
     }
 
     def __init__(self, segment: Segment = NULL_SEGMENT, torque: float = 0, Fb: float = 0, speed_mps: float = 0.0, profile: CarProfile = DEFAULT_PROFILE):
