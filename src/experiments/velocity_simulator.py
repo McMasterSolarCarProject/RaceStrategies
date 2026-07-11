@@ -1,5 +1,5 @@
-from .nodes import Segment, StateNode
-from .kinematics import Speed
+from ..engine.nodes import Segment, StateNode
+from ..engine.kinematics import Speed
 from ..utils.graph import plot_multiple_datasets
 from ..config import CarProfile, DEFAULT_PROFILE
 
@@ -90,8 +90,8 @@ def simulate_speed_profiles_multiple_masses(segment: Segment, masses: list, min_
 
 # make tests for this
 if __name__ == "__main__":
-    from .kinematics import Coordinate, Displacement
-    from .nodes import Segment
+    from ..engine.kinematics import Coordinate, Displacement
+    from ..engine.nodes import Segment
     p0 = Coordinate(39.092185, -94.417077, 0)
     # print(p1)
     p1 = Coordinate(39.092344, -94.423673, 0)

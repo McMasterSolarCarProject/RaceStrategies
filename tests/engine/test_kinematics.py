@@ -1,12 +1,7 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 import math
 from src.engine.kinematics import Vec, Coordinate, Velocity, Displacement, Speed, ZERO_VELOCITY, UNIT_VEC
 
-# -------------------- Vec TSests --------------------
+# -------------------- Vec Tests --------------------
 
 def test_vec_addition():
     v1 = Vec(1, 2, 3)
@@ -49,6 +44,17 @@ def test_vec_trig_functions():
     assert math.isclose(v.sin(), 4/5)
     assert math.isclose(v.cos(), 3/5)
 
+# -------------------- Coordinate Tests --------------------
+
+def test_coordinate_str_and_repr():
+    c = Coordinate(45.0, -75.0, 100.0)
+    expected = "Lat: 45.0 | Lon: -75.0 | Elevation: 100.0"
+    assert str(c) == expected
+    assert repr(c) == expected
+    assert c.lat == 45.0
+    assert c.lon == -75.0
+    assert c.elevation == 100.0
+
 # -------------------- Displacement Tests --------------------
 
 def test_displacement_basic():
@@ -62,6 +68,9 @@ def test_displacement_basic():
     assert isinstance(d.gradient, Vec)
     # Sanity check: distance should be small but positive
     assert d.dist > 0
+    assert math.isclose(d.elevation, 0.03, rel_tol=1e-9)
+    assert d.dist > d.mag
+    assert 9.0 < d.mag < 10.0
     # Unit vector magnitude should be 1
     assert math.isclose(d.unit_vector().mag, 1.0, rel_tol=1e-9)
 
@@ -88,12 +97,15 @@ def test_speed_default_zero():
 
 def test_speed_rpm_classmethod():
     s = Speed.create_from_rpm(rpm=60, radius=0.2)
-    expected_mps = 2 * math.pi * 0.2 * 60 / 60  # 2πr per second
+    expected_mps = 2 * math.pi * 0.2 * 60 / 60  # 2*pi*r per second
     assert math.isclose(s.mps, expected_mps)
 
 def test_speed_rpm_conversion_methods():
     s = Speed(mps=10)
     rpm_val = s.rpm(radius=0.2)
+    angular_velocity = s.angular_velocity(radius=0.2)
+    # inverse check
+    assert math.isclose(angular_velocity * 0.2, s.mps, rel_tol=1e-9)
     assert math.isclose(rpm_val / 60 * 2 * math.pi * 0.2, s.mps, rel_tol=1e-9)
 
 # -------------------- Velocity Tests --------------------

@@ -2,7 +2,7 @@ import sqlite3
 import time
 import os
 from ..engine.nodes import DynamicNode
-from ..engine.velocity_simulator import simulate_speed_profile, choose_closest_epm_node
+from ..experiments.velocity_simulator import simulate_speed_profile, choose_closest_epm_node
 from .fetch_route_intervals import fetch_route_intervals
 
 

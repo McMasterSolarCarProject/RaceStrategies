@@ -66,11 +66,17 @@ ZERO_VEC = Vec(0, 0)
 
 @dataclass
 class Coordinate:  # Should Be Calculated in Meters
-    """Longitude, Latitude & Elevation taken from KML files"""
+    """Latitude, longitude, and elevation taken from KML files."""
 
     lat: float
     lon: float
     elevation: float = 0
+
+    def __str__(self):
+        return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
+
+    def __repr__(self):
+        return f"Lat: {self.lat} | Lon: {self.lon} | Elevation: {self.elevation}"
 
 
 NULL_COORDINATE = Coordinate(0, 0, 0)
@@ -177,16 +183,3 @@ class Velocity(Vec, Speed):
 
 
 ZERO_VELOCITY = Velocity(ZERO_VEC, Speed(0))
-
-# Put this into test
-if __name__ == "__main__":
-    p1 = Coordinate(39.092185, -94.417077, 98.4698903750406)
-    # print(p1)
-    p2 = Coordinate(39.092184, -94.417187, 98.48702242713266)
-    # print(p2)
-    d1 = Displacement(p1, p2)
-    print(f"d1: {d1}")
-    v1 = Velocity(d1.unit_vector(), Speed(kmph=50))
-    v2 = Velocity(d1.unit_vector(), Speed(kmph=80))
-    # print(f"p1: {p1}, Position: {p1}")
-    print(f"Velocity: {v1}")
