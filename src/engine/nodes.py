@@ -173,18 +173,3 @@ class DynamicNode(StateNode):
 
 INITIAL_DYNAMIC_NODE = DynamicNode()
 INITIAL_DYNAMIC_NODE.soc = 100
-
-# make test cases for this stuff
-if __name__ == "__main__":
-    def test_segment():
-        pass
-
-    def test_StateNode():
-        pass
-
-    def test_DynamicNode():
-        pass
-
-    def test_VelocityNode():
-        pass
-

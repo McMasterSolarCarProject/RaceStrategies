@@ -28,7 +28,7 @@ class CarSolarCells:
         self._solar_cells = []
 
         for tilt in tilt_list:
-            cell = SolarCell(self._segment, tilt, self._time)
+            cell = SolarCell(self._segment, tilt, self._time, profile=self._profile)
             self._solar_cells.append(cell)
 
     def update_cells(self, new_segment: Segment = None, new_time: datetime.datetime = None):
@@ -46,7 +46,7 @@ class CarSolarCells:
             self._time = datetime.datetime.now(datetime.timezone.utc)
 
         for cell in self._solar_cells:
-            cell.update_power(new_segment, new_time)
+            cell.update_power(self._segment, self._time)
 
     @property
     def solar_cells(self) -> list[SolarCell]:
@@ -73,7 +73,7 @@ class SolarCell:
     This class calculates the power output of a solar cell based on the location, time, and tilt angle.
     """
 
-    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime):
+    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime, profile: CarProfile = DEFAULT_PROFILE):
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
         assert isinstance(tilt, (int, float)), "tilt must be a number"
         if time:
@@ -84,6 +84,7 @@ class SolarCell:
             time = datetime.datetime.now(datetime.timezone.utc)
 
         self._EFF = 0.24
+        self._profile = profile
         self._segment = segment
         self._tilt = tilt
         self._time = time
