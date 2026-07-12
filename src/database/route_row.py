@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import Any
 import sqlite3
 import numpy as np
-from ..engine.kinematics import Coordinate, Speed, Velocity
+from ..engine.kinematics import Coordinate, Speed, Velocity, Vec
 from ..engine.nodes import Segment
+import math
 
 
 ROUTE_ROW_TABLE_NAME = "route_row"
@@ -22,6 +23,8 @@ ROUTE_ROW_COLUMN_DEFS: tuple[tuple[str, str], ...] = (
     ("wind_speed", "FLOAT"),
     ("speed", "FLOAT"),
     ("torque", "FLOAT"),
+    ("dni", "FLOAT"),
+    ("dhi", "FLOAT"),
 )
 ROUTE_ROW_PRIMARY_KEY: tuple[str, ...] = ("placemark_name", "id")
 
@@ -79,6 +82,8 @@ class RouteRow:
     wind_speed: Any
     speed: float
     torque: float
+    dni: Any
+    dhi: Any
 
     def to_db_params(self) -> dict:
         return {column_name: getattr(self, column_name) for column_name in ROUTE_ROW_COLUMNS}
@@ -90,13 +95,25 @@ class RouteRow:
     def to_segment(self, next_row: "RouteRow") -> Segment:
         current_coord = Coordinate(self.lat, self.lon, self.elevation)
         next_coord = Coordinate(next_row.lat, next_row.lon, next_row.elevation)
-        wind = Velocity()
+        if self.wind_speed is not None and self.wind_dir is not None:
+            # Convert Meteorological to Cartesian (To-Vector)
+            math_deg = (270 - self.wind_dir) % 360
+            wind_rad = math.radians(math_deg)
+            
+            wind_unit_vec = Vec(math.cos(wind_rad), math.sin(wind_rad))
+            wind_speed_obj = Speed(kmph=self.wind_speed)
+            wind = Velocity(wind_unit_vec, wind_speed_obj)
+        else:
+            wind = Velocity()
+            
         return Segment(
             current_coord,
             next_coord,
             self.id,
             Speed(kmph=self.speed_limit),
             self.ghi,
+            self.dni,
+            self.dhi,
             wind,
         )
 

@@ -7,7 +7,7 @@ from .kinematics import Speed
 from ..config import CarProfile, DEFAULT_PROFILE
 
 P_STALL = 100
-MAX_TORQUE = 25
+MAX_TORQUE = 100
 BRAKE = 1000
 
 
@@ -100,17 +100,17 @@ class RouteInterval:
                 self.adaptive_timestep(current_dynamic_node, initial_dynamic_node)
 
                 # # Stall detection: motor can't overcome hill, skip to next segment
-                # if current_dynamic_node.speed.mps <= 0 and initial_dynamic_node.speed.mps <= 0:
-                #     Fg = self.profile.vehicle.car_mass * self.profile.physics.accel_g * segment.gradient.sin()
-                #     Fm_max = MAX_TORQUE / self.profile.motor.wheel_radius * self.profile.motor.num_motors
-                #     if Fm_max < Fg:
-                #         print(f"Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
-                #         # Jump the car to the end of this segment so the while loop advances
-                #         current_dynamic_node.dist = segment.tdist
-                #         current_dynamic_node.speed = Speed(0)
-                #         self.time_nodes.append(current_dynamic_node)
-                #         initial_dynamic_node = self.time_nodes[-1]
-                #         break
+                """if current_dynamic_node.speed.mps <= 0 and initial_dynamic_node.speed.mps <= 0:
+                     Fg = self.profile.vehicle.car_mass * self.profile.physics.accel_g * segment.gradient.sin()
+                     Fm_max = MAX_TORQUE / self.profile.motor.wheel_radius * self.profile.motor.num_motors
+                     if Fm_max < Fg:
+                         print(f"Stall: segment {segment.id} too steep (Fg={Fg:.1f}N > Fm_max={Fm_max:.1f}N), skipping")
+                         # Jump the car to the end of this segment so the while loop advances
+                         current_dynamic_node.dist = segment.tdist
+                         current_dynamic_node.speed = Speed(0)
+                         self.time_nodes.append(current_dynamic_node)
+                         initial_dynamic_node = self.time_nodes[-1]
+                         break"""
 
                 self.time_nodes.append(current_dynamic_node)
 

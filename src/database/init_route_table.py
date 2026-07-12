@@ -66,8 +66,8 @@ def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list[Ro
         total_distance += segment.dist
 
         speed_limit, limit_index = lookup_speed_limit(speed_limits, total_distance, limit_index)
-        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=coord.lat, lon=coord.lon, elevation=coord.elevation, distance=total_distance, speed_limit=speed_limit, stop_type=None, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
-    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=total_distance, speed_limit=0, stop_type=True, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
+        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=coord.lat, lon=coord.lon, elevation=coord.elevation, distance=total_distance, speed_limit=speed_limit, stop_type=None, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1, dni=None, dhi=None))
+    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=total_distance, speed_limit=0, stop_type=True, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1, dni=None, dhi=None))
     return rows
 
 if __name__ == "__main__":

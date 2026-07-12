@@ -3,9 +3,10 @@ from .parse_kml import parse_kml_file
 from .speed_limits import update_speed_limits_from_csv, update_curvature_speed_limits
 from .update_velocity import update_target_velocity
 from .traffic import update_traffic
+from .solarirradiance import weather_assess
 
 # Delete and Recreate the database
-def main(route_db_path: str = "ASC_2024.sqlite", kml_path: str = "data/ASC_2024.kml"):
+def main(route_db_path: str = "ASC_2024.sqlite", kml_path: str = "data/ASC_2024.kml", start_dist = 0):
     import time
     start = time.perf_counter()
     
@@ -15,8 +16,12 @@ def main(route_db_path: str = "ASC_2024.sqlite", kml_path: str = "data/ASC_2024.
     init_route_db(db_path=route_db_path, kml_path=kml_path, remake= True)
     print(f"Database initialized in {time.perf_counter()-start:.2f}s\n")
     
+
     print("Updating additional data for placemarks...")
     placemarks = parse_kml_file(kml_path)
+
+    print("Updating weather and irradiance starting at: ", start_dist)
+    weather_assess(db_path=route_db_path, start_distance=start_dist)
     
     for i, placemark in enumerate(placemarks, 1):
         print(f"Updating placemark {i}/{len(placemarks)}: {placemark}")

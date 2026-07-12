@@ -28,7 +28,7 @@ class CarSolarCells:
         self._solar_cells = []
 
         for tilt in tilt_list:
-            cell = SolarCell(self._segment, tilt, self._time)
+            cell = SolarCell(self._segment, tilt, self._time, self._profile)
             self._solar_cells.append(cell)
 
     def update_cells(self, new_segment: Segment = None, new_time: datetime.datetime = None):
@@ -73,7 +73,8 @@ class SolarCell:
     This class calculates the power output of a solar cell based on the location, time, and tilt angle.
     """
 
-    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime):
+    def __init__(self, segment: Segment, tilt: float, time: datetime.datetime, profile: CarProfile):
+        self._profile = profile
         assert isinstance(segment, Segment), "segment must be an instance of Segment"
         assert isinstance(tilt, (int, float)), "tilt must be a number"
         if time:
@@ -94,7 +95,7 @@ class SolarCell:
         """
         Calculates the power output of the solar cell based on the current conditions.
         """
-        self._lat = self._segment.p1.lat
+        """self._lat = self._segment.p1.lat
         self._lon = self._segment.p1.lon
         self._elevation = self._segment.p1.elevation / 1000  # km
 
@@ -118,8 +119,42 @@ class SolarCell:
             print(self._incident_diffuse, self._sun_elevation_angle, self._tilt, self._heading_azimuth_angle, self._sun_azimuth_angle, self._time)
 
         # change to use irradiance data from API
-        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * self._profile.solar.cell_area)  # watts
+        self._cell_power_out = max(0, self._cell_irradiance * self._EFF * self._profile.solar.cell_area)  # watts"""
+        self._lat = self._segment.p1.lat
+        self._lon = self._segment.p1.lon
+        self._elevation = self._segment.p1.elevation / 1000  # km
 
+        azimuth_angle = self._segment.azimuth
+
+        assert 0 <= azimuth_angle <= 360, "Azimuth angle must be between 0 and 360 degrees"
+        
+        # If tilt is negative, treat it as facing the opposite side of the car
+        self._heading_azimuth_angle = (azimuth_angle + (180 if self._tilt < 0 else 0)) % 360
+        tilt_abs = abs(self._tilt)
+
+        self._location = LocationInfo(f"Location at ({self._lat}, {self._lon})", "United States", self._time.tzinfo, self._lat, self._lon)
+        self._sun_elevation_angle = max(0, elevation(self._location.observer, self._time))
+        self._sun_azimuth_angle = azimuth(self._location.observer, self._time)
+
+        # 1. Direct Normal Irradiance (Beam)
+        # Calculate angle of incidence (cos_theta)
+        cos_theta = (
+            math.cos(math.radians(self._sun_elevation_angle)) * math.sin(math.radians(tilt_abs)) * math.cos(math.radians(self._heading_azimuth_angle - self._sun_azimuth_angle))
+            + math.sin(math.radians(self._sun_elevation_angle)) * math.cos(math.radians(tilt_abs))
+        )
+        cos_theta = max(0, cos_theta) # Ensure sun isn't shining through the bottom of the panel
+        
+        direct_irradiance = self._segment.dni * cos_theta
+
+        # 2. Diffuse Horizontal Irradiance (Ambient Sky)
+        # Sky view factor reduces as the panel tilts away from the sky
+        sky_view_factor = (1 + math.cos(math.radians(tilt_abs))) / 2
+        diffuse_irradiance = self._segment.dhi * sky_view_factor
+
+        # 3. Total Tilted Irradiance
+        self._cell_irradiance = direct_irradiance + diffuse_irradiance
+
+        self._cell_power_out = self._cell_irradiance * self._EFF * self._profile.solar.cell_area
     def update_power(self, new_segment: Segment = None, new_time: datetime.datetime = None) -> float:
         """
         Updates the segment and time for the solar cell data, and recalculates the power output.

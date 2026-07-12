@@ -5,11 +5,13 @@ from .motor_calcs import motor
 
 # Speed takes mps as the default parameter, so all calculations are in mps
 class Segment(Displacement):  # Meters
-    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0), ghi: float = 0, wind: Velocity = ZERO_VEC, tdist: float = 0):
+    def __init__(self, p1: Coordinate, p2: Coordinate, id: int = 0, speed_limit: Speed = Speed(0), ghi: float = 0, dni: float = 0, dhi: float = 0, wind: Velocity = ZERO_VEC, tdist: float = 0):
         self.id = id
         super().__init__(p1, p2)
         self.displacement = Displacement(p1, p2)
         self.ghi = ghi
+        self.dni = dni
+        self.dhi = dhi
         self.wind = wind
         self.speed_limit = speed_limit
         self.tdist = tdist
@@ -21,6 +23,7 @@ NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 
 class StateNode:
     CRUISE_FORCE_TOLERANCE_N = 1e-6
+    _solar_cache = {}
 
     NUMERICAL_METRICS = {
         "torque": "Torque (Nm)",
@@ -60,7 +63,7 @@ class StateNode:
         self.Fm = self.torque / self.profile.motor.wheel_radius * self.profile.motor.num_motors
 
     def Fd_calc(self, initial_speed_mps: float):
-        velocity = self.segment.displacement.unit_vector() * initial_speed_mps
+        """velocity = self.segment.displacement.unit_vector() * initial_speed_mps
 
         # The overflow should never be happening
         try:
@@ -70,7 +73,22 @@ class StateNode:
             print(f"velocity: {velocity.mag} mps clamped to velocity: 200 mps")
             velocity = self.segment.displacement.unit_vector() * 200
         finally:
-            self.Fd = 0.5 * self.profile.physics.air_density * self.profile.vehicle.coef_drag * self.profile.vehicle.cross_section * ((velocity - self.segment.wind).mag ** 2)
+            self.Fd = 0.5 * self.profile.physics.air_density * self.profile.vehicle.coef_drag * self.profile.vehicle.cross_section * ((velocity - self.segment.wind).mag ** 2)"""
+        car_unit_vec = self.segment.displacement.unit_vector()
+        velocity = car_unit_vec * initial_speed_mps
+
+        try:
+            v_rel = velocity - self.segment.wind
+            
+            # Find the component of the relative wind acting along the car's direction (Dot Product)
+            v_rel_longitudinal = (v_rel.x * car_unit_vec.x) + (v_rel.y * car_unit_vec.y)
+            
+            # Magnitude of total relative wind * longitudinal component
+            self.Fd = 0.5 * self.profile.physics.air_density * self.profile.vehicle.coef_drag * self.profile.vehicle.cross_section * (v_rel.mag * v_rel_longitudinal)
+            
+        except OverflowError:
+            print("ERROR: The value of velocity in fd_calc is too high! Try a smaller timestep")
+            self.Fd = 0.0 # Safe fallback
 
     def Frr_calc(self):
         self.Frr = self.profile.vehicle.coef_rr * self.profile.vehicle.car_mass * self.profile.physics.accel_g * self.segment.gradient.cos()
@@ -88,7 +106,25 @@ class StateNode:
         self.P_in = self.P_out / 0.9 # assume 90% efficiency
 
     def solar_energy_cal(self):
-        self.P_sol = 0
+        from .solar_cell_data import CarSolarCells
+        from ..utils import constants
+        
+        segment_id = self.segment.id
+        if segment_id not in StateNode._solar_cache:
+            flat_tilts = []
+            if hasattr(constants, 'TILTS'):
+                for region, panel_groups in constants.TILTS.items():
+                    for group_name, angles in panel_groups.items():
+                        flat_tilts.extend(angles)
+            else:
+                flat_tilts = [0.0] # Safe fallback if TILTS isn't found
+            car_solar = CarSolarCells(
+                segment=self.segment, 
+                tilt_list=flat_tilts, 
+                profile=self.profile
+            )
+            StateNode._solar_cache[segment_id] = car_solar.total_power_output()
+        self.P_sol = StateNode._solar_cache[segment_id]
 
     def solve_cruise_state(self, speed_mps: float | None = None):
         if speed_mps is not None:
