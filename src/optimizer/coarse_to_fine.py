@@ -5,55 +5,67 @@ import numpy as np
 from itertools import product
 
 from ..database.fetch_route_intervals import fetch_route_intervals
-from ..engine.interval_simulator import SSInterval, join_intervals
-from ..engine.kinematics import Speed, Velocity
-from ..engine.nodes import VelocityNode
+from ..engine.interval_simulator import RouteInterval, join_intervals
+from ..engine.kinematics import Speed
+from ..engine.nodes import StateNode
 
 
-def set_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> SSInterval:
+def set_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[float]) -> RouteInterval:
     """
-    Override v_eff and t_eff on every segment of a single SSInterval **in-place**.
-    v_eff_kmph must have one entry per segment in the interval.
+    Store target speed and torque on the RouteInterval target profile **in-place**.
+    target_speed_kmph must have one entry per segment in the interval.
     """
-    if len(v_eff_kmph) != len(interval.segments):
+    if len(target_speed_kmph) != len(interval.segments):
         raise ValueError(
-            f"v_eff list length ({len(v_eff_kmph)}) != segments ({len(interval.segments)})"
+            f"target_speed list length ({len(target_speed_kmph)}) != segments ({len(interval.segments)})"
         )
 
-    for seg, v_kmph in zip(interval.segments, v_eff_kmph):
+    for index, (seg, v_kmph) in enumerate(zip(interval.segments, target_speed_kmph)):
         target = min(v_kmph, seg.speed_limit.kmph) if seg.speed_limit.mps > 0 else v_kmph
-        seg.v_eff = Velocity(seg.displacement.unit_vector(), Speed(kmph=target))
+        target_speed_mps = Speed(kmph=target).mps
 
-        vnode = VelocityNode(seg, Speed(kmph=target))
-        if vnode.solve_velocity():
-            seg.t_eff = vnode.torque
+        vnode = StateNode(seg)
+        if vnode.solve_cruise_state(target_speed_mps):
+            target_torque = vnode.torque
         else:
-            seg.t_eff = 0
+            target_torque = 0
+
+        interval.target_profile[index, 0] = seg.id
+        interval.target_profile[index, 1] = target_speed_mps
+        interval.target_profile[index, 2] = target_torque
 
     return interval
 
 
-def simulate_interval_with_v_eff(interval: SSInterval, v_eff_kmph: list[float]) -> float:
+def simulate_interval_with_target_speed_profile(interval: RouteInterval, target_speed_kmph: list[float]) -> float:
     """
-    Deep-copy an interval, apply v_eff profile, simulate, return total time (seconds).
+    Deep-copy an interval, apply target_speed profile, simulate, return total time (seconds).
     """
     trial = copy.deepcopy(interval)
-    set_v_eff(trial, v_eff_kmph)
+    set_target_speed_profile(trial, target_speed_kmph)
     trial.simulate_interval()
     return trial.time_nodes[-1].time
 
 
+def set_target_speed(interval: RouteInterval, target_speed_kmph: list[float]) -> RouteInterval:
+    return set_target_speed_profile(interval, target_speed_kmph)
+
+
+def simulate_interval_with_target_speed(interval: RouteInterval, target_speed_kmph: list[float]) -> float:
+    return simulate_interval_with_target_speed_profile(interval, target_speed_kmph)
+
+
 def brute_force_interval(
-    interval: SSInterval,
+    interval: RouteInterval,
     bounds: list[tuple[float, float]],
     step: float,
 ) -> tuple[list[float], float]:
     """
-    Brute-force search over all speed combos for a single SSInterval.
+    Brute-force search over all speed combos for a single RouteInterval.
 
     Parameters
     ----------
-    interval : SSInterval
+    interval : RouteInterval
         The interval to optimize.
     bounds : list[tuple[float, float]]
         Per-segment (min_kmph, max_kmph) bounds.
@@ -91,7 +103,7 @@ def brute_force_interval(
 
     for combo in product(*per_segment_candidates):
         combo_list = list(combo)
-        t = simulate_interval_with_v_eff(interval, combo_list)
+        t = simulate_interval_with_target_speed_profile(interval, combo_list)
         all_results.append((combo_list, t))
         if t < best_time:
             best_time = t
@@ -105,20 +117,20 @@ def brute_force_interval(
 
 
 def coarse_to_fine_interval(
-    interval: SSInterval,
+    interval: RouteInterval,
     v_min_kmph: float = 20,
     v_max_kmph: float = 100,
     passes: list[float] | None = None,
 ) -> tuple[list[float], float]:
     """
-    Coarse-to-fine brute force on a single SSInterval.
+    Coarse-to-fine brute force on a single RouteInterval.
 
     Each pass does a full brute-force sweep at the given step size,
     then narrows bounds around the best result for the next pass.
 
     Parameters
     ----------
-    interval : SSInterval
+    interval : RouteInterval
         The interval to optimize.
     v_min_kmph : float
         Global lower speed bound (km/h).
@@ -184,7 +196,7 @@ def optimize_route(
 ) -> dict:
     """
     Coarse-to-fine brute-force optimizer for a full route.
-    Optimizes each SSInterval independently, then joins results.
+    Optimizes each RouteInterval independently, then joins results.
 
     Returns
     -------
@@ -198,7 +210,7 @@ def optimize_route(
     intervals = fetch_route_intervals(
         placemark_name, split_at_stops=True, max_nodes=max_nodes, db_path=db_path
     )
-    if isinstance(intervals, SSInterval):
+    if isinstance(intervals, RouteInterval):
         intervals = [intervals]
 
     print(f"Route '{placemark_name}': {len(intervals)} intervals")
@@ -233,7 +245,7 @@ def optimize_route(
     optimized_intervals = []
     for interval, speeds in zip(intervals, all_best_speeds):
         trial = copy.deepcopy(interval)
-        set_v_eff(trial, speeds)
+        set_target_speed_profile(trial, speeds)
         trial.simulate_interval()
         optimized_intervals.append(trial)
 
@@ -270,8 +282,9 @@ if __name__ == "__main__":
 
     if result["master"]:
         result["master"].plot(
-            "dist", ["speed.kmph", "segment.v_eff.kmph"],
+            "dist", ["speed_kmph", "segment.speed_limit.kmph"],
             f"optimized_{result['total_time']:.0f}s",
             brake=False,
+            ylabel="Speed (km/h)",
         )
         plt.show()

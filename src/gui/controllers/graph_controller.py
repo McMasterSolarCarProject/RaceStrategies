@@ -4,24 +4,24 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 
-from ...engine.interval_simulator import SSInterval
-from ...engine.nodes import TimeNode
-from ...utils.graph import plot_SSInterval
+from ...engine.interval_simulator import RouteInterval
+from ...engine.nodes import DynamicNode
+from ...utils.graph import plot_RouteInterval
 
 
 class GraphController(QWidget):
     """
-    Widget to handle graph generation for an SSInterval.
+    Widget to handle graph generation for an RouteInterval.
     Contains a button to generate plots and a canvas to display them.
     """
 
     def __init__(self, frontend_func: Callable, parent=None):
         super().__init__(parent)
 
-        self.simulated_route: SSInterval | None = None
+        self.simulated_route: RouteInterval | None = None
         # Layout
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.box_layout = QVBoxLayout()
+        self.setLayout(self.box_layout)
 
         # Add dropdown for x field 1, y field 1, x field 2, y field 2
         dropdown_layout = QGridLayout()
@@ -40,26 +40,26 @@ class GraphController(QWidget):
         dropdown_layout.addWidget(QLabel("Graph 2 Y Value"), 3, 0)
         dropdown_layout.addWidget(self.y2_dropdown, 3, 1)
         self.layout.addLayout(dropdown_layout)
-        # Populate with TimeNode metrics
+        # Populate with DynamicNode metrics
         self.populate_dropdowns()
 
         # Button to generate graphs
         self.generate_button = QPushButton("Generate Graphs")
         self.generate_button.clicked.connect(frontend_func)
-        self.layout.addWidget(self.generate_button)
+        self.box_layout.addWidget(self.generate_button)
 
         # Matplotlib figure and canvas
         self.figure, self.axes = plt.subplots(2, 1)
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
+        self.box_layout.addWidget(self.toolbar)
+        self.box_layout.addWidget(self.canvas)
 
     def populate_dropdowns(self):
         """
         Populates the x and y field drop downs with all graphable measurements such as dist, time, kmph, etc.
         """
-        metrics = TimeNode.get_numerical_metrics()
+        metrics = DynamicNode.get_numerical_metrics()
         dropdowns = [
             self.x1_dropdown,
             self.y1_dropdown,
@@ -73,7 +73,7 @@ class GraphController(QWidget):
 
         # Set defaults:
         self.x1_dropdown.setCurrentText("dist")
-        self.y1_dropdown.setCurrentText("speed.kmph")
+        self.y1_dropdown.setCurrentText("speed_kmph")
         self.x2_dropdown.setCurrentText("time")
         self.y2_dropdown.setCurrentText("soc")
 
@@ -90,7 +90,7 @@ class GraphController(QWidget):
         if not hasattr(self.simulated_route, "time_nodes"):
             self.simulated_route.simulate_interval()
         time_nodes = self.simulated_route.time_nodes
-        braking_nodes = self.simulated_route.brakingNodes
+        braking_nodes = self.simulated_route.braking_nodes
         datasets = [time_nodes, braking_nodes]
         labels = ["Time Nodes", "Braking Nodes"]
 
@@ -99,27 +99,27 @@ class GraphController(QWidget):
         y1 = self.y1_dropdown.currentText()
         y2 = self.y2_dropdown.currentText()
 
-        plot_SSInterval(
+        plot_RouteInterval(
             datasets=datasets,
             x_field=x1,
             y_fields=y1,
             name=f"1_{x1}_vs_{y1}",
             labels=labels,
             ax=self.axes[0],
-            xlabel=f"{TimeNode.NUMERICAL_METRICS[x1]}",
-            ylabel=f"{TimeNode.NUMERICAL_METRICS[y1]}",
-            title=f"{TimeNode.NUMERICAL_METRICS[x1]} vs {TimeNode.NUMERICAL_METRICS[y1]}",
+            xlabel=f"{DynamicNode.NUMERICAL_METRICS[x1]}",
+            ylabel=f"{DynamicNode.NUMERICAL_METRICS[y1]}",
+            title=f"{DynamicNode.NUMERICAL_METRICS[x1]} vs {DynamicNode.NUMERICAL_METRICS[y1]}",
         )
-        plot_SSInterval(
+        plot_RouteInterval(
             datasets=datasets,
             x_field=x2,
             y_fields=y2,
             name=f"2_{x2}_vs_{y2}",
             labels=labels,
             ax=self.axes[1],
-            xlabel=f"{TimeNode.NUMERICAL_METRICS[x2]}",
-            ylabel=f"{TimeNode.NUMERICAL_METRICS[y2]}",
-            title=f"{TimeNode.NUMERICAL_METRICS[x2]} vs {TimeNode.NUMERICAL_METRICS[y2]}",
+            xlabel=f"{DynamicNode.NUMERICAL_METRICS[x2]}",
+            ylabel=f"{DynamicNode.NUMERICAL_METRICS[y2]}",
+            title=f"{DynamicNode.NUMERICAL_METRICS[x2]} vs {DynamicNode.NUMERICAL_METRICS[y2]}",
         )
 
         # Adjust layout and redraw

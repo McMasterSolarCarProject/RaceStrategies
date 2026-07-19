@@ -28,7 +28,7 @@ def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -
     Look up the speed limit for a given distance.
     """
     if not speed_limits:
-        return -1, 0
+        return 60, 0
     
     while limit_index + 1 < len(speed_limits) and speed_limits[limit_index][0] <= tdist:
         limit_index += 1
@@ -88,7 +88,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_p
     """Update speed limits in database based on road curvature."""
     
     # Fetch route segments
-    intervals = fetch_route_intervals(placemark_name)
+    intervals = fetch_route_intervals(placemark_name, db_path=db_path)
     segments = intervals.segments
     
     # Extract coordinate data
@@ -108,7 +108,7 @@ def update_curvature_speed_limits(placemark_name: str, display: bool=False, db_p
     with sqlite3.connect(db_path) as db:
         cursor = db.cursor()
         cursor.executemany(
-            "UPDATE route_data SET speed_limit = MIN(speed_limit, ?) WHERE placemark_name = ? AND id = ?",
+            "UPDATE route_row SET speed_limit = MIN(speed_limit, ?) WHERE placemark_name = ? AND id = ?",
             update_data
         )
         db.commit()
@@ -145,7 +145,7 @@ def update_speed_limits_from_csv(placemark_name, db_path: str = "ASC_2024.sqlite
             # update_data = [(float(speeds[i]), placemark_name, segments[i].id) for i in range(len(placemark.segments))]
     
         cursor.executemany(
-            "UPDATE route_data SET speed_limit = ? WHERE placemark_name = ? AND id = ?",
+            "UPDATE route_row SET speed_limit = ? WHERE placemark_name = ? AND id = ?",
             update_data
         )
 

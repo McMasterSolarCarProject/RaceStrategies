@@ -6,7 +6,7 @@ class StateController:
     Handles the busy and idle states of the PyQT app
     """
 
-    def __init__(self, status_bar: QStatusBar, *buttons: list[QPushButton]):
+    def __init__(self, status_bar: QStatusBar, *buttons: QPushButton):
         self.status = status_bar
         self.buttons = buttons
 

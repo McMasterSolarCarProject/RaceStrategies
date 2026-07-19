@@ -1,20 +1,24 @@
 # How to Run:
 
-set up the python venv with requirments.txt
+install dependencies with UV:
+
+```bash
+uv sync
+```
 
 setup database by running:
 ```bash
-python -m src.database
+uv run python -m src.database
 ```
 
 run sim with:
 
 ```bash
-python -m src
+uv run python -m src
 ```
 run gui with:
 ```bash
-python -m src.gui.main_gui
+uv run streamlit run src/streamlit_app.py
 ```
 
 modify database setup in database.__main__.py
@@ -41,3 +45,4 @@ modify sim setup in src.main.py
 
 ## Utils:
  - Create a config type python module which takes some json files with a bunch of sim configs
+

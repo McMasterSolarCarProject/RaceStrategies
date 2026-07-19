@@ -255,9 +255,9 @@ def priority_stops(clusters):
             if stop_type is None:
                 continue
 
-            p = stop_priority.get(stop_type, float('inf'))
-            if p < best_priority:
-                best_priority = p
+            priority_value = stop_priority.get(stop_type, float('inf'))
+            if priority_value < best_priority:
+                best_priority = priority_value
                 best_type = stop_type
 
         priority_types[ref] = best_type
@@ -301,7 +301,7 @@ def debugging_priority(nodes):
 
 
 def update_traffic(placemark_name: str, db_path: str = "ASC_2024.sqlite") -> None:
-    placemark = fetch_route_intervals(placemark_name)
+    placemark = fetch_route_intervals(placemark_name, db_path=db_path)
     coord_points = [c.p1 for c in placemark.segments]
     batch_bboxes = [generate_boundary(coord.lat, coord.lon) for coord in coord_points]
     db = sqlite3.connect(db_path)
@@ -322,7 +322,7 @@ def update_traffic(placemark_name: str, db_path: str = "ASC_2024.sqlite") -> Non
                     continue
                 print(f"{ref}:\t{stop_type}")
                 cursor.execute(
-                    'UPDATE route_data SET stop_type = ? WHERE lat = ? AND lon = ?',
+                    'UPDATE route_row SET stop_type = ? WHERE lat = ? AND lon = ?',
                     (stop_type, ref.lat, ref.lon)
                 )
             db.commit()  
