@@ -3,54 +3,52 @@ import folium
 import matplotlib.colors as mcolors
 import numpy as np
 from ..database.fetch_route_intervals import fetch_route_intervals
-from ..engine.nodes import DynamicNode, Segment
-from ..engine.interval_simulator import RouteInterval, join_intervals
+from ..engine.nodes import TimeNode, Segment
+from ..engine.interval_simulator import SSInterval, join_intervals
 import time
 
 
 class RouteMap:
     def __init__(self):
         self.folium_map = folium.Map()
-        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 60))
-        self.speed_colors = [mcolors.to_hex(color) for color in colormap] # List of colors in a gradient of blue to red to green
+        colormap = mcolors.LinearSegmentedColormap.from_list("speed_gradient", ["#0000FF", "#FF0000", "#00FF00"])(np.linspace(0, 1, 200))
+        self.speed_colors = [mcolors.to_hex(color) for color in colormap]
         self.all_coordinates: list[tuple[float, float]] = []
 
     def generate_no_simulation_map(self, placemark_name: str, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False):
         """
         Generate a layered map from a placemark without simulation.
-        Each route interval (or all intervals if not split) is shown as a single or multiple layers.
+        Each segment (or all segments if not layered) is shown as a single or multiple layers.
         """
-        route_intervals = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
-        if route_intervals and not isinstance(route_intervals, list):
-            route_intervals = [route_intervals]
-        self._generate_layered_map(route_intervals, is_simulated=False)
+        route = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
+        if route and not isinstance(route, list):
+            route = [route]
+        self._generate_layered_map(route, is_simulated=False)
 
-    def generate_simulation_map(self, placemark_name: str, time_step: float, velocity_step: float = 1.0, hover: bool = True, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> RouteInterval:
+    def generate_simulation_map(self, placemark_name: str, timestep: float, hover: bool, db_path: str = "ASC_2024.sqlite", split_at_stops: bool = False) -> SSInterval:
         """
         Generate a layered simulation map from a placemark.
-        Each route interval is simulated and displayed as a separate layer.
+        Each segment is simulated and displayed as a separate layer.
         """
-        route_intervals = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
-        if route_intervals and not isinstance(route_intervals, list):
-            route_intervals = [route_intervals]
+        route = fetch_route_intervals(placemark_name, db_path=db_path, split_at_stops=split_at_stops)
+        if route and not isinstance(route, list):
+            route = [route]
 
-        # Simulate all route intervals
-        for interval in route_intervals:
-            interval.TIME_STEP = time_step
-            interval.VELOCITY_STEP_MPS = velocity_step
-            interval.simulate_interval()
-        self._generate_layered_map(route_intervals, is_simulated=True, hover_tooltips=hover)
-        return join_intervals(route_intervals)
+        # Simulate all intervals
+        for interval in route:
+            interval.simulate_interval(TIME_STEP=timestep)
+        self._generate_layered_map(route, is_simulated=True, hover_tooltips=hover)
+        return join_intervals(route)
 
-    def _generate_layered_map(self, route_intervals: list[RouteInterval], is_simulated: bool, hover_tooltips: bool = True):
+    def _generate_layered_map(self, intervals: list[SSInterval], is_simulated: bool, hover_tooltips: bool = True):
         """
         Generic layered map generator for both simulated and non-simulated routes.
         Creates a feature group for each interval, adds polylines/markers, and sets bounding box.
         """
         self.all_coordinates = []
 
-        for i, interval in enumerate(route_intervals):
-            layer = folium.FeatureGroup(name=f"Route interval {i + 1}", show=(i == 0))
+        for i, interval in enumerate(intervals):
+            layer = folium.FeatureGroup(name=f"Segment {i + 1}", show=(i == 0))
             polylines = self._get_polylines(interval, is_simulated, hover_tooltips)
 
             for polyline in polylines:
@@ -61,38 +59,35 @@ class RouteMap:
         folium.LayerControl().add_to(self.folium_map)
         self.set_bounding_box()
 
-    def _get_polylines(self, route_interval: RouteInterval, is_simulated: bool, hover_tooltips: bool = True) -> list[folium.PolyLine]:
+    def _get_polylines(self, interval: SSInterval, is_simulated: bool, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
         Generate polylines for an interval.
         For simulated: interpolates through time nodes and colors by speed.
         For non-simulated: simple polyline from segment coordinates.
         """
         if is_simulated:
-            return self._get_simulated_path(route_interval, hover_tooltips)
+            return self._get_simulated_path(interval, hover_tooltips)
         else:
             # Non-simulated: simple polyline from segment start/end points
-            coordinates = route_interval.get_coordinate_pairs()
+            coordinates = interval.get_coordinate_pairs()
             self.all_coordinates.extend(coordinates)
             polyline = folium.PolyLine(coordinates, weight=5, opacity=1, color="#FF0000")
             return [polyline]
 
-    def _get_simulated_path(self, route_interval: RouteInterval, hover_tooltips: bool = True) -> list[folium.PolyLine]:
+    def _get_simulated_path(self, ssinterval: SSInterval, hover_tooltips: bool = True) -> list[folium.PolyLine]:
         """
         Draws colored segments between consecutive time nodes.
         Returns list of polylines.
         """
         DECIMATION_INTERVAL = 8
-        DECIMATED_NODES = route_interval.time_nodes[::DECIMATION_INTERVAL]
+        DECIMATED_NODES = ssinterval.time_nodes[::DECIMATION_INTERVAL]
 
-        coordinates = self.get_time_node_coords(route_interval.segments, DECIMATED_NODES)
+        coordinates = self.get_time_node_coords(ssinterval.segments, DECIMATED_NODES)
         coordinate_points = [pt for (pt, _tn) in coordinates]
         self.all_coordinates.extend(coordinate_points)
         nodes = [tn for (_pt, tn) in coordinates]
 
-        speeds = [max(0.0, tn.speed_mps * 3.6) for tn in nodes]
-        min_speed = min(speeds, default=0.0)
-        max_speed = max(speeds, default=1.0)
-        coordinate_colors = [self.get_speed_color(tn, min_speed, max_speed) for tn in nodes[:-1]]
+        coordinate_colors = [self.get_speed_color(tn) for tn in nodes[:-1]]
 
         polylines = []
 
@@ -115,7 +110,7 @@ class RouteMap:
 
         return polylines
 
-    def _format_tooltip(self, tn: DynamicNode) -> str:
+    def _format_tooltip(self, tn: TimeNode) -> str:
         """Build tooltip HTML for a time node."""
         parts = []
 
@@ -125,24 +120,26 @@ class RouteMap:
         t = _safe_get(tn, "time", None)
         if t is not None:
             parts.append(f"<b>Time:</b> {t:.1f} s")
-        speed_mps = _safe_get(tn, "speed_mps", None)
-        if speed_mps is not None:
-            parts.append(f"<b>Speed:</b> {speed_mps * 3.6:.2f} km/h")
-        acc = _safe_get(tn, "acc", None)
-        if acc is not None:
-            parts.append(f"<b>Accel:</b> {acc:.3f} m/s²")
+        kmph = _safe_get(tn, "speed.kmph", None)
+        if kmph is not None:
+            parts.append(f"<b>Speed:</b> {kmph:.2f} km/h")
+        accel = _safe_get(tn, "accel", None)
+        if accel is not None:
+            parts.append(f"<b>Accel:</b> {accel:.3f} m/s²")
         Fb = _safe_get(tn, "Fb", None)
         if Fb not in (None, 0):
             parts.append(f"<b>Brake F:</b> {Fb:.0f} N")
 
         return "<br>".join(parts) if parts else "Node"
 
-    def get_speed_color(self, time_node: DynamicNode, min_speed: float = 0.0, max_speed: float = 120.0):
-        span = max(max_speed - min_speed, 1.0)
-        ratio = max(0.0, min((time_node.speed_mps * 3.6 - min_speed) / span, 1.0))
-        return self.speed_colors[round(ratio * (len(self.speed_colors) - 1))]
+    def get_speed_color(self, time_node: TimeNode):
+        try:
+            color = self.speed_colors[min(int(time_node.speed.kmph) + 100, len(self.speed_colors) - 1)]
+        except IndexError:
+            color = self.speed_colors[0]
+        return color
 
-    def get_time_node_coords(self, segments: list[Segment], time_node_list: list[DynamicNode]) -> list[tuple[tuple[float, float], DynamicNode]]:
+    def get_time_node_coords(self, segments: list[Segment], time_node_list: list[TimeNode]) -> list[tuple[tuple[float, float], TimeNode]]:
         seg_ends = np.array([seg.tdist for seg in segments])
         seg_dists = np.array([seg.dist for seg in segments])
         seg_start_dists = seg_ends - seg_dists
@@ -180,11 +177,9 @@ def _safe_get(obj, path, default=None):
     """Dot-path getattr with a default."""
     cur = obj
     for part in path.split("."):
-        if cur is None:
+        if cur is None or not hasattr(cur, part):
             return default
-        cur = getattr(cur, part, None)
-        if cur is None:
-            return default
+        cur = getattr(cur, part)
     return cur
 
 
@@ -192,8 +187,9 @@ def format_time_node_tooltip(time_node, segment=None):
     # Basics
     dist_m = _safe_get(time_node, "dist", None)
     t_s = _safe_get(time_node, "time", None)
-    mps = _safe_get(time_node, "speed_mps", None)
-    acc = _safe_get(time_node, "acc", None)
+    kmph = _safe_get(time_node, "speed.kmph", None)
+    mps = _safe_get(time_node, "speed.mps", None)
+    accel = _safe_get(time_node, "accel", None)  # if you store it
     # torque   = _safe_get(time_node, "torque", None)
     Fb = _safe_get(time_node, "Fb", None)  # braking force (N)
     # soc      = _safe_get(time_node, "soc", None)
@@ -202,6 +198,8 @@ def format_time_node_tooltip(time_node, segment=None):
     e_kwh = (e_wh / 1000.0) if e_wh is not None else (e_j / 3.6e6 if e_j is not None else None)
 
     # Segment constraints / context
+    v_eff_k = _safe_get(segment, "v_eff.kmph", None) if segment is not None else None
+
     # Grade (%) if coordinates have altitude
     grade_pct = None
     if segment is not None:
@@ -219,13 +217,17 @@ def format_time_node_tooltip(time_node, segment=None):
         lines.append(f"<b>Dist:</b> {dist_m/1000:.3f} km")
     if t_s is not None:
         lines.append(f"<b>Time:</b> {t_s:.1f} s")
-    if mps is not None:
-        lines.append(f"<b>Speed:</b> {mps * 3.6:.2f} km/h")
-    if acc is not None:
-        lines.append(f"<b>Accel:</b> {acc:.3f} m/s²")
+    if kmph is not None:
+        lines.append(f"<b>Speed:</b> {kmph:.2f} km/h")
+    elif mps is not None:
+        lines.append(f"<b>Speed:</b> {mps:.2f} m/s")
+    if accel is not None:
+        lines.append(f"<b>Accel:</b> {accel:.3f} m/s²")
     # if torque is not None: lines.append(f"<b>Torque:</b> {torque:.0f} Nm")
     if Fb is not None and Fb != 0:
         lines.append(f"<b>Brake F:</b> {Fb:.0f} N")
+    if v_eff_k is not None:
+        lines.append(f"<b>Target v:</b> {v_eff_k:.1f} km/h")
     if grade_pct is not None:
         lines.append(f"<b>Grade:</b> {grade_pct:+.1f}%")
     if e_kwh is not None:
@@ -241,16 +243,15 @@ if __name__ == "__main__":
     route_map.save_map("maps/route_map")
 
     start = time.time()
-    route_interval = fetch_route_intervals("A. Independence to Topeka")
-    if route_interval is RouteInterval:
-        route_interval.TIME_STEP = 0.5
-        route_interval.simulate_interval()
+    a = fetch_route_intervals("A. Independence to Topeka")
+    if a is SSInterval:
+        a.simulate_interval(TIME_STEP=0.5)
     end = time.time()
     print(f"simulation done! took {end - start} seconds")
 
     start = time.time()
     route_map2 = RouteMap()
-    route_map2.generate_simulation_map("A. Independence to Topeka", time_step=0.5, hover=True)
+    route_map2.generate_simulation_map("A. Independence to Topeka", timestep=0.5, hover=True)
     route_map2.save_map("maps/route_map_simulated")
     end = time.time()
     print(f"Map generation took {end - start} seconds")

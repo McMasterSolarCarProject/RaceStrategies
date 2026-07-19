@@ -2,11 +2,10 @@ import sqlite3
 import os
 from .parse_kml import parse_kml_file
 from .speed_limits import get_speed_limits, lookup_speed_limit
-from .route_row import RouteRow, create_route_row_table_sql, insert_route_row_sql, validate_route_row_schema
 import time
 from ..engine.nodes import Segment
 
-def init_route_db(db_path: str = "ASC_2024.sqlite", remake: bool = False, kml_path: str = "data/ASC_2024.kml") -> None:
+def init_route_db(db_path: str = "ASC_2024.sqlite", schema_path: str = "route_data.sql", remake: bool = False, kml_path: str = "data/ASC_2024.kml") -> None:
     """
     Deletes the existing database, recreates schema, and populates route data.
     """
@@ -25,50 +24,54 @@ def init_route_db(db_path: str = "ASC_2024.sqlite", remake: bool = False, kml_pa
 
         with sqlite3.connect(db_path) as connection:
             cursor = connection.cursor()
-            create_route_table(cursor)
+            create_route_table(cursor, schema_path)
             populate_table(placemarks, cursor)
 
         print("Route data initialized.")
     else:
-        with sqlite3.connect(db_path) as connection:
-            validate_route_row_schema(connection.cursor())
         print(f"Database exists Already: {db_path}")
     
 
-def create_route_table(cursor: sqlite3.Cursor) -> None:
+def create_route_table(cursor: sqlite3.Cursor, schema_path: str = "route_data.sql") -> None:
     """
-    Creates route_row table from RouteRow schema contract.
+    Reads and executes SQL schema for the route_data table.
     """
-    cursor.executescript(create_route_row_table_sql())
-    validate_route_row_schema(cursor)
+    abs_path = os.path.join(os.path.dirname(__file__), schema_path)
+    if not os.path.exists(abs_path):
+        raise FileNotFoundError(f"Schema file not found: {abs_path}")
+
+    with open(abs_path, "r") as f:
+        schema_sql = f.read()
+        cursor.executescript(schema_sql)
 
 
 def populate_table(placemarks: dict, cursor: sqlite3.Cursor) -> None:  # Make this better and Document
     """
-    Populate route_row table with segment data and speed limits.
+    Populate route_data table with segment data and speed limits.
     - If speed limit CSV is missing, rows are inserted with speed = NULL and marked as speed_unknown.
     """
     print(f"Populating route data for {len(placemarks)} placemarks...")
     for placemark_name, coords in placemarks.items():
         print(f"Processing: {placemark_name}")
         speed_limits = get_speed_limits(placemark_name)
-        rows = build_rows(placemark_name, coords, speed_limits)
-        params = [r.to_db_params() for r in rows]
-        cursor.executemany(insert_route_row_sql(), params)
+        data = build_rows(placemark_name, coords, speed_limits)
+
+        column_count = ",".join(["?"] * len(data[0]))
+        cursor.executemany(f"insert into route_data values ({column_count})", data)
 
 
-def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list[RouteRow]:
-    rows: list[RouteRow] = []
+def build_rows(placemark_name: str, coords: list, speed_limits: list) -> list:
+    data = []
     limit_index = 0
-    total_distance = 0
-    for coord_index, coord in enumerate(coords[:-1]):
-        segment = Segment(coord, coords[coord_index + 1])
-        total_distance += segment.dist
-
-        speed_limit, limit_index = lookup_speed_limit(speed_limits, total_distance, limit_index)
-        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=coord.lat, lon=coord.lon, elevation=coord.elevation, distance=total_distance, speed_limit=speed_limit, stop_type=None, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
-    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=total_distance, speed_limit=0, stop_type=True, ghi=None, wind_dir=None, wind_speed=None, speed=-1, torque=-1))
-    return rows
+    tdist = 0
+    for coord_index, c in enumerate(coords[:-1]):
+        s = Segment(c, coords[coord_index + 1])
+        tdist += s.dist
+        
+        speed_limit, limit_index = lookup_speed_limit(speed_limits, tdist, limit_index)
+        data.append([placemark_name, coord_index, c.lat, c.lon, c.elevation, tdist, speed_limit, None, None, None, None, -1, -1])
+    data.append([placemark_name, data[-1][1] + 1, coords[-1].lat, coords[-1].lon, coords[-1].elevation, tdist, 0, True, None, None, None, -1, -1])
+    return data
 
 if __name__ == "__main__":
     print("Started Route DB Initialization")
