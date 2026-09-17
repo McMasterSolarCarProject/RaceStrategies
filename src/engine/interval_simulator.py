@@ -270,6 +270,7 @@ def test_2():
     a = fetch_route_intervals("A. Independence to Topeka", max_nodes=100)
     a.simulate_interval()
     print(len(a.time_nodes))
+    print(a.time_nodes[-1])
 
     # from ..utils.graph import plot_multiple_datasets
     # graph.plot_points(a.time_nodes, "dist", "kmph", 'whole')
