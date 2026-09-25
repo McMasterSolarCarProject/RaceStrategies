@@ -1,67 +1,29 @@
-from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any
 import sqlite3
-import numpy as np
-from ..engine.kinematics import Coordinate, Speed, Velocity
-from ..engine.nodes import Segment
-
+from dataclasses import dataclass
+from ..models import Coordinate, Displacement
+from .speed_limits import lookup_speed_limit
 
 ROUTE_ROW_TABLE_NAME = "route_row"
 ROUTE_ROW_COLUMN_DEFS: tuple[tuple[str, str], ...] = (
     ("placemark_name", "TEXT NOT NULL"),
     ("id", "INTEGER NOT NULL"),
-    ("lat", "FLOAT NOT NULL"),
-    ("lon", "FLOAT NOT NULL"),
-    ("elevation", "FLOAT NOT NULL"),
-    ("distance", "FLOAT NOT NULL"),
-    ("speed_limit", "FLOAT NOT NULL"),
-    ("stop_type", "STRING"),
-    ("ghi", "INT"),
-    ("wind_dir", "FLOAT"),
-    ("wind_speed", "FLOAT"),
-    ("speed", "FLOAT"),
-    ("torque", "FLOAT"),
+    ("lat", "REAL NOT NULL"),
+    ("lon", "REAL NOT NULL"),
+    ("elevation", "REAL NOT NULL"),
+    ("distance", "REAL NOT NULL"),
+    ("speed_limit", "REAL"),
+    ("stop_type", "INTEGER"),
+    ("ghi", "REAL"),
+    ("wind_dir", "REAL"),
+    ("wind_speed", "REAL"),
+    ("speed", "REAL"),
+    ("torque", "REAL"),
 )
 ROUTE_ROW_PRIMARY_KEY: tuple[str, ...] = ("placemark_name", "id")
 
 ROUTE_ROW_COLUMNS: tuple[str, ...] = (
     tuple(column_name for column_name, _ in ROUTE_ROW_COLUMN_DEFS)
 )
-
-
-def create_route_row_table_sql() -> str:
-    column_def_sql = ",\n        ".join(
-        f"{column_name} {column_type}" for column_name, column_type in ROUTE_ROW_COLUMN_DEFS
-    )
-    primary_key_sql = ", ".join(ROUTE_ROW_PRIMARY_KEY)
-    return (
-        f"CREATE TABLE {ROUTE_ROW_TABLE_NAME} (\n"
-        f"        {column_def_sql},\n"
-        f"        PRIMARY KEY ({primary_key_sql})\n"
-        f"    );"
-    )
-
-
-def insert_route_row_sql() -> str:
-    columns = ",".join(ROUTE_ROW_COLUMNS)
-    placeholders = ",".join(f":{column_name}" for column_name in ROUTE_ROW_COLUMNS)
-    return f"INSERT INTO {ROUTE_ROW_TABLE_NAME} ({columns}) VALUES ({placeholders})"
-
-
-def get_route_row_table_columns(cursor: sqlite3.Cursor) -> list[str]:
-    cursor.execute(f"PRAGMA table_info({ROUTE_ROW_TABLE_NAME})")
-    return [row[1] for row in cursor.fetchall()]
-
-
-def validate_route_row_schema(cursor: sqlite3.Cursor) -> None:
-    actual_columns = get_route_row_table_columns(cursor)
-    expected_columns = list(ROUTE_ROW_COLUMNS)
-    if actual_columns != expected_columns:
-        raise ValueError(
-            f"{ROUTE_ROW_TABLE_NAME} schema mismatch. "
-            f"Expected columns {expected_columns}, got {actual_columns}."
-        )
 
 
 @dataclass
@@ -72,33 +34,59 @@ class RouteRow:
     lon: float
     elevation: float
     distance: float
-    speed_limit: float
-    stop_type: Any
-    ghi: Any
-    wind_dir: Any
-    wind_speed: Any
-    speed: float
-    torque: float
+    speed_limit: float | None = None
+    stop_type: bool | None = None
+    ghi: float | None = None
+    wind_dir: float | None = None
+    wind_speed: float | None = None
+    speed: float | None = None
+    torque: float | None = None
 
     def to_db_params(self) -> dict:
         return {column_name: getattr(self, column_name) for column_name in ROUTE_ROW_COLUMNS}
 
     @classmethod
-    def from_sql_row(cls, row) -> "RouteRow":
-        return cls(**{column_name: row[column_name] for column_name in ROUTE_ROW_COLUMNS})
+    def insert_sql(cls) -> str:
+        columns = ",".join(ROUTE_ROW_COLUMNS)
+        placeholders = ",".join(f":{column_name}" for column_name in ROUTE_ROW_COLUMNS)
+        return f"INSERT INTO {ROUTE_ROW_TABLE_NAME} ({columns}) VALUES ({placeholders})"
 
-    def to_segment(self, next_row: "RouteRow") -> Segment:
-        current_coord = Coordinate(self.lat, self.lon, self.elevation)
-        next_coord = Coordinate(next_row.lat, next_row.lon, next_row.elevation)
-        wind = Velocity()
-        return Segment(
-            current_coord,
-            next_coord,
-            self.id,
-            Speed(kmph=self.speed_limit),
-            self.ghi,
-            wind,
+    @classmethod
+    def create_table_sql(cls) -> str:
+        column_def_sql = ",\n        ".join(
+            f"{column_name} {column_type}" for column_name, column_type in ROUTE_ROW_COLUMN_DEFS
+        )
+        primary_key_sql = ", ".join(ROUTE_ROW_PRIMARY_KEY)
+        return (
+            f"CREATE TABLE {ROUTE_ROW_TABLE_NAME} (\n"
+            f"        {column_def_sql},\n"
+            f"        PRIMARY KEY ({primary_key_sql})\n"
+            f"    );"
         )
 
-    def to_target_profile_row(self) -> np.ndarray:
-        return np.array([self.id, Speed(kmph=self.speed).mps, self.torque], dtype=float)
+    @classmethod
+    def get_table_columns(cls, cursor: sqlite3.Cursor) -> list[str]:
+        cursor.execute(f"PRAGMA table_info({ROUTE_ROW_TABLE_NAME})")
+        return [row[1] for row in cursor.fetchall()]
+
+    @classmethod
+    def validate_schema(cls, cursor: sqlite3.Cursor) -> None:
+        actual_columns = cls.get_table_columns(cursor)
+        expected_columns = list(ROUTE_ROW_COLUMNS)
+        if actual_columns != expected_columns:
+            raise ValueError(
+                f"{ROUTE_ROW_TABLE_NAME} schema mismatch. "
+                f"Expected columns {expected_columns}, got {actual_columns}."
+            )
+
+def build_rows(placemark_name: str, coords: list[Coordinate], speed_limits: list) -> list[RouteRow]:
+    rows: list[RouteRow] = []
+    limit_index = 0
+    total_distance = 0
+    for coord_index, coord in enumerate(coords[:-1]):
+        total_distance += Displacement(coord, coords[coord_index + 1]).dist
+
+        speed_limit, limit_index = lookup_speed_limit(speed_limits, total_distance, limit_index)
+        rows.append(RouteRow(placemark_name=placemark_name, id=coord_index, lat=coord.lat, lon=coord.lon, elevation=coord.elevation, distance=total_distance, speed_limit=speed_limit))
+    rows.append(RouteRow(placemark_name=placemark_name, id=rows[-1].id + 1, lat=coords[-1].lat, lon=coords[-1].lon, elevation=coords[-1].elevation, distance=total_distance, speed_limit=0))
+    return rows

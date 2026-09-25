@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 class Vec:
-    def __init__(self, x, y, z=0):
+    def __init__(self, x: float, y: float, z: float=0):
         self._x = x
         self._y = y
         self._z = z
@@ -131,35 +131,32 @@ class Displacement(Vec):  # East-North-Up
 # ZERO_DISPLACEMENT = Displacement(NULL_COORDINATE, NULL_COORDINATE)
 # print(f"Zero displacment Check: {ZERO_DISPLACEMENT.dist}")
 
-
+MPH_TO_MPS = 0.44704
+KMPH_TO_MPS = 1 / 3.6
+    
+@dataclass(frozen=True)
 class Speed:
-    def __init__(self, mps: float = None, kmph: float = None, mph: float = None):
-        if mps is not None:
-            self._mps = mps
+    mps: float = 0.0
+    @classmethod
+    def from_kmph(cls, kmph: float) -> "Speed":
+        return cls(kmph * KMPH_TO_MPS)
 
-        elif kmph is not None:
-            self._mps = kmph / 3.6
+    @classmethod
+    def from_mph(cls, mph: float) -> "Speed":
+        return cls(mph * MPH_TO_MPS)
 
-        elif mph is not None:
-            self._mps = mph / 2.23694
-        else:
-            self._mps = 0
-
-    @property
-    def mps(self) -> float:
-        return self._mps
+    @classmethod
+    def from_rpm(cls, rpm: float, radius: float) -> "Speed":
+        return cls(2 * math.pi * radius * rpm / 60)
 
     @property
     def kmph(self) -> float:
-        return self._mps * 3.6
+        return self.mps * 3.6
 
     @property
     def mph(self) -> float:
-        return self._mps * 2.23694
+        return self.mps * 2.23694
 
-    @classmethod
-    def create_from_rpm(cls, rpm: float, radius: float):
-        return cls(mps=2 * math.pi * radius * rpm / 60)
 
     def rpm(self, radius: float):
         return self.mps * 60 / (2 * math.pi * radius)

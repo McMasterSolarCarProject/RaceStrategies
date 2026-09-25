@@ -1,9 +1,9 @@
 import xml.etree.ElementTree as ET
-from ..engine.kinematics import Coordinate
+from ..models import Coordinate
 
 KML_NS = "{http://www.opengis.net/kml/2.2}"
 
-def parse_kml_file(filename: str = "data/ASC_2024.kml") -> dict[str, list[Coordinate]]:
+def parse_kml_route(filename: str) -> dict[str, list[Coordinate]]:
     """
     Takes a .kml file and returns a dictionary mapping placemark names to lists of Coordinate objects.
     """
@@ -15,7 +15,7 @@ def parse_kml_file(filename: str = "data/ASC_2024.kml") -> dict[str, list[Coordi
 
             coords = []
             p_coords = child.find(f"{KML_NS}LineString").find(f"{KML_NS}coordinates")
-            for i, line in enumerate(p_coords.text.split("\n")):
+            for line in p_coords.text.split("\n"):
                 line = line.strip()
                 if len(line) == 0:
                     continue
@@ -28,7 +28,7 @@ def parse_kml_file(filename: str = "data/ASC_2024.kml") -> dict[str, list[Coordi
 
 if __name__ == "__main__":
     # Bunches all the places and their respective checkpoints
-    placemarks = parse_kml_file()
+    placemarks = parse_kml_route("data/ASC_2024.kml")
     for place in placemarks.keys():
         print(place)
         print(placemarks[place])

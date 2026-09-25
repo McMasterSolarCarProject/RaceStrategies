@@ -1,0 +1,8 @@
+[Vehicle.low_drag]
+name = "low_drag"
+coef_drag = 0.13
+cross_section = 2.6
+
+[Vehicle.mass_sweep_725]
+name = "mass_sweep_725"
+car_mass = 725.0

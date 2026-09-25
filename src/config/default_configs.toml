@@ -1,0 +1,24 @@
+[Constants]
+g = 9.81
+air_density = 1.225
+
+[Vehicle.default]
+name = "default"
+car_mass = 750.0
+coef_drag = 0.15
+coef_rr = 0.0075
+cross_section = 2.8
+
+c_rated = 180.0
+battery_voltage = 101.64
+passive_consumption = 7.5
+regen_eff = 0.05
+
+cell_area = 0.0153
+
+num_motors = 2
+wheel_radius = 0.2
+
+[Engine.default]
+name = "default"
+time_step = 0.1
