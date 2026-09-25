@@ -34,6 +34,7 @@ class Vehicle:
 class Engine:
     name: str
     time_step: float
+    
 
 
 def load_default_configs()-> tuple[Constants, Vehicle, Engine]:

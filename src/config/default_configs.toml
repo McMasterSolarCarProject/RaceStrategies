@@ -22,3 +22,6 @@ wheel_radius = 0.2
 [Engine.default]
 name = "default"
 time_step = 0.1
+velocity_step = 0.5
+MAX_TORQUE = 25
+BRAKE = 1000

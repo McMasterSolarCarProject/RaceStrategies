@@ -82,9 +82,12 @@ class RouteTable:
         return [RouteRow(*row) for row in rows]
 
     @staticmethod
-    def fetch_route(placemark_name: str, db_path: str) -> Route:
+    def fetch_route(placemark_name: str, db_path: str, max_segments: int | None = None) -> Route:
         with sqlite3.connect(db_path) as connection:
             rows = RouteTable.fetch_route_rows(placemark_name, connection.cursor())
+
+        if max_segments is not None:
+            rows = rows[:max_segments + 1]
 
         segments = []
         for row, next_row in zip(rows, rows[1:]):
