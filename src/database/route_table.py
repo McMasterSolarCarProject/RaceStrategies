@@ -1,5 +1,8 @@
 import sqlite3
+import math
 from dataclasses import dataclass
+from ..models.geometry import Coordinate, Speed, Vec, Velocity, ZERO_VELOCITY
+from ..models.route import Route, Segment
 
 ROUTE_TABLE_NAME = "route_table"
 ROUTE_COLUMN_DEFS: tuple[tuple[str, str], ...] = (
@@ -77,7 +80,36 @@ class RouteTable:
         cursor.execute(f"SELECT * FROM {ROUTE_TABLE_NAME} WHERE placemark_name = ? ORDER BY id", (placemark_name,))
         rows = cursor.fetchall()
         return [RouteRow(*row) for row in rows]
-    
+
+    @staticmethod
+    def fetch_route(placemark_name: str, db_path: str) -> Route:
+        with sqlite3.connect(db_path) as connection:
+            rows = RouteTable.fetch_route_rows(placemark_name, connection.cursor())
+
+        segments = []
+        for row, next_row in zip(rows, rows[1:]):
+            wind = ZERO_VELOCITY
+            if row.wind_dir is not None and row.wind_speed is not None:
+                direction = math.radians(row.wind_dir)
+                wind = Velocity(Vec(math.cos(direction), math.sin(direction)), Speed(row.wind_speed))
+
+            segments.append(
+                Segment(
+                    p1=Coordinate(row.lat, row.lon, row.elevation),
+                    p2=Coordinate(next_row.lat, next_row.lon, next_row.elevation),
+                    id=row.id,
+                    speed_limit=(
+                        Speed.from_kmph(row.speed_limit)
+                        if row.speed_limit is not None
+                        else Speed()
+                    ),
+                    ghi=row.ghi if row.ghi is not None else 0.0,
+                    wind=wind,
+                )
+            )
+
+        return Route(name=placemark_name, segments=segments)
+
 @dataclass
 class RouteRow:
     placemark_name: str
@@ -87,7 +119,7 @@ class RouteRow:
     elevation: float
     distance: float
     speed_limit: float | None = None
-    stop_type: bool | None = None
+    stop_type: int | None = None
     ghi: float | None = None
     wind_dir: float | None = None
     wind_speed: float | None = None

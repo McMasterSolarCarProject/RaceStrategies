@@ -4,6 +4,7 @@ import time
 from .init_route_table import init_route_db
 from .parse_kml import parse_kml_route
 from .speed_limits import update_speed_limits_from_csv
+from .traffic import update_traffic
 
 
 def main(route_name: str, remake: bool = False) -> None:
@@ -24,8 +25,11 @@ def main(route_name: str, remake: bool = False) -> None:
         print(f"Updating placemark {i}/{len(placemarks)}: {placemark}")
         update_speed_limits_from_csv(placemark, db_path=route_db_path)
 
+    # print("Updating traffic data...")
+    # update_traffic("A. Independence to Topeka", db_path=route_db_path)
+
     print(f"\nCompleted in {time.perf_counter()-start:.2f}s")
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Initialize a route database from a route name.")
     parser.add_argument("route_name", help="Route name used for the SQLite and KML filenames")

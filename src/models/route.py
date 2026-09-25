@@ -20,4 +20,4 @@ NULL_SEGMENT = Segment(NULL_COORDINATE, NULL_COORDINATE)
 class Route:
     name: str
     segments: list[Segment]
-    intervals: list[int]
+    # intervals: list[int]
