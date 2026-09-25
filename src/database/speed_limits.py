@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import csv
+from .route_table import RouteTable
 
 
 def get_speed_limits(placemark_name: str) -> list[tuple[float, float]]:
@@ -32,6 +33,23 @@ def lookup_speed_limit(speed_limits: list, tdist: float, limit_index: int = 0) -
     
     return speed_limits[limit_index][1], limit_index
 
+
+def update_speed_limits_from_csv(placemark_name: str, db_path: str) -> None:
+    print(f"Updating speed limits for {placemark_name} from CSV...")
+    speed_limits = get_speed_limits(placemark_name)
+
+    with sqlite3.connect(db_path) as connection:
+        cursor = connection.cursor()
+        rows = RouteTable.fetch_route_rows(placemark_name, cursor)
+
+        limit_index = 0
+        for row in rows:
+            speed_limit, limit_index = lookup_speed_limit(speed_limits, row.distance, limit_index)
+            row.speed_limit = speed_limit
+
+        RouteTable.update_rows(rows, cursor)
+
+    print(f"Speed limits updated for {placemark_name} in database {db_path}.")
 
 # if __name__ == "__main__":
 #     update_speed_limits_from_csv("A. Independence to Topeka")
