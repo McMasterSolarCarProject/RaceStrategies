@@ -50,6 +50,11 @@ class Vec:
     def cos(self):
         return self.x / self.mag
 
+    def project_onto(self, other: Vec):
+        other_mag_squared = other.mag ** 2
+        projection_length = (self.x * other.x + self.y * other.y + self.z * other.z) / other_mag_squared
+        return Vec(other.x * projection_length, other.y * projection_length, other.z * projection_length)
+
     def unit_vector(self):
         if self.mag == 0:
             # print("zero div")
@@ -75,6 +80,26 @@ class Coordinate:  # Should Be Calculated in Meters
 
 NULL_COORDINATE = Coordinate(0, 0, 0)
 
+def coordinate_from_displacement(origin: Coordinate, displacement: Vec, elevation_change: float = 0) -> Coordinate:
+
+    earth_radius = 6_371_000 + origin.elevation
+
+    distance = math.hypot(displacement.x, displacement.y)
+
+    if distance == 0:
+        return Coordinate(origin.lat,origin.lon,origin.elevation + elevation_change)
+
+    bearing = math.atan2(displacement.x, displacement.y)
+    angular_distance = distance / earth_radius
+
+    lat1 = math.radians(origin.lat)
+    lon1 = math.radians(origin.lon)
+
+    lat2 = math.asin(math.sin(lat1) * math.cos(angular_distance) + math.cos(lat1) * math.sin(angular_distance) * math.cos(bearing))
+
+    lon2 = lon1 + math.atan2(math.sin(bearing) * math.sin(angular_distance) * math.cos(lat1), math.cos(angular_distance) - math.sin(lat1) * math.sin(lat2))
+
+    return Coordinate(lat=math.degrees(lat2), lon=math.degrees(lon2), elevation=origin.elevation + elevation_change)
 
 class Displacement(Vec):  # East-North-Up
     def __init__(self, p1: Coordinate, p2: Coordinate):
@@ -115,12 +140,12 @@ class Displacement(Vec):  # East-North-Up
         enu_vec = Vec(east, north).unit_vector() * distance
         return enu_vec.x, enu_vec.y
 
+
     def __str__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
 
     def __repr__(self):
         return f"Distance: {self.dist} | {self.unit_vector()} | Elevation: {self.elevation}"
-
 
 # ZERO_DISPLACEMENT = Displacement(NULL_COORDINATE, NULL_COORDINATE)
 # print(f"Zero displacment Check: {ZERO_DISPLACEMENT.dist}")

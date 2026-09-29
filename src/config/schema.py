@@ -9,7 +9,7 @@ default_path = Path(__file__).with_name("default_configs.toml")
 class Constants:
     g: float
     air_density: float
-
+    max_speed_limit: float
 
 @dataclass(frozen=True)
 class Vehicle:
@@ -34,7 +34,10 @@ class Vehicle:
 class Engine:
     name: str
     time_step: float
-    
+    velocity_step: float
+    velocity_interval: float
+    MAX_TORQUE : float
+    BRAKE: float
 
 
 def load_default_configs()-> tuple[Constants, Vehicle, Engine]:
