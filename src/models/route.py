@@ -9,7 +9,7 @@ class Segment(Displacement):
         self.displacement = Displacement(p1, p2)
         self.ghi = ghi
         self.wind = wind
-        self.wind_speed = wind.project_onto(self.unit_vector()).mag
+        self.wind_speed = self.wind_speed = wind.x * self.unit_vector().x + wind.y * self.unit_vector().y
         self.speed_limit = speed_limit.mps
 
     def __str__(self):

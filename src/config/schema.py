@@ -38,6 +38,7 @@ class Engine:
     velocity_interval: float
     MAX_TORQUE : float
     BRAKE: float
+    MIN_ACCELERATION: float
 
 
 def load_default_configs()-> tuple[Constants, Vehicle, Engine]:

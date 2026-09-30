@@ -1,6 +1,6 @@
 import pytest
 
-from src.models import Segment, Route, NULL_SEGMENT
+from src.models import Segment, Route, NULL_SEGMENT, Vec, Velocity, Speed
 from src.config import constants
 
 
@@ -25,3 +25,19 @@ def test_segment():
         segment.gradient.cos()
     assert segment.ghi == 0
     assert segment.wind_speed == 0
+
+
+def test_segment_wind_speed_preserves_direction(sample_segment):
+    headwind = Segment(
+        sample_segment.p1,
+        sample_segment.p2,
+        wind=Velocity(Vec(1, 0), Speed(5)),
+    )
+    tailwind = Segment(
+        sample_segment.p1,
+        sample_segment.p2,
+        wind=Velocity(Vec(-1, 0), Speed(5)),
+    )
+
+    assert headwind.wind_speed == 5
+    assert tailwind.wind_speed == -5

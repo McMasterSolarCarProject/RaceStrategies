@@ -25,5 +25,6 @@ name = "default"
 time_step = 0.1
 velocity_step = 0.5
 velocity_interval = 5
-MAX_TORQUE = 25
+MAX_TORQUE = 200
 BRAKE = 1000
+MIN_ACCELERATION = 0.1
