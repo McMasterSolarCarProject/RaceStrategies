@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from copy import copy
 
 from ..config import Vehicle, Engine, constants, vehicle_default, engine_default
 from ..models import Segment
@@ -77,6 +78,28 @@ class DynamicNode(StateNode):
         self.dist = initial_DynamicNode.dist + initial_DynamicNode.velocity * self.dt + 0.5 * self.acc * self.dt ** 2
         self.soc = 0
         return True
+
+    def add(self, profile_node: DynamicNode) -> DynamicNode:
+        """Return a profile node offset by this node's accumulated state."""
+        result = copy(profile_node)
+        result.time += self.time
+        result.dist += self.dist
+        result.soc += self.soc
+        return result
+
+    def subtract(self, other_node: DynamicNode) -> DynamicNode:
+        """Return a copy with another node's accumulated state removed."""
+        result = copy(self)
+        result.time -= other_node.time
+        result.dist -= other_node.dist
+        result.soc -= other_node.soc
+        return result
+
+    def __add__(self, profile_node: DynamicNode) -> DynamicNode:
+        return self.add(profile_node)
+
+    def __sub__(self, other_node: DynamicNode) -> DynamicNode:
+        return self.subtract(other_node)
 
     def adaptive_timestep(self, initial_velocity: float) -> float:
         dir = 1 if self.acc > 0 else -1

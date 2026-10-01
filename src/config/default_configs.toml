@@ -1,7 +1,7 @@
 [Constants]
 g = 9.81
 air_density = 1.225
-max_speed_limit = 200
+max_speed_limit = 100
 
 [Vehicle.default]
 name = "default"
@@ -24,7 +24,7 @@ wheel_radius = 0.2
 name = "default"
 time_step = 0.1
 velocity_step = 0.5
-velocity_interval = 5
+velocity_interval = 1
 MAX_TORQUE = 200
 BRAKE = 1000
 MIN_ACCELERATION = 0.1
