@@ -34,3 +34,8 @@ dev = [
 
 [tool.ruff]
 line-length = 200
+[tool.pytest.ini_options]
+markers = [
+     "graph: tests that generate or display graphs",
+]
+addopts = '-m "not graph"'
