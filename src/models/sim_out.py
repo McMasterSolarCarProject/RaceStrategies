@@ -2,5 +2,5 @@ from dataclasses import dataclass
 import numpy as np
 
 @dataclass
-class SimOut:
+class Dynamic_Profile:
     pass

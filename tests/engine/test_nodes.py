@@ -11,6 +11,7 @@ def make_engine(**changes):
         engine_default,
         time_step=1.0,
         velocity_step=100.0,
+        velocity_interval=5.0,
         **changes,
     )
 
@@ -63,7 +64,7 @@ def test_solve_clamps_acceleration_from_five_to_next_interval(sample_segment):
 
 
 def test_solve_clamps_braking_from_ten_to_next_lower_interval(sample_segment):
-    engine = make_engine(MIN_ACCELERATION=0.01, velocity_interval=5)
+    engine = make_engine(MIN_ACCELERATION=0.01)
     initial_node = make_initialized_node(sample_segment, engine)
     initial_node.velocity = 10
     next_node = DynamicNode(sample_segment,vehicle_default,engine,Fb=10_000)
@@ -74,7 +75,7 @@ def test_solve_clamps_braking_from_ten_to_next_lower_interval(sample_segment):
 
 
 def test_solve_clamps_braking_from_fifteen_to_next_lower_interval(sample_segment):
-    engine = make_engine(MIN_ACCELERATION=0.01, velocity_interval=5)
+    engine = make_engine(MIN_ACCELERATION=0.01)
     initial_node = make_initialized_node(sample_segment, engine)
     initial_node.velocity = 15
     next_node = DynamicNode(
@@ -90,7 +91,7 @@ def test_solve_clamps_braking_from_fifteen_to_next_lower_interval(sample_segment
 
 
 def test_solve_clamps_braking_from_three_to_zero(sample_segment):
-    engine = make_engine(MIN_ACCELERATION=0.01, velocity_interval=5)
+    engine = make_engine(MIN_ACCELERATION=0.01)
     initial_node = make_initialized_node(sample_segment, engine)
     initial_node.velocity = 3
     next_node = DynamicNode(
@@ -115,7 +116,7 @@ def test_solve_rejects_braking_from_rest(sample_segment):
 
 
 def test_solve_rejects_acceleration_below_minimum(sample_segment):
-    engine = make_engine(MIN_ACCELERATION=1)
+    engine = make_engine(MIN_ACCELERATION=1_000_000)
     initial_node = make_initialized_node(sample_segment, engine)
     next_node = DynamicNode(sample_segment, vehicle_default, engine)
 

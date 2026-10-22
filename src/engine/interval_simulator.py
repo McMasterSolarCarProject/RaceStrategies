@@ -8,10 +8,7 @@ class RouteInterval:
         self.engine = engine
         self.route = route
         segment_simulations = SegmentSimulator(vehicle, engine, route).simulate_all()
-        self.acceleration_profile = segment_simulations["acceleration"]
-        self.braking_profile = segment_simulations["braking"]
-        self.cruise_profile = segment_simulations["cruise"]
-        self.regen_profile = segment_simulations["regen"]
-
-    
-
+        self.acceleration_profiles = segment_simulations["acceleration"]
+        self.braking_profiles = segment_simulations["braking"]
+        self.cruise_profiles = segment_simulations["cruise"]
+        # self.regen_profiles = segment_simulations["regen"]

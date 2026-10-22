@@ -43,15 +43,14 @@ class DynamicNode(StateNode):
         self.torque = torque
         self.Fb = Fb
 
-    def initialize(self):
-        self.velocity = 0
+    def initialize(self, velocity: float = 0):
+        self.velocity = velocity
         self.time = 0
         self.dist = 0
         self.soc = 0
 
-        self.acc = 0
         self.Fm_calc()
-        self.Fd_calc(0)
+        self.Fd_calc(velocity)
         self.Frr_calc()
         self.Fg_calc()
         self.Ft_calc()
@@ -70,6 +69,10 @@ class DynamicNode(StateNode):
         if self.dt <= 0:
             return False
 
+        self.calculate_accumulated_values(initial_DynamicNode)
+        return True
+
+    def calculate_accumulated_values(self, initial_DynamicNode: DynamicNode):
         self.velocity = initial_DynamicNode.velocity + self.acc * self.dt
         if self.velocity < 0:
             raise ValueError("DynamicNode velocity cannot be negative")
@@ -77,11 +80,33 @@ class DynamicNode(StateNode):
         self.time = initial_DynamicNode.time + self.dt
         self.dist = initial_DynamicNode.dist + initial_DynamicNode.velocity * self.dt + 0.5 * self.acc * self.dt ** 2
         self.soc = 0
-        return True
 
-    def add(self, profile_node: DynamicNode) -> DynamicNode:
+    def interpolate(self, next_node: DynamicNode, velocity : None | float = None , distance : None | float = None) -> DynamicNode:
+        if distance is not None:
+            if math.isclose(next_node.dist, distance):
+                return copy(next_node)
+            elif math.isclose(self.dist, distance):
+                raise ValueError("Cannot interpolate to the same distance as the current node.")
+            interpolated_node = copy(next_node)
+            interpolated_node.dt = (distance - self.dist) / (next_node.dist - self.dist) * next_node.dt
+            interpolated_node.calculate_accumulated_values(self)
+            interpolated_node.dist = distance
+        elif velocity is not None:
+            if math.isclose(next_node.velocity, velocity):
+                return copy(next_node)
+            elif math.isclose(self.velocity, velocity):
+                raise ValueError("Cannot interpolate to the same velocity as the current node.")
+            interpolated_node = copy(next_node)
+            interpolated_node.dt = (velocity - self.velocity) / (next_node.velocity - self.velocity) * next_node.dt
+            interpolated_node.calculate_accumulated_values(self)
+            interpolated_node.velocity = velocity
+        return interpolated_node
+
+
+
+    def add(self, other_node: DynamicNode) -> DynamicNode:
         """Return a profile node offset by this node's accumulated state."""
-        result = copy(profile_node)
+        result = copy(other_node)
         result.time += self.time
         result.dist += self.dist
         result.soc += self.soc
@@ -95,8 +120,8 @@ class DynamicNode(StateNode):
         result.soc -= other_node.soc
         return result
 
-    def __add__(self, profile_node: DynamicNode) -> DynamicNode:
-        return self.add(profile_node)
+    def __add__(self, other_node: DynamicNode) -> DynamicNode:
+        return self.add(other_node)
 
     def __sub__(self, other_node: DynamicNode) -> DynamicNode:
         return self.subtract(other_node)
@@ -106,11 +131,8 @@ class DynamicNode(StateNode):
         dt = min(self.engine.time_step, self.engine.velocity_step / abs(self.acc))
         proposed_velocity = initial_velocity + self.acc * dt
 
-        if dir > 0:
-            velocity_boundary = (math.floor(initial_velocity / self.engine.velocity_interval) + 1) * self.engine.velocity_interval
-        else:
-            velocity_boundary = (math.ceil(initial_velocity / self.engine.velocity_interval) - 1) * self.engine.velocity_interval
-
+        velocity_boundary = dir * (math.floor(dir * initial_velocity / self.engine.velocity_interval) + 1) * self.engine.velocity_interval
+        
         if dir * proposed_velocity >= dir * velocity_boundary:
             dt = (velocity_boundary - initial_velocity) / self.acc
 
