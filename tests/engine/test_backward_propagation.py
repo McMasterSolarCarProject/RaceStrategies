@@ -5,7 +5,9 @@ import pytest
 from src.config import engine_default, vehicle_default
 from src.engine.nodes import DynamicNode
 from src.engine.dynamic_profile import DynamicProfile
+from src.engine.interval_simulator import RouteInterval
 from src.engine.segment_simulator import SegmentSimulator
+from src.models import Route
 
 
 def make_profile(segment, velocities, distances, acceleration):
@@ -160,6 +162,25 @@ def test_backward_propagation_does_not_mutate_original_profile(sample_segment):
     )
 
     assert [(node.velocity, node.dist, node.time) for node in profile.nodes] == original_values
+
+
+def test_route_interval_propagates_braking_across_segments(sample_segment_simulator):
+    route = Route(name="Test Route", segments=[sample_segment_simulator.segment] * 2)
+
+    route_interval = RouteInterval(
+        sample_segment_simulator.vehicle,
+        sample_segment_simulator.engine,
+        route,
+    )
+
+    braking_profiles = [
+        simulator.propagated_braking_profile
+        for simulator in route_interval.segment_simulators
+    ]
+
+    assert len(braking_profiles) == 2
+    assert braking_profiles[-1][-1].velocity == 0
+    assert braking_profiles[0][-1].velocity == braking_profiles[1][0].velocity
 
 
 # def test_simulate_all_runs_backward_propagation(sample_segment_simulator):

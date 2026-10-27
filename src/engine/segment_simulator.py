@@ -37,6 +37,14 @@ class SegmentSimulator:
             self.regen_profile.append(self.simulate_profile(initial_velocity=0, dir=1, Fb=regen_force))
         if self.regen_terminal_velocity is None or self.regen_terminal_velocity < self.segment.speed_limit:
             self.regen_profile.append(self.simulate_profile(initial_velocity=self.segment.speed_limit, dir=-1, Fb=regen_force))
+
+    def propagate_braking(self, distance: float, exit_velocity: float) -> float:
+        entry_velocity, self.propagated_braking_profile = self.backward_propagation(
+            self.braking_profile[0],
+            distance=distance,
+            exit_velocity=exit_velocity,
+        )
+        return entry_velocity
     
     def simulate_profile(self, initial_velocity: float = 0, dir: int = 1, torque: float = 0, Fb: float = 0) -> DynamicProfile:
         segment = self.segment
