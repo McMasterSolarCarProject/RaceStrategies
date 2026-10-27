@@ -36,6 +36,8 @@ class Engine:
     time_step: float
     velocity_step: float
     velocity_interval: float
+    profile_velocity_interval: float
+    profile_distance_interval: float
     MAX_TORQUE : float
     BRAKE: float
     MIN_ACCELERATION: float

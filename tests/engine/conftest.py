@@ -5,7 +5,7 @@ from src.engine.segment_simulator import SegmentSimulator
 from src.config import vehicle_default, engine_default
 
 @pytest.fixture
-def sample_segment_simulator(sample_route):
+def sample_segment_simulator(sample_segment):
     vehicle = vehicle_default
     engine = replace(
         engine_default,
@@ -16,5 +16,5 @@ def sample_segment_simulator(sample_route):
         BRAKE=1000,
         MIN_ACCELERATION=0.1,
     )
-    route = sample_route
-    return SegmentSimulator(vehicle, engine, route)
+    segment = sample_segment
+    return SegmentSimulator(vehicle, engine, segment)

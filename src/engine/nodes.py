@@ -32,8 +32,35 @@ class StateNode:
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
         self.acc = self.Ft / self.vehicle.car_mass
 
-    def solve_cruise_state(self):
-        pass
+    def terminal_velocity(self, torque: float = 0, Fb: float = 0) -> None | float:
+        self.torque = torque
+        self.Fb = Fb
+        self.Fm_calc()
+        self.Frr_calc()
+        self.Fg_calc()
+        available_force = self.Fm - self.Frr - self.Fg - self.Fb
+        v_squared = available_force / (0.5 * constants.air_density * self.vehicle.coef_drag* self.vehicle.cross_section)
+        if v_squared < 0:
+            return None
+        terminal_velocity = math.sqrt(v_squared) - self.segment.wind_speed
+        return terminal_velocity if terminal_velocity > 0 else None
+
+
+    def solve_cruise_state(self, velocity: float, Fb: float = 0) -> StateNode:
+        self.velocity = velocity
+        self.Fb = Fb
+        self.Fd_calc(velocity)
+        self.Frr_calc()
+        self.Fg_calc()
+        required_force = self.Fd + self.Frr + self.Fg + self.Fb
+        self.torque = (
+            required_force
+            * self.vehicle.wheel_radius
+            / self.vehicle.num_motors
+        )
+        self.Fm_calc()
+        self.Ft_calc()
+        return self
 
 class DynamicNode(StateNode):
 

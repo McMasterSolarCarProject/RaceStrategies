@@ -4,6 +4,7 @@ import pytest
 
 from src.config import engine_default, vehicle_default
 from src.engine.nodes import DynamicNode
+from src.engine.dynamic_profile import DynamicProfile
 from src.engine.segment_simulator import SegmentSimulator
 
 
@@ -16,7 +17,9 @@ def make_profile(segment, velocities, distances, acceleration):
         node.dist = distance
         node.dt = 1.0
         profile.append(node)
-    return profile
+    dynamic_profile = DynamicProfile(engine_default, profile)
+    dynamic_profile.indexing(velocity_interval=5, distance_interval=5)
+    return dynamic_profile
 
 
 def assert_profile_span(profile, distance):
@@ -27,21 +30,21 @@ def assert_profile_span(profile, distance):
 def test_interpolate_by_velocity_snaps_requested_velocity(sample_segment):
     profile = make_profile(sample_segment, [50, 40], [0, 49.5], -1)
 
-    result = profile[0].interpolate(profile[1], velocity=45)
+    result = profile.nodes[0].interpolate(profile.nodes[1], velocity=45)
 
     assert result.velocity == 45
-    assert result.dist > profile[0].dist
-    assert result.dist < profile[1].dist
+    assert result.dist > profile.nodes[0].dist
+    assert result.dist < profile.nodes[1].dist
 
 
 def test_interpolate_by_distance_snaps_requested_distance(sample_segment):
     profile = make_profile(sample_segment, [50, 40], [0, 10], -1)
 
-    result = profile[0].interpolate(profile[1], distance=4)
+    result = profile.nodes[0].interpolate(profile.nodes[1], distance=4)
 
     assert result.dist == 4
-    assert profile[0].dist == 0
-    assert profile[1].dist == 10
+    assert profile.nodes[0].dist == 0
+    assert profile.nodes[1].dist == 10
 
 
 def test_backward_propagation_uses_exact_exit_node(sample_segment):
@@ -148,7 +151,7 @@ def test_backward_propagation_handles_acceleration_direction(sample_segment):
 
 def test_backward_propagation_does_not_mutate_original_profile(sample_segment):
     profile = make_profile(sample_segment, [50, 40, 30], [0, 10, 20], -1)
-    original_values = [(node.velocity, node.dist, node.time) for node in profile]
+    original_values = [(node.velocity, node.dist, node.time) for node in profile.nodes]
 
     SegmentSimulator.backward_propagation(
         profile,
@@ -156,7 +159,7 @@ def test_backward_propagation_does_not_mutate_original_profile(sample_segment):
         exit_velocity=35,
     )
 
-    assert [(node.velocity, node.dist, node.time) for node in profile] == original_values
+    assert [(node.velocity, node.dist, node.time) for node in profile.nodes] == original_values
 
 
 # def test_simulate_all_runs_backward_propagation(sample_segment_simulator):

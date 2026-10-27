@@ -1,8 +1,10 @@
 from copy import copy
 import math
+
 from ..config import Vehicle, Engine
 from ..models import Segment
 from .nodes import StateNode, DynamicNode
+from .dynamic_profile import DynamicProfile
 
 class SegmentSimulator:
     def __init__(self, vehicle: Vehicle, engine: Engine, segment: Segment):
@@ -10,123 +12,105 @@ class SegmentSimulator:
         self.engine = engine
         self.segment = segment
 
-    # def simulate_all(self) -> dict[str, list[StateNode]]:
-    #     segments = self.route.segments
-    #     acceleration_profiles = []
-    #     braking_profiles = []
-    #     cruise_profiles = []
+    def simulate_all(self):
+        state_node = StateNode(self.segment, self.vehicle, self.engine)
+        # acceleration
+        self.acceleration_terminal_velocity = state_node.terminal_velocity(torque=self.engine.MAX_TORQUE)
+        if self.acceleration_terminal_velocity is None:
+            raise ValueError("Acceleration terminal velocity is None. Check engine and vehicle parameters.")
+        self.acceleration_profile = []
+        if 0 < self.acceleration_terminal_velocity:
+            self.acceleration_profile.append(self.simulate_profile(initial_velocity=0, dir=1, torque=self.engine.MAX_TORQUE))
+        if self.acceleration_terminal_velocity < self.segment.speed_limit:
+            self.acceleration_profile.append(self.simulate_profile(initial_velocity=self.segment.speed_limit, dir=-1, torque=self.engine.MAX_TORQUE))
 
-    #     for segment in segments:
-    #         acceleration_profiles.append(self.simulate_acceleration(segment))
-    #         braking_profiles.append(self.simulate_braking(segment))
-    #         cruise_profiles.append(self.simulate_cruise())
+        # braking
+        self.braking_terminal_velocity = state_node.terminal_velocity(torque=0, Fb=self.engine.BRAKE)
+        if self.braking_terminal_velocity:
+            raise ValueError("Braking terminal velocity is not 0. Check engine and vehicle parameters.")
+        self.braking_profile = [self.simulate_profile(initial_velocity=self.segment.speed_limit, dir=-1, Fb=self.engine.BRAKE)]
 
-    #     exit_velocity = 0
-    #     for segment in range(len(segments)-1, -1 , -1):
-    #         exit_velocity, profile = self.backward_propagation(braking_profiles[segment], segments[segment].dist, exit_velocity)
-    #         braking_profiles[segment] = profile
-
-    #     return {
-    #         "acceleration": acceleration_profiles,
-    #         "braking": braking_profiles,
-    #         "cruise": cruise_profiles,
-    #     }
-
-    def simulate(self, torque: float = 0, Fb: float = 0) -> list[DynamicNode]:
+        regen_force = 0
+        self.regen_terminal_velocity = state_node.terminal_velocity(torque=0, Fb=regen_force)
+        self.regen_profile = []
+        if self.regen_terminal_velocity is not None and 0 < self.regen_terminal_velocity:
+            self.regen_profile.append(self.simulate_profile(initial_velocity=0, dir=1, Fb=regen_force))
+        if self.regen_terminal_velocity is None or self.regen_terminal_velocity < self.segment.speed_limit:
+            self.regen_profile.append(self.simulate_profile(initial_velocity=self.segment.speed_limit, dir=-1, Fb=regen_force))
+    
+    def simulate_profile(self, initial_velocity: float = 0, dir: int = 1, torque: float = 0, Fb: float = 0) -> DynamicProfile:
         segment = self.segment
         initial_node = DynamicNode(segment, self.vehicle, self.engine, torque=torque, Fb=Fb)
-        initial_node.initialize()
-        pass
-
-    def simulate_acceleration(self) -> list[DynamicNode]:
-        initial_node = DynamicNode(self.segment, self.vehicle, self.engine) # sim to max speed
-        initial_node.initialize()
-        acceleration_profile = [initial_node]
-        while self.segment.speed_limit > initial_node.velocity:
-            current_node = DynamicNode(self.segment, self.vehicle, self.engine, torque=self.engine.MAX_TORQUE)
+        initial_node.initialize(velocity=initial_velocity)
+        profile = [initial_node]
+        while dir * initial_node.velocity < max(0, dir * self.segment.speed_limit):
+            current_node = DynamicNode(segment, self.vehicle, self.engine, torque=torque, Fb=Fb)
             if not current_node.solve_DynamicNode(initial_node):
                 break
-            acceleration_profile.append(current_node)
+            profile.append(current_node)
             initial_node = current_node
 
-            if initial_node.acc < self.engine.MIN_ACCELERATION:
-                if initial_node.acc < 0:
-                    raise ValueError("Acceleration is negative during acceleration simulation.")
+            if abs(initial_node.acc) < self.engine.MIN_ACCELERATION:
                 break
+        dynamic_profile = DynamicProfile(self.engine, profile)
+        dynamic_profile.indexing(velocity_interval=self.engine.profile_velocity_interval, distance_interval=self.engine.profile_distance_interval)
+        return dynamic_profile
 
-        return acceleration_profile
-
-    def simulate_braking(self) -> list[DynamicNode]:
-        initial_node = DynamicNode(self.segment, self.vehicle, self.engine) # sim to max speed
-        initial_node.initialize(velocity = self.segment.speed_limit)
-        braking_profile = [initial_node]
-        while initial_node.velocity > 0:
-            current_node = DynamicNode(self.segment, self.vehicle, self.engine, Fb=self.engine.BRAKE)
-            if not current_node.solve_DynamicNode(initial_node):
-                break
-            braking_profile.append(current_node)
-            initial_node = current_node
-
-            if initial_node.acc > -self.engine.MIN_ACCELERATION:
-                if initial_node.acc > 0:
-                    raise ValueError("Acceleration is positive during braking simulation.")
-                break
-
-        return braking_profile
 
 
     def simulate_cruise(self) -> list[StateNode]:
-        # Placeholder for cruise profile calculation
-        return []
+        cruise_profile = []
+        velocity = 0.0
+        interval = self.engine.profile_velocity_interval
+
+        while True:
+            state = StateNode(self.segment, self.vehicle, self.engine)
+            state.solve_cruise_state(velocity)
+            if 0 <= state.torque <= self.engine.MAX_TORQUE:
+                cruise_profile.append(state)
+
+            if math.isclose(velocity, self.segment.speed_limit):
+                break
+            velocity = min(velocity + interval, self.segment.speed_limit)
+
+        return cruise_profile
 
     @staticmethod
-    def backward_propagation(profile: list[DynamicNode], distance, exit_velocity):
-        if len(profile) < 2:
+    def backward_propagation(profile: DynamicProfile, distance, exit_velocity):
+        nodes = profile.nodes
+        if len(nodes) < 2:
             # possible problem
             raise ValueError("Profile must contain at least two nodes for backward propagation.")
-        
-        dir = 1 if profile[1].acc > 0 else -1
+
+        direction = profile.dir
         new_dynamic_profile = []
 
-        if dir * exit_velocity < dir * profile[0].velocity or math.isclose(exit_velocity, profile[0].velocity):
-            return profile[0].velocity, new_dynamic_profile
-        elif dir * profile[-1].velocity < dir * exit_velocity:
+        if direction * exit_velocity < direction * profile.start_velocity or math.isclose(exit_velocity, profile.start_velocity):
+            return profile.start_velocity, new_dynamic_profile
+        elif direction * profile.end_velocity < direction * exit_velocity:
             # asymptote problem, will happen
-            raise ValueError(f"Profile Start Velocity {profile[0].velocity}, Profile Exit Velocity {profile[-1].velocity}, Target Exit Velocity {exit_velocity}")
+            raise ValueError(f"Profile Start Velocity {profile.start_velocity}, Profile Exit Velocity {profile.end_velocity}, Target Exit Velocity {exit_velocity}")
 
-        exit_node_index, exit_node = SegmentSimulator.linear_search(profile, velocity=exit_velocity)
+        exit_bucket = profile.index_at(velocity=exit_velocity)
+        exit_node_index = profile._binary_upper_node(exit_velocity, "velocity", direction, profile.velocity_index, exit_bucket)
+        exit_node = profile.node_at(velocity=exit_velocity, precise=True)
 
         # assume node 0 has distance = 0
         if exit_node.dist < distance:
             entry_node_index = 0
-            bias_node = profile[0] - profile[0]
+            bias_node = nodes[0] - nodes[0]
             bias_node.dist = exit_node.dist - distance
         else:
-            entry_node_index, entry_node = SegmentSimulator.linear_search(profile, distance=exit_node.dist - distance)
+            entry_distance = exit_node.dist - distance
+            entry_bucket = profile.index_at(distance=entry_distance)
+            entry_node_index = profile._binary_upper_node(entry_distance, "dist", 1, profile.distance_index, entry_bucket)
+            entry_node = profile.node_at(distance=entry_distance, precise=True)
             bias_node = copy(entry_node)
-            if not math.isclose(entry_node.dist, profile[entry_node_index].dist):
+            if not math.isclose(entry_node.dist, nodes[entry_node_index].dist):
                 new_dynamic_profile.append(entry_node - bias_node)
 
         for node in range(entry_node_index, exit_node_index):
-            new_dynamic_profile.append(profile[node] - bias_node)
+            new_dynamic_profile.append(nodes[node] - bias_node)
 
         new_dynamic_profile.append(exit_node - bias_node)
         return new_dynamic_profile[0].velocity, new_dynamic_profile
-
-    @staticmethod
-    def linear_search(profile: list[DynamicNode], distance: None | float = None, velocity: None | float = None) -> tuple[int, DynamicNode]:
-        if distance is not None:
-            for node in range(0, len(profile)):
-                if math.isclose(profile[node].dist, distance):
-                    return node, copy(profile[node])
-                elif distance < profile[node].dist:
-                    return node, profile[node - 1].interpolate(profile[node], distance=distance)
-
-        elif velocity is not None:
-            dir = 1 if profile[1].acc > 0 else -1
-            for node in range(1, len(profile)):
-                if math.isclose(profile[node].velocity, velocity):
-                    return node, copy(profile[node])
-                elif dir * velocity < dir * profile[node].velocity:
-                    return node, profile[node - 1].interpolate(profile[node], velocity=velocity)
-        raise ValueError("No matching node found.")
