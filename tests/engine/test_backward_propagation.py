@@ -159,10 +159,10 @@ def test_backward_propagation_does_not_mutate_original_profile(sample_segment):
     assert [(node.velocity, node.dist, node.time) for node in profile] == original_values
 
 
-def test_simulate_all_runs_backward_propagation(sample_segment_simulator):
-    simulations = sample_segment_simulator.simulate_all()
+# def test_simulate_all_runs_backward_propagation(sample_segment_simulator):
+#     simulations = sample_segment_simulator.simulate_all()
 
-    assert set(simulations) == {"acceleration", "braking", "cruise"}
-    assert len(simulations["acceleration"]) == len(sample_segment_simulator.route.segments)
-    assert len(simulations["braking"]) == len(sample_segment_simulator.route.segments)
-    assert len(simulations["cruise"]) == len(sample_segment_simulator.route.segments)
+#     assert set(simulations) == {"acceleration", "braking", "cruise"}
+#     assert len(simulations["acceleration"]) == len(sample_segment_simulator.route.segments)
+#     assert len(simulations["braking"]) == len(sample_segment_simulator.route.segments)
+#     assert len(simulations["cruise"]) == len(sample_segment_simulator.route.segments)

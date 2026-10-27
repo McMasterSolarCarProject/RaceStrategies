@@ -1,48 +1,49 @@
 from copy import copy
 import math
 from ..config import Vehicle, Engine
-from ..models import Segment, Route
+from ..models import Segment
 from .nodes import StateNode, DynamicNode
 
 class SegmentSimulator:
-    def __init__(self, vehicle: Vehicle, engine: Engine, route: Route):
+    def __init__(self, vehicle: Vehicle, engine: Engine, segment: Segment):
         self.vehicle = vehicle
         self.engine = engine
-        self.route = route
+        self.segment = segment
 
-    def simulate_all(self) -> dict[str, list[StateNode]]:
-        segments = self.route.segments
-        acceleration_profiles = []
-        braking_profiles = []
-        cruise_profiles = []
+    # def simulate_all(self) -> dict[str, list[StateNode]]:
+    #     segments = self.route.segments
+    #     acceleration_profiles = []
+    #     braking_profiles = []
+    #     cruise_profiles = []
 
-        for segment in segments:
-            acceleration_profiles.append(self.simulate_acceleration(segment))
-            braking_profiles.append(self.simulate_braking(segment))
-            cruise_profiles.append(self.simulate_cruise())
+    #     for segment in segments:
+    #         acceleration_profiles.append(self.simulate_acceleration(segment))
+    #         braking_profiles.append(self.simulate_braking(segment))
+    #         cruise_profiles.append(self.simulate_cruise())
 
-        exit_velocity = 0
-        for segment in range(len(segments)-1, -1 , -1):
-            exit_velocity, profile = self.backward_propagation(braking_profiles[segment], segments[segment].dist, exit_velocity)
-            braking_profiles[segment] = profile
+    #     exit_velocity = 0
+    #     for segment in range(len(segments)-1, -1 , -1):
+    #         exit_velocity, profile = self.backward_propagation(braking_profiles[segment], segments[segment].dist, exit_velocity)
+    #         braking_profiles[segment] = profile
 
-        return {
-            "acceleration": acceleration_profiles,
-            "braking": braking_profiles,
-            "cruise": cruise_profiles,
-        }
+    #     return {
+    #         "acceleration": acceleration_profiles,
+    #         "braking": braking_profiles,
+    #         "cruise": cruise_profiles,
+    #     }
 
-    def simulate(self, segment: Segment, torque: float = 0, Fb: float = 0) -> list[DynamicNode]:
+    def simulate(self, torque: float = 0, Fb: float = 0) -> list[DynamicNode]:
+        segment = self.segment
         initial_node = DynamicNode(segment, self.vehicle, self.engine, torque=torque, Fb=Fb)
         initial_node.initialize()
         pass
 
-    def simulate_acceleration(self, segment: Segment) -> list[DynamicNode]:
-        initial_node = DynamicNode(segment, self.vehicle, self.engine) # sim to max speed
+    def simulate_acceleration(self) -> list[DynamicNode]:
+        initial_node = DynamicNode(self.segment, self.vehicle, self.engine) # sim to max speed
         initial_node.initialize()
         acceleration_profile = [initial_node]
-        while segment.speed_limit > initial_node.velocity:
-            current_node = DynamicNode(segment, self.vehicle, self.engine, torque=self.engine.MAX_TORQUE)
+        while self.segment.speed_limit > initial_node.velocity:
+            current_node = DynamicNode(self.segment, self.vehicle, self.engine, torque=self.engine.MAX_TORQUE)
             if not current_node.solve_DynamicNode(initial_node):
                 break
             acceleration_profile.append(current_node)
@@ -55,12 +56,12 @@ class SegmentSimulator:
 
         return acceleration_profile
 
-    def simulate_braking(self, segment: Segment) -> list[DynamicNode]:
-        initial_node = DynamicNode(segment, self.vehicle, self.engine) # sim to max speed
-        initial_node.initialize(velocity = segment.speed_limit)
+    def simulate_braking(self) -> list[DynamicNode]:
+        initial_node = DynamicNode(self.segment, self.vehicle, self.engine) # sim to max speed
+        initial_node.initialize(velocity = self.segment.speed_limit)
         braking_profile = [initial_node]
         while initial_node.velocity > 0:
-            current_node = DynamicNode(segment, self.vehicle, self.engine, Fb=self.engine.BRAKE)
+            current_node = DynamicNode(self.segment, self.vehicle, self.engine, Fb=self.engine.BRAKE)
             if not current_node.solve_DynamicNode(initial_node):
                 break
             braking_profile.append(current_node)
