@@ -37,30 +37,30 @@ def test_add_offsets_profile_accumulated_state_without_mutating_nodes(sample_seg
     )
     initial_node.time = 10
     initial_node.dist = 100
-    initial_node.soc = 0.2
+    initial_node.energy = 0.2
     profile_node.velocity = 12
     profile_node.time = 3
     profile_node.dist = 25
-    profile_node.soc = 0.05
+    profile_node.energy = 0.05
 
     result = initial_node + profile_node
 
     assert result is not profile_node
-    assert (result.time, result.dist, result.soc) == (13, 125, 0.25)
+    assert (result.time, result.dist, result.energy) == (13, 125, 0.25)
     assert result.velocity == profile_node.velocity
-    assert (profile_node.time, profile_node.dist, profile_node.soc) == (3, 25, 0.05)
+    assert (profile_node.time, profile_node.dist, profile_node.energy) == (3, 25, 0.05)
 
 
 def test_subtract_removes_accumulated_state_without_mutating_node(sample_segment):
     engine = make_engine()
     node = make_initialized_node(sample_segment, engine)
     offset = make_initialized_node(sample_segment, engine)
-    node.time, node.dist, node.soc = 13, 125, 0.25
-    offset.time, offset.dist, offset.soc = 10, 100, 0.2
+    node.time, node.dist, node.energy = 13, 125, 0.25
+    offset.time, offset.dist, offset.energy = 10, 100, 0.2
 
     result = node - offset
 
     assert result is not node
     assert (result.time, result.dist) == (3, 25)
-    assert result.soc == pytest.approx(0.05)
-    assert (node.time, node.dist, node.soc) == (13, 125, 0.25)
+    assert result.energy == pytest.approx(0.05)
+    assert (node.time, node.dist, node.energy) == (13, 125, 0.25)

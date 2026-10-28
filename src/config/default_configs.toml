@@ -14,6 +14,7 @@ c_rated = 180.0
 battery_voltage = 101.64
 passive_consumption = 7.5
 regen_eff = 0.05
+battery_capacity = 10000
 
 cell_area = 0.0153
 

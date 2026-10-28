@@ -23,6 +23,7 @@ class Vehicle:
     battery_voltage: float
     passive_consumption: float
     regen_eff: float
+    battery_capacity: float
 
     cell_area: float
 

@@ -1,7 +1,9 @@
+import math
+
 import pytest
 
 from src.engine.dynamic_profile import DynamicProfile
-from tests.engine.plotting import plot_dynamic_nodes
+from tests.engine.plotting import plot_dynamic_nodes, plot_efficiency_vs_speed
 
 
 x_parameter = "time"
@@ -65,6 +67,49 @@ def test_simulate_cruise_contains_feasible_steady_states(sample_segment_simulato
         for state in profile
     )
     assert all(abs(state.acc) < 1e-12 for state in profile)
+
+
+@pytest.mark.graph
+def test_segment_simulator_efficiency_vs_speed(sample_segment_simulator):
+    profile = sample_segment_simulator.simulate_profile(
+        initial_velocity=0,
+        dir=1,
+        torque=sample_segment_simulator.engine.MAX_TORQUE,
+    )
+
+    figure, axis = plot_efficiency_vs_speed(profile.nodes)
+
+    assert len(axis.lines) == 1
+    assert len(axis.lines[0].get_xdata()) == len(profile.nodes)
+    assert math.isnan(axis.lines[0].get_ydata()[0])
+
+
+@pytest.mark.graph
+def test_segment_simulator_cruise_efficiency_vs_speed(sample_segment_simulator):
+    profile = sample_segment_simulator.simulate_cruise()
+
+    figure, axis = plot_efficiency_vs_speed(profile)
+
+    assert len(axis.lines) == 1
+    assert len(axis.lines[0].get_xdata()) == len(profile)
+    assert math.isnan(axis.lines[0].get_ydata()[0])
+    assert all(value >= 0 for value in axis.lines[0].get_ydata()[1:])
+
+
+@pytest.mark.graph
+def test_segment_simulator_cruise_resistive_forces(sample_segment_simulator):
+    profile = sample_segment_simulator.simulate_cruise()
+
+    figure, axis = plot_dynamic_nodes(
+        {"cruise": profile},
+        x_parameter="velocity",
+        y_parameters=("Frr", "Fd", "Fg", "Ft"),
+        title="Cruise Resistive Forces",
+    )
+
+    assert len(axis.lines) == 4
+    assert all(len(line.get_xdata()) == len(profile) for line in axis.lines)
+
 
 @pytest.mark.graph
 def test_segment_simulator_acceleration(sample_segment_simulator):

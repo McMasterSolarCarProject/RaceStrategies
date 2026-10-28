@@ -19,8 +19,8 @@ class StateNode:
     def Fm_calc(self):
         self.Fm = self.torque / self.vehicle.wheel_radius * self.vehicle.num_motors
 
-    def Fd_calc(self, initial_speed: float):
-        self.Fd = 0.5 * constants.air_density * self.vehicle.coef_drag * self.vehicle.cross_section * ((initial_speed + self.segment.wind_speed) ** 2)
+    def Fd_calc(self, initial_velocity: float):
+        self.Fd = 0.5 * constants.air_density * self.vehicle.coef_drag * self.vehicle.cross_section * ((initial_velocity + self.segment.wind_speed) ** 2)
 
     def Frr_calc(self):
         self.Frr = self.vehicle.coef_rr * self.vehicle.car_mass * constants.g * self.segment.gradient.cos()
@@ -31,6 +31,9 @@ class StateNode:
     def Ft_calc(self):
         self.Ft = self.Fm - self.Fd - self.Frr - self.Fg - self.Fb
         self.acc = self.Ft / self.vehicle.car_mass
+
+    def Power_calc(self, initial_velocity: float = None):
+        self.Power = self.torque * self.vehicle.num_motors * initial_velocity / self.vehicle.wheel_radius
 
     def terminal_velocity(self, torque: float = 0, Fb: float = 0) -> None | float:
         self.torque = torque
@@ -58,6 +61,7 @@ class StateNode:
             * self.vehicle.wheel_radius
             / self.vehicle.num_motors
         )
+        self.Power_calc(velocity)
         self.Fm_calc()
         self.Ft_calc()
         return self
@@ -74,13 +78,14 @@ class DynamicNode(StateNode):
         self.velocity = velocity
         self.time = 0
         self.dist = 0
-        self.soc = 0
+        self.energy = self.vehicle.battery_capacity
 
         self.Fm_calc()
         self.Fd_calc(velocity)
         self.Frr_calc()
         self.Fg_calc()
         self.Ft_calc()
+        self.Power_calc(velocity)
 
 
     def solve_DynamicNode(self, initial_DynamicNode: DynamicNode):
@@ -89,6 +94,7 @@ class DynamicNode(StateNode):
         self.Frr_calc()
         self.Fg_calc()
         self.Ft_calc()
+        self.Power_calc(initial_DynamicNode.velocity)
         if abs(self.acc) < self.engine.MIN_ACCELERATION:
             return False
 
@@ -106,7 +112,7 @@ class DynamicNode(StateNode):
 
         self.time = initial_DynamicNode.time + self.dt
         self.dist = initial_DynamicNode.dist + initial_DynamicNode.velocity * self.dt + 0.5 * self.acc * self.dt ** 2
-        self.soc = 0
+        self.energy = initial_DynamicNode.energy - self.Power * self.dt
 
     def interpolate(self, next_node: DynamicNode, velocity : None | float = None , distance : None | float = None) -> DynamicNode:
         if distance is not None:
@@ -136,7 +142,7 @@ class DynamicNode(StateNode):
         result = copy(other_node)
         result.time += self.time
         result.dist += self.dist
-        result.soc += self.soc
+        result.energy += self.energy
         return result
 
     def subtract(self, other_node: DynamicNode) -> DynamicNode:
@@ -144,7 +150,7 @@ class DynamicNode(StateNode):
         result = copy(self)
         result.time -= other_node.time
         result.dist -= other_node.dist
-        result.soc -= other_node.soc
+        result.energy -= other_node.energy
         return result
 
     def __add__(self, other_node: DynamicNode) -> DynamicNode:
