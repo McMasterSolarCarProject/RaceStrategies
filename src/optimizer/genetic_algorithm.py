@@ -1,17 +1,44 @@
 import numpy as np
 from typing import Callable
+from ..config import Vehicle, constants, vehicle_default
+from ..models import Route
 
-MIN_SPEED=20., MAX_SPEED=100.
-L = np.array([1000.0, 500.0, 1500.0, 800.0, 1200.0])
-THETA = np.array([0.0, 0.05, -0.02, 0.04, 0.0])
-def objective(profile: list[float], A=0.002, B=1500., C=0.8, D=5000., T_TARGET=3000):
-    v = np.array(profile) / 3.6
-    energy_cost = np.sum(A * (v**3) + B * np.sin(C * v) * np.exp(THETA))
-    
-    total_time = np.sum(L / v)
-    time_penalty = D * max(0.0, total_time - T_TARGET) ** 2
-    
-    return float(energy_cost + time_penalty)
+MIN_SPEED=20
+MAX_SPEED=100
+
+def objective(
+		profile: list[float], route: Route, vehicle: Vehicle = vehicle_default,
+		target_time: float = 3000.0, time_penalty_weight: float = 5000.0,
+		speed_penalty_weight: float = 5000.0,
+	) -> float:
+	speeds = np.asarray(profile, dtype=float)/3.6
+	segments = route.segments
+
+	total_time = 0.0
+	energy_joules = 0.0
+	speed_violation = 0.0
+
+	for (speed, segment) in zip(speeds, segments):
+		grade_sin = segment.gradient.sin()
+		grade_cos = segment.gradient.cos()
+		segment_time = segment.dist/speed
+		total_time += segment.dist/segment.speed_limit
+		speed_violation += max(0.0, speed - segment.speed_limit * 3.6) ** 2
+		aerodynamic_force = (0.5*constants.air_density*vehicle.coef_drag
+		                     *vehicle.cross_section*(speed + segment.wind_speed)**2)
+		rolling_force = vehicle.coef_rr * vehicle.car_mass * constants.g * grade_cos
+		grade_force = vehicle.car_mass * constants.g * grade_sin
+		net_tractive_force = aerodynamic_force + rolling_force + grade_force
+
+		mechanical_work = net_tractive_force * segment.dist
+		recovered_energy = max(0.0, -mechanical_work) * vehicle.regen_eff
+		solar_energy = segment.ghi * vehicle.cell_area * segment_time
+		energy_joules += max(0.0, mechanical_work) + (
+			vehicle.passive_consumption*segment_time) - recovered_energy - solar_energy
+
+	time_penalty = time_penalty_weight * max(0.0, total_time - target_time) ** 2
+	speed_penalty = speed_penalty_weight * speed_violation
+	return float(energy_joules / 1000.0 + time_penalty + speed_penalty)
 
 def selection(pop: list[list[float]], scores: list[float], k: int=5):
 	# first random selection
