@@ -73,8 +73,9 @@ def mutation(profile, r_mut, scale=0.1):
                 min(MAX_SPEED, profile[i]),
             )
 
-def genetic_algorithm(objective: Callable, n_seg: int, n_iter: int, n_pop: int, 
+def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int, 
                       r_cross: float=0.9, r_mut: float=0.05, elite: int=2):
+	n_seg = len(route.segments)
 	# initial population of random bitstring
 	pop = [np.uniform(MIN_SPEED, MAX_SPEED, n_seg).tolist() for _ in range(n_pop)]
 	# keep track of best solution
@@ -82,7 +83,7 @@ def genetic_algorithm(objective: Callable, n_seg: int, n_iter: int, n_pop: int,
 	# enumerate generations
 	for gen in range(n_iter):
 		# evaluate all candidates in the population
-		scores = [objective(c) for c in pop]
+		scores = [objective(c, route) for c in pop]
 		# check for new best solution
 		for i in range(n_pop):
 			if scores[i] < best_eval:
