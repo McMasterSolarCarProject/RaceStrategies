@@ -143,49 +143,78 @@ if __name__=="__main__":
 	print(f"Route: {route.name}")
 	print(f"Best objective value: {best_score:.3f}")
 
-	distances_km = np.cumsum(
-		[segment.dist for segment in route.segments]
-	) / 1000.0
+	distance_edges_km = np.concatenate((
+		[0.0],
+		np.cumsum([segment.dist for segment in route.segments]) / 1000.0,
+	))
+	distances_km = (
+		distance_edges_km[:-1] + distance_edges_km[1:]
+	) / 2
 
 	speed_limits = [
 		segment.speed_limit * 3.6
 		for segment in route.segments
 	]
+	raw_profile = np.asarray(best_profile)
+	smoothing_window = min(21, len(raw_profile))
+	if smoothing_window % 2 == 0:
+		smoothing_window -= 1
+	padding = smoothing_window // 2
+	smoothed_profile = np.median(
+		np.pad(raw_profile, padding, mode="edge")
+		.reshape(-1, smoothing_window),
+		axis=1,
+	)
 
 	figure, axes = plt.subplots(
 		2,
 		1,
-		figsize=(12, 8),
+		figsize=(14, 8),
 		constrained_layout=True,
 	)
+	figure.patch.set_facecolor("#f7f8fa")
 
 	axes[0].plot(
 		distances_km,
-		best_profile,
-		label="Optimized speed",
-		linewidth=2,
+		raw_profile,
+		color="#4c78a8",
+		alpha=0.18,
+		linewidth=0.8,
+		label="Raw optimized speed",
 	)
 	axes[0].plot(
 		distances_km,
+		smoothed_profile,
+		color="#1f4e79",
+		linewidth=2.5,
+		label="Smoothed strategy",
+	)
+	axes[0].stairs(
 		speed_limits,
-		"--",
+		distance_edges_km,
+		color="#e4572e",
+		linewidth=2,
+		linestyle="--",
 		label="Speed limit",
 	)
-	axes[0].set_title("Optimized Speed Profile")
+	axes[0].set_title("Optimized Speed Profile", loc="left", weight="bold")
 	axes[0].set_xlabel("Distance (km)")
 	axes[0].set_ylabel("Speed (km/h)")
-	axes[0].grid(True)
-	axes[0].legend()
+	axes[0].set_ylim(MIN_SPEED - 5, max(MAX_SPEED + 5, max(speed_limits) + 5))
+	axes[0].grid(True, alpha=0.25)
+	axes[0].legend(frameon=False, ncol=3, loc="upper right")
 
 	axes[1].plot(
 		range(1, len(history) + 1),
 		history,
-		color="tab:green",
+		color="#59a14f",
+		linewidth=2,
 	)
-	axes[1].set_title("Genetic Algorithm Convergence")
+	axes[1].set_title("Genetic Algorithm Convergence", loc="left", weight="bold")
 	axes[1].set_xlabel("Generation")
 	axes[1].set_ylabel("Best objective value")
-	axes[1].grid(True)
+	axes[1].set_yscale("log")
+	axes[1].grid(True, which="both", alpha=0.25)
 
-	figure.suptitle("Race Strategy Optimization")
+	figure.suptitle("Race Strategy Optimization", fontsize=18, weight="bold")
 	plt.show()
