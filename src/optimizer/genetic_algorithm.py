@@ -22,8 +22,8 @@ def objective(
 		grade_sin = segment.gradient.sin()
 		grade_cos = segment.gradient.cos()
 		segment_time = segment.dist/speed
-		total_time += segment.dist/segment.speed_limit
-		speed_violation += max(0.0, speed - segment.speed_limit * 3.6) ** 2
+		total_time += segment_time
+		speed_violation += max(0.0, speed - segment.speed_limit) ** 2
 		aerodynamic_force = (0.5*constants.air_density*vehicle.coef_drag
 		                     *vehicle.cross_section*(speed + segment.wind_speed)**2)
 		rolling_force = vehicle.coef_rr * vehicle.car_mass * constants.g * grade_cos
@@ -40,22 +40,23 @@ def objective(
 	speed_penalty = speed_penalty_weight * speed_violation
 	return float(energy_joules / 1000.0 + time_penalty + speed_penalty)
 
-def selection(pop: list[list[float]], scores: list[float], k: int=5):
-	# first random selection
-	selection_ix = np.randint(len(pop))
-	for ix in np.randint(0, len(pop), k-1):
-		# check if better (e.g. perform a tournament)
-		if scores[ix] < scores[selection_ix]:
-			selection_ix = ix
-	return pop[selection_ix]
+def selection(pop: list[list[float]], scores: list[float],
+    tournament_size: int = 5,) -> list[float]:
+    indices = np.random.randint(
+        0,
+        len(pop),
+        size=min(tournament_size, len(pop)),
+    )
+    winner = min(indices, key=lambda index: scores[index])
+    return pop[int(winner)]
 
 def crossover(p1: list[float], p2: list[float], r_cross: float):
 	# children are copies of parents by default
 	c1, c2 = p1.copy(), p2.copy()
 	# check for recombination
-	if np.rand() < r_cross:
+	if np.random.random() < r_cross:
 		# select crossover point that is not on the end of the string
-		pt = np.randint(1, len(p1)-2)
+		pt = np.random.randint(1, len(p1)-1)
 		# perform crossover
 		c1 = p1[:pt] + p2[pt:]
 		c2 = p2[:pt] + p1[pt:]
@@ -64,10 +65,11 @@ def crossover(p1: list[float], p2: list[float], r_cross: float):
 def mutation(profile, r_mut, scale=0.1):
 	for i in range(len(profile)):
 		# check for a mutation
-		if np.rand() < r_mut:
+		if np.random.random() < r_mut:
 			# change speed
 			speed_range = min(profile[i] - MIN_SPEED, MAX_SPEED - profile[i])
-			profile[i] += np.normal(0, scale*speed_range)
+			if speed_range > 0:
+				profile[i] += np.random.normal(0, scale*speed_range)
 			profile[i] = max(
                 MIN_SPEED,
                 min(MAX_SPEED, profile[i]),
@@ -77,9 +79,10 @@ def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int
                       r_cross: float=0.9, r_mut: float=0.05, elite: int=2):
 	n_seg = len(route.segments)
 	# initial population of random bitstring
-	pop = [np.uniform(MIN_SPEED, MAX_SPEED, n_seg).tolist() for _ in range(n_pop)]
+	pop = [np.random.uniform(MIN_SPEED, MAX_SPEED, n_seg).tolist() for _ in range(n_pop)]
 	# keep track of best solution
-	best, best_eval = 0, objective(pop[0])
+	best, best_eval = pop[0].copy(), objective(pop[0], route)
+	history = []
 	# enumerate generations
 	for gen in range(n_iter):
 		# evaluate all candidates in the population
@@ -89,6 +92,7 @@ def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int
 			if scores[i] < best_eval:
 				best, best_eval = pop[i], scores[i]
 				print(f">{gen:d}, new best f({[round(x, 2) for x in pop[i][:3]]}) = {scores[i]:.3f}")
+		history.append(best_eval)
 		# elitism
 		sorted_indices = np.argsort(scores)
 		children = []
@@ -101,7 +105,7 @@ def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int
 			if len(children) >= n_pop:
 				break
 			# get selected parents in pairs
-			p1, p2 = selected[i], selected[i+1]
+			p1, p2 = selected[i], selected[(i + 1) % n_pop]
 			# crossover and mutation
 			for c in crossover(p1, p2, r_cross):
 				# mutation
@@ -111,4 +115,77 @@ def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int
 				children.append(c_mut)
 		# replace population
 		pop = children
-	return [best, best_eval]
+	return [best, best_eval, history]
+
+
+if __name__=="__main__":
+	import matplotlib.pyplot as plt
+	from src.database.route_table import RouteTable
+
+	DB_PATH = "ASC_2024.sqlite"
+	ROUTE_NAME = "A. Independence to Topeka"
+
+
+	route = RouteTable.fetch_route(
+		placemark_name=ROUTE_NAME,
+		db_path=DB_PATH,
+	)
+
+	best_profile, best_score, history = genetic_algorithm(
+		objective=objective,
+		route=route,
+		n_iter=300,
+		n_pop=100,
+		r_cross=0.9,
+		r_mut=0.05,
+	)
+
+	print(f"Route: {route.name}")
+	print(f"Best objective value: {best_score:.3f}")
+
+	distances_km = np.cumsum(
+		[segment.dist for segment in route.segments]
+	) / 1000.0
+
+	speed_limits = [
+		segment.speed_limit * 3.6
+		for segment in route.segments
+	]
+
+	figure, axes = plt.subplots(
+		2,
+		1,
+		figsize=(12, 8),
+		constrained_layout=True,
+	)
+
+	axes[0].plot(
+		distances_km,
+		best_profile,
+		label="Optimized speed",
+		linewidth=2,
+	)
+	axes[0].plot(
+		distances_km,
+		speed_limits,
+		"--",
+		label="Speed limit",
+	)
+	axes[0].set_title("Optimized Speed Profile")
+	axes[0].set_xlabel("Distance (km)")
+	axes[0].set_ylabel("Speed (km/h)")
+	axes[0].grid(True)
+	axes[0].legend()
+
+	axes[1].plot(
+		range(1, len(history) + 1),
+		history,
+		color="tab:green",
+	)
+	axes[1].set_title("Genetic Algorithm Convergence")
+	axes[1].set_xlabel("Generation")
+	axes[1].set_ylabel("Best objective value")
+	axes[1].grid(True)
+
+	figure.suptitle("Race Strategy Optimization")
+	plt.show()
