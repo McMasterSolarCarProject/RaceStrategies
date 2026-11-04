@@ -160,11 +160,11 @@ if __name__=="__main__":
 	if smoothing_window % 2 == 0:
 		smoothing_window -= 1
 	padding = smoothing_window // 2
-	smoothed_profile = np.median(
-		np.pad(raw_profile, padding, mode="edge")
-		.reshape(-1, smoothing_window),
-		axis=1,
-	)
+	padded_profile = np.pad(raw_profile, padding, mode="edge")
+	smoothed_profile = np.array([
+		np.median(padded_profile[index:index + smoothing_window])
+		for index in range(len(raw_profile))
+	])
 
 	figure, axes = plt.subplots(
 		2,
