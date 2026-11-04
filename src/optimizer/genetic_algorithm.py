@@ -176,18 +176,10 @@ if __name__=="__main__":
 
 	axes[0].plot(
 		distances_km,
-		raw_profile,
-		color="#4c78a8",
-		alpha=0.18,
-		linewidth=0.8,
-		label="Raw optimized speed",
-	)
-	axes[0].plot(
-		distances_km,
 		smoothed_profile,
 		color="#1f4e79",
 		linewidth=2.5,
-		label="Smoothed strategy",
+		label="Optimized speed",
 	)
 	axes[0].stairs(
 		speed_limits,
