@@ -6,6 +6,12 @@ from ..models import Route
 MIN_SPEED=20
 MAX_SPEED=100
 
+def speed_limits_kmph(route: Route) -> np.ndarray:
+	return np.asarray(
+		[segment.speed_limit * 3.6 for segment in route.segments],
+		dtype=float,
+	)
+
 def objective(
 		profile: list[float], route: Route, vehicle: Vehicle = vehicle_default,
 		target_time: float = 3000.0, time_penalty_weight: float = 5000.0,
@@ -13,6 +19,13 @@ def objective(
 	) -> float:
 	speeds = np.asarray(profile, dtype=float)/3.6
 	segments = route.segments
+	limits = np.asarray(
+		[segment.speed_limit for segment in segments],
+		dtype=float,
+	)
+
+	if np.any(speeds <= 0) or np.any(speeds > limits):
+		return float("inf")
 
 	total_time = 0.0
 	energy_joules = 0.0
@@ -62,24 +75,34 @@ def crossover(p1: list[float], p2: list[float], r_cross: float):
 		c2 = p2[:pt] + p1[pt:]
 	return [c1, c2]
 
-def mutation(profile, r_mut, scale=0.1):
+def mutation(profile, r_mut, max_speeds=None, scale=0.1):
 	for i in range(len(profile)):
+		max_speed = MAX_SPEED if max_speeds is None else max_speeds[i]
 		# check for a mutation
 		if np.random.random() < r_mut:
 			# change speed
-			speed_range = min(profile[i] - MIN_SPEED, MAX_SPEED - profile[i])
+			speed_range = min(profile[i] - MIN_SPEED, max_speed - profile[i])
 			if speed_range > 0:
 				profile[i] += np.random.normal(0, scale*speed_range)
 			profile[i] = max(
                 MIN_SPEED,
-                min(MAX_SPEED, profile[i]),
+                min(max_speed, profile[i]),
             )
+		else:
+			profile[i] = min(max_speed, profile[i])
 
 def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int, 
                       r_cross: float=0.9, r_mut: float=0.05, elite: int=2):
 	n_seg = len(route.segments)
+	max_speeds = np.minimum(MAX_SPEED, speed_limits_kmph(route))
+	if np.any(max_speeds <= 0):
+		raise ValueError("Every route segment must have a positive speed limit")
+	min_speeds = np.minimum(MIN_SPEED, max_speeds)
 	# initial population of random bitstring
-	pop = [np.random.uniform(MIN_SPEED, MAX_SPEED, n_seg).tolist() for _ in range(n_pop)]
+	pop = [
+		np.random.uniform(min_speeds, max_speeds).tolist()
+		for _ in range(n_pop)
+	]
 	# keep track of best solution
 	best, best_eval = pop[0].copy(), objective(pop[0], route)
 	history = []
@@ -110,7 +133,7 @@ def genetic_algorithm(objective: Callable, route: Route, n_iter: int, n_pop: int
 			for c in crossover(p1, p2, r_cross):
 				# mutation
 				c_mut = c.copy()
-				mutation(c_mut, r_mut)
+				mutation(c_mut, r_mut, max_speeds=max_speeds)
 				# store for next generation
 				children.append(c_mut)
 		# replace population
@@ -134,7 +157,7 @@ if __name__=="__main__":
 	best_profile, best_score, history = genetic_algorithm(
 		objective=objective,
 		route=route,
-		n_iter=300,
+		n_iter=2000,
 		n_pop=100,
 		r_cross=0.9,
 		r_mut=0.05,
@@ -165,6 +188,7 @@ if __name__=="__main__":
 		np.median(padded_profile[index:index + smoothing_window])
 		for index in range(len(raw_profile))
 	])
+	smoothed_profile = np.minimum(smoothed_profile, speed_limits)
 
 	figure, axes = plt.subplots(
 		2,
