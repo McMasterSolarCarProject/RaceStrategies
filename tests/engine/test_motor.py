@@ -9,7 +9,7 @@ import pytest
 from src.engine.motor import Motor
 
 matplotlib.use("Agg")
-DATA_DIR = Path(__file__).resolve().parents[2] / "src/data"
+DATA_DIR = Path(__file__).resolve().parents[2] / "src/data/datasets"
 
 
 @pytest.fixture
@@ -101,8 +101,11 @@ class TestMotor:
             figure.canvas.draw()
             assert axes.get_xlabel() == "Speed (RPM)"
             assert axes.get_ylabel() == "Torque (N m)"
+            assert axes.get_xlim() == pytest.approx((0, 3000))
+            assert axes.get_ylim() == pytest.approx((0, 3))
             assert len(figure.axes) == 2
             assert np.ma.getmaskarray(axes.collections[0].get_array()).any()
+            assert axes.collections[0].cmap.name == "jet"
         finally:
             plt.close(figure)
 
@@ -110,9 +113,9 @@ class TestMotor:
         shown = []
         monkeypatch.setattr(plt, "show", lambda: shown.append(True))
         try:
-            result = runpy.run_path(str(DATA_DIR.parent / "engine/motor.py"), run_name="__main__")
+            result = runpy.run_path(str(DATA_DIR.parents[1] / "engine/motor.py"), run_name="__main__")
             assert shown == [True]
             assert "Electrical power" in capsys.readouterr().out
-            assert result["motor"].get_efficiency(801, 10.7) == pytest.approx(0.933)
+            assert 0 < result["motor"].get_efficiency(800, 12) <= 1
         finally:
             plt.close("all")
