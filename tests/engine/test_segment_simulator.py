@@ -3,6 +3,8 @@ import math
 import pytest
 
 from src.engine.dynamic_profile import DynamicProfile
+from src.engine.segment_simulator import SegmentSimulator
+from src.models import Segment, Vec, coordinate_from_displacement
 from tests.engine.plotting import plot_dynamic_nodes, plot_efficiency_vs_speed
 
 
@@ -109,6 +111,49 @@ def test_segment_simulator_cruise_resistive_forces(sample_segment_simulator):
 
     assert len(axis.lines) == 4
     assert all(len(line.get_xdata()) == len(profile) for line in axis.lines)
+
+
+@pytest.mark.graph
+def test_cruise_torque_for_uphill_segments(sample_segment_simulator):
+    first_segment = Segment(
+        sample_segment_simulator.segment.p1,
+        coordinate_from_displacement(
+            sample_segment_simulator.segment.p1,
+            Vec(100, 0),
+            elevation_change=10,
+        ),
+    )
+    second_segment = Segment(
+        first_segment.p2,
+        coordinate_from_displacement(
+            first_segment.p2,
+            Vec(100, 0),
+            elevation_change=12,
+        ),
+    )
+
+    first_profile = SegmentSimulator(
+        sample_segment_simulator.vehicle,
+        sample_segment_simulator.engine,
+        first_segment,
+    ).simulate_cruise()
+    second_profile = SegmentSimulator(
+        sample_segment_simulator.vehicle,
+        sample_segment_simulator.engine,
+        second_segment,
+    ).simulate_cruise()
+
+    figure, axis = plot_dynamic_nodes(
+        {"10% uphill": first_profile, "12% uphill": second_profile},
+        x_parameter="velocity",
+        y_parameters=("torque",),
+        title="Cruise Torque on Uphill Segments",
+    )
+
+    assert len(axis.lines) == 2
+    assert first_profile[0].torque < second_profile[0].torque
+    assert all(first_profile[index].acc == pytest.approx(0) for index in range(len(first_profile)))
+    assert all(second_profile[index].acc == pytest.approx(0) for index in range(len(second_profile)))
 
 
 @pytest.mark.graph

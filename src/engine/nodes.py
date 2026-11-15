@@ -33,7 +33,7 @@ class StateNode:
         self.acc = self.Ft / self.vehicle.car_mass
 
     def Power_calc(self, initial_velocity: float = None):
-        self.Power = self.torque * self.vehicle.num_motors * initial_velocity / self.vehicle.wheel_radius
+        self.power = self.torque * self.vehicle.num_motors * initial_velocity / self.vehicle.wheel_radius
 
     def terminal_velocity(self, torque: float = 0, Fb: float = 0) -> None | float:
         self.torque = torque
@@ -112,7 +112,7 @@ class DynamicNode(StateNode):
 
         self.time = initial_DynamicNode.time + self.dt
         self.dist = initial_DynamicNode.dist + initial_DynamicNode.velocity * self.dt + 0.5 * self.acc * self.dt ** 2
-        self.energy = initial_DynamicNode.energy - self.Power * self.dt
+        self.energy = initial_DynamicNode.energy - self.power* self.dt
 
     def interpolate(self, next_node: DynamicNode, velocity : None | float = None , distance : None | float = None) -> DynamicNode:
         if distance is not None:

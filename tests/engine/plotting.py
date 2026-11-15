@@ -79,7 +79,7 @@ def plot_efficiency_vs_speed(
         node.Power_calc(node.velocity)
         velocities.append(node.velocity)
         efficiencies.append(
-            node.Power / node.velocity if not math.isclose(node.velocity, 0) else math.nan
+            node.power / node.velocity if not math.isclose(node.velocity, 0) else math.nan
         )
 
     figure, axis = plt.subplots()
